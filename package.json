@@ -1,0 +1,61 @@
+{
+  "name": "stock-cmp",
+  "version": "1.0.0",
+  "private": true,
+  "author": "Pablo Casas López Mestre",
+  "description": "STOCK-CMP — Comparador de acciones y simulador de portafolio",
+  "main": "electron/main.js",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "start": "wrangler dev",
+    "frontend": "vite",
+    "test": "vitest",
+    "electron": "electron .",
+    "build:frontend": "vite build --config vite.config.js",
+    "dist": "npm run build:frontend && electron-builder --mac --universal"
+  },
+  "build": {
+    "appId": "com.pablocasas.stockcmp",
+    "productName": "STOCK-CMP",
+    "copyright": "Copyright © 2026 Pablo Casas López Mestre",
+    "artifactName": "STCK-CMP-V1.dmg",
+    "mac": {
+      "category": "public.app-category.finance",
+      "target": "dmg",
+      "icon": "build/icon.icns"
+    },
+    "files": [
+      "electron/**/*",
+      "src/**/*",
+      "frontend/**/*",
+      "node_modules/**/*",
+      "package.json",
+      "wrangler.jsonc",
+      "vite.config.js"
+    ],
+    "extraResources": [
+      { "from": "dist", "to": "app_dist", "filter": ["index.html", "assets/**"] },
+      { "from": "src", "to": "src" },
+      { "from": "wrangler.jsonc", "to": "wrangler.jsonc" }
+    ]
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.12.4",
+    "@vitejs/plugin-react": "^4.7.0",
+    "concurrently": "^9.2.1",
+    "electron": "^41.2.0",
+    "electron-builder": "^26.8.1",
+    "fast-check": "^4.6.0",
+    "vitest": "~3.2.0",
+    "wait-on": "^9.0.4",
+    "wrangler": "^4.81.0"
+  },
+  "dependencies": {
+    "lucide-react": "^1.7.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "react-is": "^19.2.5",
+    "recharts": "^3.8.1"
+  }
+}
