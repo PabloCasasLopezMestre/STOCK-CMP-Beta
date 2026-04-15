@@ -113,7 +113,10 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
   const exchangeRate = rates?.MXN ?? 20.5;
   const exchangeRateEUR = rates?.EUR ?? 0.92;
   const [sectors, setSectors] = useState(loadSectors);
-  const [selectedSector, setSelectedSector] = useState(() => Object.keys(loadSectors())[0]);
+  const [selectedSectors, setSelectedSectors] = useState(() => {
+    const keys = Object.keys(loadSectors());
+    return new Set([keys[0]]);
+  });
   const [selectedStocks, setSelectedStocks] = useState(() => {
     const s = loadSectors();
     const first = Object.keys(s)[0];
@@ -513,8 +516,15 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
   }
 
   function handleSectorChange(key) {
-    setSelectedSector(key);
-    setSelectedStocks(sectors[key].stocks.slice(0, 2).map((s) => s.symbol));
+    setSelectedSectors(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        if (next.size > 1) next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
     setEditingSector(null);
   }
 
@@ -541,7 +551,12 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
     delete next[key];
     updateSectors(next);
     const firstKey = Object.keys(next)[0];
-    setSelectedSector(firstKey);
+    setSelectedSectors(prev => {
+      const s = new Set(prev);
+      s.delete(key);
+      if (s.size === 0) s.add(firstKey);
+      return s;
+    });
     setSelectedStocks(next[firstKey].stocks.slice(0, 2).map((s) => s.symbol));
   }
 
@@ -564,7 +579,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
       [key]: { ...sectors[key], stocks: sectors[key].stocks.filter((s) => s.symbol !== symbol) },
     };
     updateSectors(next);
-    if (selectedSector === key) {
+    if (selectedSectors.has(key)) {
       setSelectedStocks((prev) => prev.filter((s) => s !== symbol).length ? prev.filter((s) => s !== symbol) : [next[key].stocks[0].symbol]);
     }
   }
@@ -586,7 +601,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
     setAddingSector(false);
     setNewSectorName('');
     setNewSectorSymbols('');
-    setSelectedSector(key);
+    setSelectedSectors(new Set([key]));
     setSelectedStocks(symbols.slice(0, 2));
   }
 
@@ -802,7 +817,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
                   <button
                     onClick={() => handleSectorChange(key)}
                     className={`w-full p-3 rounded-lg font-medium transition-all text-left ${
-                      selectedSector === key ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      selectedSectors.has(key) ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                     }`}
                   >
                     <div className="font-bold text-sm">{sector.name}</div>
@@ -836,7 +851,9 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 mb-4 border border-slate-700">
           <h3 className="text-white font-semibold mb-3">{t('label_companies', lang)} ({selectedStocks.length}/8)</h3>
           <div className="flex flex-wrap gap-2">
-            {sectors[selectedSector]?.stocks.map((stock) => (
+            {[...new Map(
+              [...selectedSectors].flatMap(key => (sectors[key]?.stocks || []).map(s => [s.symbol, s]))
+            ).values()].map((stock) => (
               <button
                 key={stock.symbol}
                 onClick={() => toggleStock(stock.symbol)}
@@ -875,7 +892,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
             {selectedStocks.map((symbol, i) => {
               const info = stats[symbol];
               if (!info) return null;
-              const name = sectors[selectedSector]?.stocks.find((s) => s.symbol === symbol)?.name || symbol;
+              const name = [...selectedSectors].flatMap(k => sectors[k]?.stocks || []).find((s) => s.symbol === symbol)?.name || symbol;
               return (
                 <div key={symbol} className="bg-slate-800/70 rounded-lg p-4 border border-slate-700 hover:border-slate-600 transition-colors">
                   <div className="flex items-center justify-between mb-3">
@@ -1106,7 +1123,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
                 <Legend wrapperStyle={{ color: '#e2e8f0' }} />
                 {selectedStocks.map((symbol, i) => {
                   if (!stats?.[symbol]) return null;
-                  const name = sectors[selectedSector]?.stocks.find((s) => s.symbol === symbol)?.name;
+                  const name = [...selectedSectors].flatMap(k => sectors[k]?.stocks || []).find((s) => s.symbol === symbol)?.name;
                   return (
                     <Line
                       key={symbol}
