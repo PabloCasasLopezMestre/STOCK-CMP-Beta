@@ -173,6 +173,7 @@ function App() {
     fundamentals: true, technicalIndicators: true, patternRecognition: true,
     backtesting: true, comparativeAnalysis: true, comparatorNews: true,
     bankAccounts: true, portfolioNews: true, transactionHistory: true, positions: true,
+    portfolioChart: true,
   };
   const [enabledFeatures, setEnabledFeatures] = useState(() => {
     try {

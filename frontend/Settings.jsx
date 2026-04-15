@@ -119,6 +119,7 @@ export default function Settings({
               fundamentals: true, technicalIndicators: true, patternRecognition: true,
               backtesting: true, comparativeAnalysis: true, comparatorNews: true,
               bankAccounts: true, portfolioNews: true, transactionHistory: true, positions: true,
+              portfolioChart: true,
             });
             try {
               localStorage.setItem('lang', 'es');
@@ -290,6 +291,7 @@ export default function Settings({
           {
             group: lang === 'es' ? 'Portafolio' : 'Portfolio',
             items: [
+              { key: 'portfolioChart',     label: lang === 'es' ? 'Gráfica de valor total' : 'Total value chart' },
               { key: 'positions',          label: lang === 'es' ? 'Posiciones' : 'Positions' },
               { key: 'transactionHistory', label: lang === 'es' ? 'Historial de transacciones' : 'Transaction history' },
               { key: 'bankAccounts',       label: lang === 'es' ? 'Cuentas de banco' : 'Bank accounts' },

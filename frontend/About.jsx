@@ -34,7 +34,7 @@ export default function About({ lang = 'es' }) {
 
   const tabLabels = {
     diccionario: s('Diccionario', 'Dictionary'),
-    funcionamiento: s('Funcionamiento', 'How It Works'),
+    funcionamiento: s('¿Cómo usar?', 'How to use?'),
     funciones: s('Funciones', 'Features'),
     codigos: s('Códigos', 'Symbol Codes'),
     nosotros: s('Nosotros', 'About Us'),
@@ -525,7 +525,7 @@ export default function About({ lang = 'es' }) {
                 <li>{s('Ajusta la zona horaria para que los datos intradía se muestren en tu hora local.', 'Adjust the time zone so intraday data is shown in your local time.')}</li>
                 <li>{s('Configura tu perfil de comunidad: handle, nombre, bio, avatar y país.', 'Configure your community profile: handle, name, bio, avatar, and country.')}</li>
                 <li>{s('Usa el slider de "Máximo de acciones simultáneas" para elegir cuántas acciones puedes tener seleccionadas a la vez en el Comparador (rango: 4–20).', 'Use the "Maximum simultaneous stocks" slider to choose how many stocks you can have selected at once in the Comparator (range: 4–20).')}</li>
-                <li>{s('En "Funciones visibles" puedes activar o desactivar secciones completas de la app (datos fundamentales, indicadores técnicos, patrones, backtesting, análisis comparativo, noticias, posiciones, historial, cuentas bancarias). Las secciones desactivadas desaparecen completamente — los datos nunca se borran.', 'In "Visible features" you can enable or disable entire sections of the app (fundamental data, technical indicators, patterns, backtesting, comparative analysis, news, positions, history, bank accounts). Disabled sections disappear completely — data is never deleted.')}</li>
+                <li>{s('En "Funciones visibles" puedes activar o desactivar secciones completas de la app (datos fundamentales, indicadores técnicos, patrones, backtesting, análisis comparativo, noticias, posiciones, historial, cuentas bancarias, gráfica de valor total). Las secciones desactivadas desaparecen completamente — los datos nunca se borran.', 'In "Visible features" you can enable or disable entire sections of the app (fundamental data, technical indicators, patterns, backtesting, comparative analysis, news, positions, history, bank accounts, total value chart). Disabled sections disappear completely — data is never deleted.')}</li>
                 <li>{s('Usa "Restablecer valores predeterminados" para volver al idioma español, monedas USD/MXN/EUR, zona horaria NYSE y máximo de 8 acciones.', 'Use "Reset to Defaults" to return to Spanish, USD/MXN/EUR currencies, NYSE time zone, and 8 max stocks.')}</li>
               </ol>
             </div>
@@ -613,7 +613,7 @@ export default function About({ lang = 'es' }) {
                 s('Rotación de monedas: USD, MXN, EUR y más de 20 monedas', 'Currency rotation: USD, MXN, EUR and 20+ currencies'),
                 s('Zona horaria personalizable', 'Customizable time zone'),
                 s('Máximo de acciones simultáneas: slider de 4 a 20 acciones', 'Maximum simultaneous stocks: slider from 4 to 20'),
-                s('Funciones visibles: activa/desactiva datos fundamentales, indicadores técnicos, patrones, backtesting, análisis comparativo, noticias (comparador), posiciones, historial de transacciones, cuentas bancarias, noticias (portafolio)', 'Visible features: enable/disable fundamental data, technical indicators, patterns, backtesting, comparative analysis, news (comparator), positions, transaction history, bank accounts, news (portfolio)'),
+                s('Funciones visibles: activa/desactiva datos fundamentales, indicadores técnicos, patrones, backtesting, análisis comparativo, noticias (comparador), posiciones, historial de transacciones, cuentas bancarias, noticias (portafolio), gráfica de valor total', 'Visible features: enable/disable fundamental data, technical indicators, patterns, backtesting, comparative analysis, news (comparator), positions, transaction history, bank accounts, news (portfolio), total value chart'),
                 s('Perfil de comunidad: handle, nombre, bio, avatar, país', 'Community profile: handle, name, bio, avatar, country'),
                 s('Restablecer valores predeterminados', 'Reset to defaults'),
                 s('Inicio de sesión con email y contraseña', 'Email and password sign in'),

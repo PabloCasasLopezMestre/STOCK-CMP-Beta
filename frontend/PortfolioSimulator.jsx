@@ -991,7 +991,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
       )}
 
       {/* Portfolio Total Value Chart */}
-      {portfolio.transactions.length > 0 && (() => {
+      {enabledFeatures.portfolioChart !== false && portfolio.transactions.length > 0 && (() => {
         let cash = 0;
         let costBasis = {};
         const allPoints = [];
