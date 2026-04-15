@@ -45,7 +45,7 @@ export default function TickerBar({ selectedStocks = [], currency = 'USD', rates
   if (tickers.length === 0) return null;
 
   return (
-    <div className="sticky top-[52px] z-40 bg-slate-900/95 backdrop-blur border-b border-slate-700/50 overflow-hidden">
+    <div className="bg-slate-900/95 border-b border-slate-700/50 overflow-hidden">
       <div className="flex items-center gap-0 overflow-x-auto scrollbar-none">
         {tickers.map(({ sym, current, change, changePct }) => {
           const isUp = change >= 0;

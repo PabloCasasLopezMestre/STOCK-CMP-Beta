@@ -710,6 +710,11 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
             <AlertCircle className="text-red-400 mt-1 flex-shrink-0" size={20} />
             <div>
               <p className="text-red-300">{error}</p>
+              <p className="text-slate-400 text-xs mt-1">
+                {lang === 'es'
+                  ? 'Si el símbolo no aparece, revisa el manual de códigos en Acerca → Códigos.'
+                  : 'If the symbol does not appear, check the symbol guide in About → Symbol Codes.'}
+              </p>
               <button onClick={fetchStockData} className="mt-2 text-sm bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg">
                 Reintentar
               </button>

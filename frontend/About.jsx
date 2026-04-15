@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const TABS = ['diccionario', 'funcionamiento', 'nosotros'];
+const TABS = ['diccionario', 'funcionamiento', 'funciones', 'codigos', 'nosotros'];
 
 function Section({ title, children, query }) {
   const filtered = React.Children.toArray(children).filter(child => {
@@ -35,6 +35,8 @@ export default function About({ lang = 'es' }) {
   const tabLabels = {
     diccionario: s('Diccionario', 'Dictionary'),
     funcionamiento: s('Funcionamiento', 'How It Works'),
+    funciones: s('Funciones', 'Features'),
+    codigos: s('Códigos', 'Symbol Codes'),
     nosotros: s('Nosotros', 'About Us'),
   };
 
@@ -540,6 +542,206 @@ export default function About({ lang = 'es' }) {
               </div>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ── FUNCIONES ── */}
+      {activeTab === 'funciones' && (
+        <div className="max-w-3xl">
+          <h1 className="text-3xl font-bold text-white mb-2">{s('Funciones de STCK-CMP', 'STCK-CMP Features')}</h1>
+          <p className="text-slate-400 mb-8">{s('Lista completa de todas las funciones disponibles en la plataforma.', 'Complete list of all features available on the platform.')}</p>
+          <div className="space-y-4">
+            {[
+              { title: s('Comparador de acciones', 'Stock Comparator'), items: [
+                s('Gráfica de precios históricos con múltiples acciones simultáneas', 'Historical price chart with multiple stocks simultaneously'),
+                s('Rangos de tiempo: 1h, 6h, 24h, 1 semana, 1 mes, 3 meses, 6 meses, 1-15 años', 'Time ranges: 1h, 6h, 24h, 1 week, 1 month, 3 months, 6 months, 1-15 years'),
+                s('Datos fundamentales: P/E, EPS, Beta, Div. Yield, capitalización, etc.', 'Fundamental data: P/E, EPS, Beta, Div. Yield, market cap, etc.'),
+                s('Análisis comparativo: volatilidad, Range %, vs Average, RSI Signal', 'Comparative analysis: volatility, Range %, vs Average, RSI Signal'),
+                s('Noticias financieras por acción con filtro de tiempo', 'Financial news per stock with time filter'),
+                s('Sectores personalizables con acciones editables', 'Customizable sectors with editable stocks'),
+                s('Banda de precios en tiempo real (ticker bar)', 'Real-time price ticker bar'),
+              ]},
+              { title: s('Indicadores Técnicos', 'Technical Indicators'), items: [
+                s('RSI (Relative Strength Index, 14 períodos)', 'RSI (Relative Strength Index, 14 periods)'),
+                s('MACD (Moving Average Convergence Divergence)', 'MACD (Moving Average Convergence Divergence)'),
+                s('Bandas de Bollinger (20 períodos, 2 desviaciones estándar)', 'Bollinger Bands (20 periods, 2 standard deviations)'),
+                s('Estocástico (%K y %D, 14 períodos)', 'Stochastic (%K and %D, 14 periods)'),
+                s('Múltiples acciones simultáneas en cada indicador', 'Multiple stocks simultaneously in each indicator'),
+              ]},
+              { title: s('Reconocimiento de Patrones', 'Pattern Recognition'), items: [
+                s('Detección automática: Doble Techo, Doble Suelo, Cabeza y Hombros, Cabeza y Hombros Invertido, Cuña Alcista, Cuña Bajista', 'Automatic detection: Double Top, Double Bottom, Head and Shoulders, Inverse H&S, Rising Wedge, Falling Wedge'),
+                s('Confiabilidad del patrón (0-100%)', 'Pattern reliability (0-100%)'),
+                s('Precio objetivo y stop loss sugerido', 'Target price and suggested stop loss'),
+                s('Botones de alerta preconfigurada para objetivo y stop loss', 'Pre-configured alert buttons for target and stop loss'),
+                s('Múltiples acciones simultáneas', 'Multiple stocks simultaneously'),
+              ]},
+              { title: s('Backtesting de Estrategias', 'Strategy Backtesting'), items: [
+                s('Estrategias: RSI Sobrevendido/Sobrecomprado, Cruce MACD, Cruce EMA 20/50, Buy & Hold', 'Strategies: RSI Oversold/Overbought, MACD Crossover, EMA 20/50 Crossover, Buy & Hold'),
+                s('Métricas: retorno total, win rate, max drawdown, PnL promedio', 'Metrics: total return, win rate, max drawdown, avg PnL'),
+                s('Capital inicial en la moneda seleccionada', 'Initial capital in selected currency'),
+                s('Múltiples acciones simultáneas', 'Multiple stocks simultaneously'),
+              ]},
+              { title: s('Portafolio Simulado', 'Simulated Portfolio'), items: [
+                s('Depósito y retiro de efectivo virtual', 'Virtual cash deposit and withdrawal'),
+                s('Compra y venta de acciones con precio automático de Yahoo Finance', 'Buy and sell stocks with automatic Yahoo Finance price'),
+                s('Registro de dividendos', 'Dividend recording'),
+                s('Auto-fill de datos de dividendo desde Yahoo Finance', 'Dividend data auto-fill from Yahoo Finance'),
+                s('Gráfica de evolución del portafolio', 'Portfolio evolution chart'),
+                s('Gráfica de valor total histórico', 'Historical total value chart'),
+                s('Resumen: valor total, efectivo, inversiones, retorno total', 'Summary: total value, cash, investments, total return'),
+                s('Posiciones con costo promedio, G/P vs compra, G/P en período', 'Positions with average cost, G/L vs purchase, G/L in period'),
+                s('Historial de transacciones', 'Transaction history'),
+                s('Cuentas de banco con tasa de crecimiento anual y cobros de tarjeta', 'Bank accounts with annual growth rate and card fees'),
+                s('Alertas de precio con notificaciones del navegador', 'Price alerts with browser notifications'),
+              ]},
+              { title: s('Comunidad', 'Community'), items: [
+                s('Feed de ideas con sentimiento (alcista, bajista, neutral)', 'Ideas feed with sentiment (bullish, bearish, neutral)'),
+                s('Filtro por idioma (Español / English)', 'Language filter (Spanish / English)'),
+                s('Ordenar por recientes o populares', 'Sort by recent or popular'),
+                s('Trending tickers', 'Trending tickers'),
+                s('Perfiles públicos de traders', 'Public trader profiles'),
+                s('Búsqueda de traders por @handle', 'Trader search by @handle'),
+                s('Chat privado en tiempo real (WebSocket)', 'Real-time private chat (WebSocket)'),
+                s('Mensajes no leídos con badge', 'Unread messages with badge'),
+                s('Borrar mensajes propios y ajenos', 'Delete own and others\' messages'),
+              ]},
+              { title: s('Ajustes', 'Settings'), items: [
+                s('Idioma: Español, English, Français, Italiano, Deutsch, Português, 中文, Русский, العربية, 日本語, 한국어', 'Language: Spanish, English, French, Italian, German, Portuguese, Chinese, Russian, Arabic, Japanese, Korean'),
+                s('Rotación de monedas: USD, MXN, EUR y más de 20 monedas', 'Currency rotation: USD, MXN, EUR and 20+ currencies'),
+                s('Zona horaria personalizable', 'Customizable time zone'),
+                s('Perfil de comunidad: handle, nombre, bio, avatar, país', 'Community profile: handle, name, bio, avatar, country'),
+                s('Restablecer valores predeterminados', 'Reset to defaults'),
+                s('Inicio de sesión con email y contraseña', 'Email and password sign in'),
+              ]},
+            ].map(({ title, items }) => (
+              <div key={title} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+                <h2 className="text-blue-400 font-bold text-sm mb-3">{title}</h2>
+                <ul className="space-y-1">
+                  {items.map((item, i) => (
+                    <li key={i} className="text-slate-300 text-xs flex gap-2">
+                      <span className="text-blue-500 shrink-0">•</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── CÓDIGOS ── */}
+      {activeTab === 'codigos' && (
+        <div className="max-w-3xl">
+          <h1 className="text-3xl font-bold text-white mb-2">{s('Códigos de instrumentos', 'Instrument Symbol Codes')}</h1>
+          <p className="text-slate-400 mb-2">{s('Todos los instrumentos usan el formato de Yahoo Finance. Si un símbolo no aparece, revisa este manual.', 'All instruments use Yahoo Finance format. If a symbol does not appear, check this guide.')}</p>
+          <p className="text-amber-300 text-xs mb-8">{s('Si ingresas un símbolo y no aparecen datos, verifica el formato correcto en esta sección.', 'If you enter a symbol and no data appears, verify the correct format in this section.')}</p>
+
+          <div className="space-y-6">
+            <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+              <h2 className="text-blue-400 font-bold text-sm mb-3">{s('Acciones EE.UU. (NYSE / NASDAQ)', 'US Stocks (NYSE / NASDAQ)')}</h2>
+              <p className="text-slate-400 text-xs mb-2">{s('Sin sufijo. Solo el ticker.', 'No suffix. Just the ticker.')}</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 text-xs">
+                {['AAPL','MSFT','GOOGL','AMZN','META','TSLA','NVDA','AMD','INTC','JPM','BAC','KO','PEP','JNJ','WMT','DIS','NFLX','PYPL','V','MA'].map(s => (
+                  <span key={s} className="bg-slate-700 text-slate-200 px-2 py-1 rounded font-mono">{s}</span>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+              <h2 className="text-blue-400 font-bold text-sm mb-3">{s('Criptomonedas', 'Cryptocurrencies')}</h2>
+              <p className="text-slate-400 text-xs mb-2">{s('Formato: SÍMBOLO-USD', 'Format: SYMBOL-USD')}</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 text-xs">
+                {['BTC-USD','ETH-USD','SOL-USD','ADA-USD','XRP-USD','DOGE-USD','DOT-USD','AVAX-USD','MATIC-USD','LINK-USD','LTC-USD','BNB-USD'].map(s => (
+                  <span key={s} className="bg-slate-700 text-slate-200 px-2 py-1 rounded font-mono">{s}</span>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+              <h2 className="text-blue-400 font-bold text-sm mb-3">{s('Índices bursátiles', 'Stock Indices')}</h2>
+              <p className="text-slate-400 text-xs mb-2">{s('Formato: ^SÍMBOLO', 'Format: ^SYMBOL')}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs">
+                {[
+                  ['^GSPC','S&P 500'],['^DJI','Dow Jones'],['^IXIC','NASDAQ Composite'],['^RUT','Russell 2000'],
+                  ['^FTSE','FTSE 100 (Londres)'],['^DAX','DAX (Frankfurt)'],['^FCHI','CAC 40 (París)'],
+                  ['^N225','Nikkei 225 (Tokyo)'],['^HSI','Hang Seng (Hong Kong)'],['^SSEC','Shanghai Composite'],
+                  ['^MXX','IPC (México)'],['^BVSP','Bovespa (Brasil)'],
+                ].map(([sym, name]) => (
+                  <div key={sym} className="flex gap-2 items-center">
+                    <span className="bg-slate-700 text-slate-200 px-2 py-1 rounded font-mono shrink-0">{sym}</span>
+                    <span className="text-slate-400">{name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+              <h2 className="text-blue-400 font-bold text-sm mb-3">{s('Materias primas (Futuros)', 'Commodities (Futures)')}</h2>
+              <p className="text-slate-400 text-xs mb-2">{s('Formato: SÍMBOLO=F', 'Format: SYMBOL=F')}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs">
+                {[
+                  ['GC=F','Oro (Gold)'],['SI=F','Plata (Silver)'],['CL=F','Petróleo WTI'],['BZ=F','Petróleo Brent'],
+                  ['NG=F','Gas Natural'],['HG=F','Cobre (Copper)'],['ZC=F','Maíz (Corn)'],['ZW=F','Trigo (Wheat)'],
+                ].map(([sym, name]) => (
+                  <div key={sym} className="flex gap-2 items-center">
+                    <span className="bg-slate-700 text-slate-200 px-2 py-1 rounded font-mono shrink-0">{sym}</span>
+                    <span className="text-slate-400">{name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+              <h2 className="text-blue-400 font-bold text-sm mb-3">{s('ETFs populares', 'Popular ETFs')}</h2>
+              <p className="text-slate-400 text-xs mb-2">{s('Sin sufijo, igual que acciones americanas.', 'No suffix, same as US stocks.')}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs">
+                {[
+                  ['SPY','S&P 500 ETF'],['QQQ','NASDAQ 100 ETF'],['DIA','Dow Jones ETF'],['IWM','Russell 2000 ETF'],
+                  ['GLD','Gold ETF'],['SLV','Silver ETF'],['TLT','20+ Year Treasury ETF'],['VTI','Total Stock Market ETF'],
+                  ['VEA','Developed Markets ETF'],['VWO','Emerging Markets ETF'],['XLF','Financial Sector ETF'],['XLK','Technology Sector ETF'],
+                ].map(([sym, name]) => (
+                  <div key={sym} className="flex gap-2 items-center">
+                    <span className="bg-slate-700 text-slate-200 px-2 py-1 rounded font-mono shrink-0">{sym}</span>
+                    <span className="text-slate-400">{name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+              <h2 className="text-blue-400 font-bold text-sm mb-3">{s('Acciones internacionales (sufijos por bolsa)', 'International Stocks (exchange suffixes)')}</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs mb-3">
+                {[
+                  ['.MX','México (BMV)'],['.TO','Toronto (TSX)'],['.L','Londres (LSE)'],['.DE','Frankfurt (XETRA)'],
+                  ['.PA','París (Euronext)'],['.AS','Amsterdam'],['.MI','Milán'],['.MC','Madrid'],
+                  ['.T','Tokyo (TSE)'],['.HK','Hong Kong'],['.SS','Shanghai'],['.SZ','Shenzhen'],
+                  ['.AX','Australia (ASX)'],['.BO','Bombay (BSE)'],['.NS','NSE India'],['.SA','São Paulo (B3)'],
+                ].map(([suf, name]) => (
+                  <div key={suf} className="flex gap-2 items-center">
+                    <span className="bg-slate-700 text-slate-200 px-2 py-1 rounded font-mono shrink-0">{suf}</span>
+                    <span className="text-slate-400">{name}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-slate-500 text-xs">{s('Ejemplos: AMXL.MX (América Móvil), SHOP.TO (Shopify Toronto), SAP.DE (SAP Frankfurt), 7203.T (Toyota Tokyo), 0700.HK (Tencent Hong Kong)', 'Examples: AMXL.MX (América Móvil), SHOP.TO (Shopify Toronto), SAP.DE (SAP Frankfurt), 7203.T (Toyota Tokyo), 0700.HK (Tencent Hong Kong)')}</p>
+            </div>
+
+            <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+              <h2 className="text-blue-400 font-bold text-sm mb-3">ADRs {s('(acciones extranjeras en NYSE/NASDAQ)', '(foreign stocks on NYSE/NASDAQ)')}</h2>
+              <p className="text-slate-400 text-xs mb-2">{s('Sin sufijo. Cotizan en EE.UU.', 'No suffix. Listed in the US.')}</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 text-xs">
+                {['BABA','NIO','TSM','SONY','TM','ASML','SAP','SHOP','SE','MELI','VALE','PBR'].map(s => (
+                  <span key={s} className="bg-slate-700 text-slate-200 px-2 py-1 rounded font-mono">{s}</span>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-amber-900/20 border border-amber-700/40 rounded-xl p-4">
+              <p className="text-amber-300 text-xs font-semibold mb-1">{s('Si el símbolo no aparece', 'If the symbol does not appear')}</p>
+              <p className="text-slate-300 text-xs">{s('Verifica el formato exacto en finance.yahoo.com buscando la empresa. El símbolo que aparece en la URL o en la página es el que debes usar aquí.', 'Verify the exact format at finance.yahoo.com by searching for the company. The symbol shown in the URL or on the page is the one you should use here.')}</p>
+            </div>
           </div>
         </div>
       )}

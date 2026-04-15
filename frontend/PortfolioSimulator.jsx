@@ -5,6 +5,39 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 
 const WORKER_BASE = 'https://proxy.stockcmp-proxy.workers.dev';
 
+// Mini dropdown that suggests stocks from the comparator
+function StockSuggest({ value, onChange, placeholder, comparatorStocks, holdingSymbols, lang }) {
+  const suggestions = [
+    ...new Set([...(comparatorStocks || []), ...(holdingSymbols || [])]),
+  ].filter(s => s && (!value || s.startsWith(value)));
+
+  return (
+    <div className="relative mb-2">
+      <input
+        className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 uppercase"
+        placeholder={placeholder}
+        value={value}
+        onChange={e => onChange(e.target.value.toUpperCase())}
+        maxLength={10}
+      />
+      {suggestions.length > 0 && value === '' && (
+        <div className="absolute top-full left-0 right-0 z-20 bg-slate-800 border border-slate-600 rounded-lg mt-0.5 overflow-hidden shadow-lg">
+          {suggestions.map(sym => (
+            <button
+              key={sym}
+              type="button"
+              onClick={() => onChange(sym)}
+              className="w-full text-left px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-700 font-mono"
+            >
+              {sym}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function loadPortfolio() {
   try { return JSON.parse(localStorage.getItem('portfolio') || 'null'); } catch { return null; }
 }
@@ -21,7 +54,7 @@ const DEFAULT_PORTFOLIO = {
   dividendsReceived: 0,
 };
 
-export default function PortfolioSimulator({ currency, setCurrency, nextCurrency, currencyLabel, rates, alerts, setAlerts, lang = 'es', onOpenCommunityIdea, initialPortfolio, onPortfolioChange, refreshTrigger, showAlertsPanel, setShowAlertsPanel }) {
+export default function PortfolioSimulator({ currency, setCurrency, nextCurrency, currencyLabel, rates, alerts, setAlerts, lang = 'es', onOpenCommunityIdea, initialPortfolio, onPortfolioChange, refreshTrigger, showAlertsPanel, setShowAlertsPanel, comparatorStocks = [] }) {
   const [portfolio, setPortfolio] = useState(() => initialPortfolio || loadPortfolio() || DEFAULT_PORTFOLIO);
   const [prices, setPrices] = useState({});
   const [historicalPrices, setHistoricalPrices] = useState({});
@@ -689,12 +722,13 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
             <button onClick={() => setTradeMode('buy')} className={`flex-1 py-1.5 rounded text-sm font-medium ${tradeMode === 'buy' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'}`}>{t('label_buy', lang)}</button>
             <button onClick={() => setTradeMode('sell')} className={`flex-1 py-1.5 rounded text-sm font-medium ${tradeMode === 'sell' ? 'bg-orange-600 text-white' : 'bg-slate-700 text-slate-300'}`}>{t('label_sell', lang)}</button>
           </div>
-          <input
-            className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 mb-2 uppercase"
-            placeholder={t('portfolio_symbol_placeholder', lang)}
+          <StockSuggest
             value={tradeSymbol}
-            onChange={(e) => setTradeSymbol(e.target.value.toUpperCase())}
-            maxLength={10}
+            onChange={setTradeSymbol}
+            placeholder={t('portfolio_symbol_placeholder', lang)}
+            comparatorStocks={comparatorStocks}
+            holdingSymbols={Object.keys(portfolio.holdings)}
+            lang={lang}
           />
           <input
             className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 mb-2"
@@ -708,7 +742,14 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
               {t('portfolio_current_price_total', lang)}: {fmt(prices[tradeSymbol])} · {t('portfolio_total', lang)}: {fmt(prices[tradeSymbol] * (parseFloat(tradeShares) || 0))}
             </p>
           )}
-          {tradeError && <p className="text-red-400 text-xs mb-2">{tradeError}</p>}
+          {tradeError && (
+            <div className="mb-2">
+              <p className="text-red-400 text-xs">{tradeError}</p>
+              <p className="text-slate-500 text-xs mt-0.5">
+                {lang === 'es' ? 'Revisa el código en Acerca → Códigos.' : 'Check the symbol in About → Symbol Codes.'}
+              </p>
+            </div>
+          )}
           <button
             onClick={tradeMode === 'buy' ? handleBuy : handleSell}
             className={`w-full py-2 rounded text-sm font-medium text-white ${tradeMode === 'buy' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'}`}
@@ -721,12 +762,13 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
         <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
           <h3 className="text-white font-semibold mb-3">{t('portfolio_record_dividend', lang)}</h3>
           <p className="text-slate-400 text-xs mb-3">{t('portfolio_dividend_hint', lang)}</p>
-          <input
-            className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 mb-2 uppercase"
-            placeholder={t('portfolio_symbol_placeholder', lang).replace('AAPL', 'KO')}
+          <StockSuggest
             value={divSymbol}
-            onChange={(e) => { setDivSymbol(e.target.value.toUpperCase()); setDivInfo(null); }}
-            maxLength={10}
+            onChange={(v) => { setDivSymbol(v); setDivInfo(null); }}
+            placeholder={t('portfolio_symbol_placeholder', lang).replace('AAPL', 'KO')}
+            comparatorStocks={comparatorStocks}
+            holdingSymbols={Object.keys(portfolio.holdings)}
+            lang={lang}
           />
           <button
             type="button"
