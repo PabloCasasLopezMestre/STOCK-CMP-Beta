@@ -114,6 +114,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
   const exchangeRate = rates?.MXN ?? 20.5;
   const exchangeRateEUR = rates?.EUR ?? 0.92;
   const [sectors, setSectors] = useState(loadSectors);
+  const [sectorOrder, setSectorOrder] = useState(() => Object.keys(loadSectors()));
   const [selectedSectors, setSelectedSectors] = useState(() => {
     const keys = Object.keys(loadSectors());
     return new Set([keys[0]]);
@@ -514,24 +515,28 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
   function updateSectors(next) {
     setSectors(next);
     saveSectors(next);
+    // Keep sectorOrder in sync — add new keys, remove deleted ones
+    setSectorOrder(prev => {
+      const existing = prev.filter(k => next[k]);
+      const newKeys = Object.keys(next).filter(k => !prev.includes(k));
+      return [...existing, ...newKeys];
+    });
   }
 
   function handleSectorChange(key) {
     setSelectedSectors(prev => {
       const next = new Set(prev);
       if (next.has(key)) {
-        if (next.size > 1) next.delete(key);
+        if (next.size > 1) {
+          next.delete(key);
+          // Always reset to first stock of remaining sectors
+          const firstRemainingKey = [...next][0];
+          const firstStock = sectors[firstRemainingKey]?.stocks[0]?.symbol;
+          if (firstStock) setSelectedStocks([firstStock]);
+        }
       } else {
         next.add(key);
       }
-      // Remove selectedStocks that don't belong to any selected sector
-      const validSymbols = new Set(
-        [...next].flatMap(k => (sectors[k]?.stocks || []).map(s => s.symbol))
-      );
-      setSelectedStocks(prev => {
-        const filtered = prev.filter(s => validSymbols.has(s));
-        return filtered.length > 0 ? filtered : [sectors[key]?.stocks[0]?.symbol].filter(Boolean);
-      });
       return next;
     });
     setEditingSector(null);
@@ -781,8 +786,29 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
           )}
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
-            {Object.entries(sectors).map(([key, sector]) => (
-              <div key={key} className="relative group">
+            {sectorOrder.filter(key => sectors[key]).map((key) => {
+              const sector = sectors[key];
+              return (
+              <div
+                key={key}
+                className="relative group"
+                draggable
+                onDragStart={e => e.dataTransfer.setData('sectorKey', key)}
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => {
+                  e.preventDefault();
+                  const fromKey = e.dataTransfer.getData('sectorKey');
+                  if (fromKey === key) return;
+                  setSectorOrder(prev => {
+                    const next = [...prev];
+                    const fromIdx = next.indexOf(fromKey);
+                    const toIdx = next.indexOf(key);
+                    next.splice(fromIdx, 1);
+                    next.splice(toIdx, 0, fromKey);
+                    return next;
+                  });
+                }}
+              >
                 {editingSector === key ? (
                   <div className="bg-slate-700 rounded-lg p-2 flex flex-col gap-1">
                     <input
@@ -852,7 +878,8 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
                   </div>
                 )}
               </div>
-            ))}
+            );
+            })}
           </div>
         </div>
 
