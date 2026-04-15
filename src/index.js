@@ -58,10 +58,11 @@ function jsonResponse(body, status = 200) {
 }
 
 function withCors(response) {
-  const headers = new Headers(response.headers);
+  const cloned = response.clone();
+  const headers = new Headers(cloned.headers);
   headers.set('Access-Control-Allow-Origin', '*');
   headers.set('Content-Type', 'application/json');
-  return new Response(response.body, { status: response.status, headers });
+  return new Response(cloned.body, { status: cloned.status, headers });
 }
 
 async function proxyRequest(url, extraHeaders = {}) {
@@ -206,24 +207,11 @@ async function handleNewsRequest(symbol) {
 
 async function handleExchangeRateRequest() {
   // Primary: exchangerate-api.com (has all currencies including MXN, BRL, etc.)
-  try {
-    const res = await fetch(EXCHANGE_RATE_URL, { signal: AbortSignal.timeout(8_000) });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.rates) return jsonResponse({ rates: data.rates });
-    }
-  } catch (_) { /* fall through */ }
+  const primaryRes = await proxyRequest(EXCHANGE_RATE_URL);
+  if (primaryRes.status !== 502 && primaryRes.status !== 504) return primaryRes;
 
   // Fallback: Frankfurter (ECB, open source, no key needed)
-  try {
-    const res = await fetch(FRANKFURTER_URL, { signal: AbortSignal.timeout(8_000) });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.rates) return jsonResponse({ rates: data.rates });
-    }
-  } catch (_) { /* fall through */ }
-
-  return jsonResponse({ rates: {} }, 502);
+  return proxyRequest(FRANKFURTER_URL);
 }
 
 // --- Router ---

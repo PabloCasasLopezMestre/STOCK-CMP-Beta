@@ -49,10 +49,11 @@ function jsonResponse(body, status = 200) {
 }
 __name(jsonResponse, "jsonResponse");
 function withCors(response) {
-  const headers = new Headers(response.headers);
+  const cloned = response.clone();
+  const headers = new Headers(cloned.headers);
   headers.set("Access-Control-Allow-Origin", "*");
   headers.set("Content-Type", "application/json");
-  return new Response(response.body, { status: response.status, headers });
+  return new Response(cloned.body, { status: cloned.status, headers });
 }
 __name(withCors, "withCors");
 async function proxyRequest(url, extraHeaders = {}) {
@@ -185,23 +186,9 @@ async function handleNewsRequest(symbol) {
 }
 __name(handleNewsRequest, "handleNewsRequest");
 async function handleExchangeRateRequest() {
-  try {
-    const res = await fetch(EXCHANGE_RATE_URL, { signal: AbortSignal.timeout(8e3) });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.rates) return jsonResponse({ rates: data.rates });
-    }
-  } catch (_) {
-  }
-  try {
-    const res = await fetch(FRANKFURTER_URL, { signal: AbortSignal.timeout(8e3) });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.rates) return jsonResponse({ rates: data.rates });
-    }
-  } catch (_) {
-  }
-  return jsonResponse({ rates: {} }, 502);
+  const primaryRes = await proxyRequest(EXCHANGE_RATE_URL);
+  if (primaryRes.status !== 502 && primaryRes.status !== 504) return primaryRes;
+  return proxyRequest(FRANKFURTER_URL);
 }
 __name(handleExchangeRateRequest, "handleExchangeRateRequest");
 var src_default = {
@@ -267,7 +254,7 @@ var jsonError = /* @__PURE__ */ __name(async (request, env, _ctx, middlewareCtx)
 }, "jsonError");
 var middleware_miniflare3_json_error_default = jsonError;
 
-// .wrangler/tmp/bundle-TzyGXX/middleware-insertion-facade.js
+// .wrangler/tmp/bundle-8OoNhD/middleware-insertion-facade.js
 var __INTERNAL_WRANGLER_MIDDLEWARE__ = [
   middleware_ensure_req_body_drained_default,
   middleware_miniflare3_json_error_default
@@ -299,7 +286,7 @@ function __facade_invoke__(request, env, ctx, dispatch, finalMiddleware) {
 }
 __name(__facade_invoke__, "__facade_invoke__");
 
-// .wrangler/tmp/bundle-TzyGXX/middleware-loader.entry.ts
+// .wrangler/tmp/bundle-8OoNhD/middleware-loader.entry.ts
 var __Facade_ScheduledController__ = class ___Facade_ScheduledController__ {
   constructor(scheduledTime, cron, noRetry) {
     this.scheduledTime = scheduledTime;

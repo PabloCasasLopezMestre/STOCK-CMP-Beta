@@ -8,6 +8,9 @@ import {
   DollarSign, AlertCircle, Plus, X, Edit2, Check
 } from 'lucide-react';
 import { t } from './i18n';
+import { rsi, macd, bollingerBands, stochastic, ema } from './indicators';
+import { detectPatterns } from './patterns';
+import { runBacktest, STRATEGIES } from './backtest';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -67,19 +70,19 @@ const DEFAULT_SECTORS = {
 };
 
 const TIME_RANGES = {
-  '1hour':   { label: '1 Hora',   interval: '2m',  range: '1h',  intraday: true },
-  '6hours':  { label: '6 Horas',  interval: '5m',  range: '1d',  intraday: true, trimHours: 6 },
-  '1day':    { label: '24 Horas', interval: '5m',  range: '1d',  intraday: true },
-  '1week':   { label: '1 Semana', interval: '1h',  range: '5d',  intraday: false },
-  '1month':  { label: '1 Mes',    interval: '1d',  range: '1mo', intraday: false },
-  '3months': { label: '3 Meses',  interval: '1d',  range: '3mo', intraday: false },
-  '6months': { label: '6 Meses',  interval: '1d',  range: '6mo', intraday: false },
-  '1year':   { label: '1 Año',    interval: '1wk', range: '1y',  intraday: false },
-  '2years':  { label: '2 Años',   interval: '1wk', range: '2y',  intraday: false },
-  '3years':  { label: '3 Años',   interval: '1mo', range: '3y',  intraday: false },
-  '5years':  { label: '5 Años',   interval: '1mo', range: '5y',  intraday: false },
-  '10years': { label: '10 Años',  interval: '3mo', range: '10y', intraday: false },
-  '15years': { label: '15 Años',  interval: '3mo', range: '15y', intraday: false },
+  '1hour':   { label: '1h',    label_es: '1 Hora',   interval: '2m',  range: '1h',  intraday: true },
+  '6hours':  { label: '6h',    label_es: '6 Horas',  interval: '5m',  range: '1d',  intraday: true, trimHours: 6 },
+  '1day':    { label: '24h',   label_es: '24 Horas', interval: '5m',  range: '1d',  intraday: true },
+  '1week':   { label: '1W',    label_es: '1 Semana', interval: '1h',  range: '5d',  intraday: false },
+  '1month':  { label: '1M',    label_es: '1 Mes',    interval: '1d',  range: '1mo', intraday: false },
+  '3months': { label: '3M',    label_es: '3 Meses',  interval: '1d',  range: '3mo', intraday: false },
+  '6months': { label: '6M',    label_es: '6 Meses',  interval: '1d',  range: '6mo', intraday: false },
+  '1year':   { label: '1Y',    label_es: '1 Año',    interval: '1wk', range: '1y',  intraday: false },
+  '2years':  { label: '2Y',    label_es: '2 Años',   interval: '1wk', range: '2y',  intraday: false },
+  '3years':  { label: '3Y',    label_es: '3 Años',   interval: '1mo', range: '3y',  intraday: false },
+  '5years':  { label: '5Y',    label_es: '5 Años',   interval: '1mo', range: '5y',  intraday: false },
+  '10years': { label: '10Y',   label_es: '10 Años',  interval: '3mo', range: '10y', intraday: false },
+  '15years': { label: '15Y',   label_es: '15 Años',  interval: '3mo', range: '15y', intraday: false },
 };
 
 const STOCK_COLORS = ['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316'];
@@ -106,7 +109,7 @@ function saveSectors(sectors) {
 // Main component
 // ---------------------------------------------------------------------------
 
-const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel, rates, alerts, setAlerts, userTimezone = 'America/New_York', lang = 'es' }) => {
+const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel, rates, alerts, setAlerts, userTimezone = 'America/New_York', lang = 'es', onOpenCommunityIdea, refreshTrigger, onSelectedStocksChange }) => {
   const exchangeRate = rates?.MXN ?? 20.5;
   const exchangeRateEUR = rates?.EUR ?? 0.92;
   const [sectors, setSectors] = useState(loadSectors);
@@ -131,13 +134,34 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
   const [newsItems, setNewsItems] = useState([]);
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsAgeFilter, setNewsAgeFilter] = useState(48);
+
+  // Technical indicators state
+  const [indicatorSymbols, setIndicatorSymbols] = useState(new Set());
+  const [indicatorDataMap, setIndicatorDataMap] = useState({});
+  const [activeIndicator, setActiveIndicator] = useState('rsi');
+  const INDICATORS = [
+    { id: 'rsi',      label: 'RSI (14)' },
+    { id: 'macd',     label: 'MACD' },
+    { id: 'bollinger',label: 'Bollinger' },
+    { id: 'stoch',    label: lang === 'es' ? 'Estocástico' : 'Stochastic' },
+  ];
+
+  // Pattern recognition state
+  const [patternSymbols, setPatternSymbols] = useState(new Set());
+  const [patternsMap, setPatternsMap] = useState({}); // keyed by symbol
+
+  // Backtest state
+  const [backtestSymbols, setBacktestSymbols] = useState(new Set());
+  const [backtestResults, setBacktestResults] = useState({}); // keyed by symbol
+  const [backtestStrategy, setBacktestStrategy] = useState('rsi_oversold');
+  const [backtestCapital, setBacktestCapital] = useState('10000');
   const NEWS_AGE_OPTIONS = [
     { label: '1h',    hours: 1 },
     { label: '6h',    hours: 6 },
     { label: '24h',   hours: 24 },
     { label: '48h',   hours: 48 },
-    { label: '7 días',hours: 168 },
-    { label: 'Todo',  hours: null },
+    { label: lang === 'es' ? '7 días' : '7 days', hours: 168 },
+    { label: lang === 'es' ? 'Todo'   : 'All',    hours: null },
   ];
 
   // Price alerts state
@@ -181,7 +205,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
       if (Notification.permission === 'granted') {
         fired.forEach((a) => {
           new Notification(`STOCK-CMP: ${a.symbol}`, {
-            body: `${a.symbol} está ${a.condition === 'above' ? 'por encima de' : 'por debajo de'} $${a.price} · Precio actual: $${a.currentPrice.toFixed(2)}`,
+            body: `${a.symbol} is ${a.condition === 'above' ? 'above' : 'below'} $${a.price} · Current price: $${a.currentPrice.toFixed(2)}`,
           });
         });
       }
@@ -211,7 +235,8 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
           if (!data.chart?.result?.[0]) throw new Error(`Datos inválidos para ${symbol}`);
 
           const result = data.chart.result[0];
-          let timestamps = result.timestamp;
+          let timestamps = result.timestamp ?? [];
+          if (!timestamps.length) return null;
           let prices = result.indicators.quote[0].close;
 
           // Trim to last N hours for 6-hour view
@@ -279,6 +304,85 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
   };
 
   useEffect(() => { fetchStockData(); }, [timeRange, selectedStocks]);
+  useEffect(() => { if (refreshTrigger > 0) fetchStockData(); }, [refreshTrigger]);
+  useEffect(() => { if (onSelectedStocksChange) onSelectedStocksChange(selectedStocks); }, [selectedStocks]);
+
+  // Calculate technical indicators for a given symbol from stockData
+  const calcIndicators = (symbol) => {
+    const prices = stockData.map(d => d[symbol]).filter(v => v != null);
+    const dates  = stockData.filter(d => d[symbol] != null).map(d => d.date);
+    if (prices.length < 20) return null;
+
+    const rsiVals      = rsi(prices, 14);
+    const macdVals     = prices.length >= 35 ? macd(prices, 12, 26, 9) : macd(prices, 5, 13, 4);
+    const bollVals     = bollingerBands(prices, 20, 2);
+    const ema20        = ema(prices, 20);
+    const ema50        = ema(prices, 50);
+
+    // For stochastic we approximate high/low from price (since we only have close)
+    const stochVals    = stochastic(prices, prices, prices, 14, 3);
+
+    return { prices, dates, rsi: rsiVals, macd: macdVals, bollinger: bollVals, ema20, ema50, stoch: stochVals };
+  };
+
+  const handleShowIndicators = (symbol) => {
+    setIndicatorSymbols(prev => {
+      const next = new Set(prev);
+      if (next.has(symbol)) {
+        next.delete(symbol);
+      } else {
+        next.add(symbol);
+      }
+      return next;
+    });
+  };
+
+  // Recalculate when stockData changes
+  useEffect(() => {
+    if (indicatorSymbols.size > 0 && stockData.length > 0) {
+      const newMap = {};
+      indicatorSymbols.forEach(sym => {
+        newMap[sym] = calcIndicators(sym);
+      });
+      setIndicatorDataMap(newMap);
+    }
+    if (patternSymbols.size > 0 && stockData.length > 0) {
+      const newMap = {};
+      patternSymbols.forEach(sym => {
+        const prices = stockData.map(d => d[sym]).filter(v => v != null);
+        newMap[sym] = detectPatterns(prices);
+      });
+      setPatternsMap(newMap);
+    }
+  }, [stockData]);
+
+  // Pattern recognition handler
+  const handleShowPatterns = (symbol) => {
+    setPatternSymbols(prev => {
+      const next = new Set(prev);
+      if (next.has(symbol)) { next.delete(symbol); } else { next.add(symbol); }
+      return next;
+    });
+    const prices = stockData.map(d => d[symbol]).filter(v => v != null);
+    setPatternsMap(prev => {
+      const next = { ...prev };
+      if (next[symbol]) { delete next[symbol]; } else { next[symbol] = detectPatterns(prices); }
+      return next;
+    });
+  };
+
+  // Backtest handler
+  const handleRunBacktest = () => {
+    const capitalInput = parseFloat(backtestCapital) || 10000;
+    const capitalUSD = currency === 'USD' ? capitalInput : capitalInput / (rates?.[currency] ?? 1);
+    const newResults = {};
+    backtestSymbols.forEach(symbol => {
+      const prices = stockData.map(d => d[symbol]).filter(v => v != null);
+      const dates  = stockData.filter(d => d[symbol] != null).map(d => d.date);
+      newResults[symbol] = runBacktest(prices, dates, backtestStrategy, capitalUSD);
+    });
+    setBacktestResults(newResults);
+  };
 
   // Fetch all available data from Yahoo Finance quoteSummary endpoint
   const fetchFundamentals = () => {
@@ -531,31 +635,8 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 mb-4 border border-slate-700">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-white mb-1">STOCK-CMP</h1>
-              <p className="text-slate-400 text-sm">Datos en tiempo real · Yahoo Finance · ExchangeRate API</p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={nextCurrency}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors font-semibold"
-              >
-                {currencyLabel}
-              </button>
-              <button
-                onClick={() => { setShowAlertPanel(!showAlertPanel); if (Notification.permission === 'default') Notification.requestPermission(); }}
-                className={`relative px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${triggeredAlerts.length > 0 ? 'bg-red-600 hover:bg-red-700 animate-pulse' : 'bg-slate-700 hover:bg-slate-600'} text-white`}
-              >
-                🔔 Alertas
-                {alerts.length > 0 && <span className="bg-white text-slate-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{alerts.length}</span>}
-              </button>
-              <button
-                onClick={fetchStockData}
-                disabled={loading}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50"
-              >
-                <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-                {t('btn_update', lang)}
-              </button>
+              <h1 className="text-3xl font-bold text-white mb-1">STCK-CMP <span className="text-sm font-normal text-slate-400">Beta</span></h1>
+              <p className="text-slate-400 text-sm">{lang === 'es' ? 'Datos en tiempo real' : 'Real-time data'} · Yahoo Finance · ExchangeRate API</p>
             </div>
           </div>
         </div>
@@ -563,7 +644,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
         {/* Triggered alerts banner */}
         {triggeredAlerts.length > 0 && (
           <div className="bg-red-900/60 border border-red-500 rounded-xl p-3 mb-4 flex flex-wrap gap-2 items-center">
-            <span className="text-red-300 font-bold text-sm">🚨 Alerta de precio:</span>
+            <span className="text-red-300 font-bold text-sm">{t('portfolio_alert_active', lang).replace('🚨 ', '')}:</span>
             {triggeredAlerts.map((a) => (
               <span key={a.id} className="bg-red-800 text-white text-xs px-3 py-1 rounded-full">
                 {a.symbol} {a.condition === 'above' ? '▲' : '▼'} ${a.price} · actual: ${a.currentPrice.toFixed(2)}
@@ -575,7 +656,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
         {/* Alert panel */}
         {showAlertPanel && (
           <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 mb-4 border border-slate-700">
-            <h3 className="text-white font-semibold mb-3">🔔 Alertas de precio</h3>
+            <h3 className="text-white font-semibold mb-3">{t('portfolio_price_alerts', lang)}</h3>
             <div className="flex gap-2 flex-wrap mb-4">
               <input
                 className="bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 w-24 uppercase"
@@ -589,22 +670,22 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
                 value={newAlert.condition}
                 onChange={(e) => setNewAlert({ ...newAlert, condition: e.target.value })}
               >
-                <option value="above">Sube de</option>
-                <option value="below">Baja de</option>
+                <option value="above">{t('portfolio_alert_rises_above', lang)}</option>
+                <option value="below">{t('portfolio_alert_falls_below', lang)}</option>
               </select>
               <input
                 className="bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 w-28"
-                placeholder="Precio USD"
+                placeholder="Price USD"
                 type="number"
                 value={newAlert.price}
                 onChange={(e) => setNewAlert({ ...newAlert, price: e.target.value })}
               />
               <button onClick={addAlert} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded text-sm">
-                + Agregar
+                {t('portfolio_alert_add', lang)}
               </button>
             </div>
             {alerts.length === 0 ? (
-              <p className="text-slate-500 text-sm">No hay alertas configuradas.</p>
+              <p className="text-slate-500 text-sm">{t('portfolio_no_alerts', lang)}</p>
             ) : (
               <div className="space-y-2">
                 {alerts.map((a) => {
@@ -612,8 +693,8 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
                   return (
                     <div key={a.id} className={`flex items-center justify-between rounded-lg px-3 py-2 ${triggered ? 'bg-red-900/40 border border-red-600' : 'bg-slate-700/50'}`}>
                       <span className="text-white text-sm font-bold">{a.symbol}</span>
-                      <span className="text-slate-300 text-sm">{a.condition === 'above' ? 'sube de' : 'baja de'} <span className="text-white font-semibold">${a.price}</span></span>
-                      {triggered && <span className="text-red-400 text-xs font-bold">🚨 ACTIVA</span>}
+                      <span className="text-slate-300 text-sm">{a.condition === 'above' ? t('portfolio_alert_rises_above', lang) : t('portfolio_alert_falls_below', lang)} <span className="text-white font-semibold">${a.price}</span></span>
+                      {triggered && <span className="text-red-400 text-xs font-bold">{t('portfolio_alert_active', lang)}</span>}
                       <button onClick={() => removeAlert(a.id)} className="text-slate-500 hover:text-red-400 transition-colors"><X size={14} /></button>
                     </div>
                   );
@@ -644,7 +725,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
               onClick={() => setAddingSector(true)}
               className="text-slate-400 hover:text-white flex items-center gap-1 text-sm transition-colors"
             >
-              <Plus size={16} /> Agregar sector
+              <Plus size={16} /> {t('btn_add_sector', lang)}
             </button>
           </div>
 
@@ -769,7 +850,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
         {/* Time Range */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 mb-4 border border-slate-700">
           <div className="flex gap-2 flex-wrap">
-            {Object.entries(TIME_RANGES).map(([key, { label }]) => (
+            {Object.entries(TIME_RANGES).map(([key, { label, label_es }]) => (
               <button
                 key={key}
                 onClick={() => setTimeRange(key)}
@@ -777,7 +858,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
                   timeRange === key ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                 }`}
               >
-                {label}
+                {lang === 'es' ? label_es : label}
               </button>
             ))}
           </div>
@@ -846,6 +927,15 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
                         </div>
                       );
                     })()}
+                    {onOpenCommunityIdea && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenCommunityIdea(symbol)}
+                        className="w-full mt-3 pt-3 border-t border-slate-600 text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors"
+                      >
+                        {t('community_new_idea', lang)} · {symbol}
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -865,23 +955,23 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
                 <div className="bg-slate-700/60 rounded-lg p-4 border border-blue-500/40 hover:border-blue-500/70 transition-colors">
                   <div className="flex items-center justify-between mb-3">
                     <div>
-                      <h3 className="text-lg font-bold text-blue-300">Promedio</h3>
-                      <p className="text-xs text-slate-400">{validStats.length} empresas</p>
+                      <h3 className="text-lg font-bold text-blue-300">{t('portfolio_average', lang)}</h3>
+                      <p className="text-xs text-slate-400">{validStats.length} {t('label_companies', lang).toLowerCase()}</p>
                     </div>
                     <TrendIcon change={avgChange} />
                   </div>
                   <div className="space-y-2">
                     <div>
-                      <p className="text-slate-400 text-xs">Precio Actual</p>
+                      <p className="text-slate-400 text-xs">{t('label_current_price', lang)}</p>
                       <p className="text-xl font-bold text-white">{fmt(avgCurrent)}</p>
                     </div>
                     <div className="flex justify-between">
                       <div>
-                        <p className="text-slate-400 text-xs">Promedio</p>
+                        <p className="text-slate-400 text-xs">{t('portfolio_average', lang)}</p>
                         <p className="text-sm text-slate-200">{fmt(avgAverage)}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-slate-400 text-xs">Cambio</p>
+                        <p className="text-slate-400 text-xs">{t('label_change_pct', lang)}</p>
                         <p className={`text-sm font-semibold ${trendColor(avgChange)}`}>
                           {avgChange > 0 ? '+' : ''}{avgChange.toFixed(2)}%
                         </p>
@@ -924,11 +1014,11 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-slate-400 border-b border-slate-700">
-                    <th className="text-left py-2 pr-4">Empresa</th>
-                    <th className="text-right py-2 px-3" title="Precio / Ganancia TTM">P/E</th>
+                    <th className="text-left py-2 pr-4">{t('label_companies', lang)}</th>
+                    <th className="text-right py-2 px-3" title="Price / Earnings TTM">P/E</th>
                     <th className="text-right py-2 px-3" title="P/E Forward">P/E Fwd</th>
-                    <th className="text-right py-2 px-3" title="Precio / Valor Contable">P/B</th>
-                    <th className="text-right py-2 px-3" title="Precio / Ventas TTM">P/S</th>
+                    <th className="text-right py-2 px-3" title="Price / Book Value">P/B</th>
+                    <th className="text-right py-2 px-3" title="Price / Sales TTM">P/S</th>
                     <th className="text-right py-2 px-3" title="EPS Trailing 12m">EPS</th>
                     <th className="text-right py-2 px-3" title="EPS Forward">EPS Fwd</th>
                     <th className="text-right py-2 px-3" title="Dividendo Anual">Div. Yield</th>
@@ -964,7 +1054,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
                 </tbody>
               </table>
             </div>
-            <p className="text-slate-500 text-xs mt-2">Fuente: Yahoo Finance · Beta &gt; 1 = más volátil que el mercado</p>
+            <p className="text-slate-500 text-xs mt-2">{lang === 'es' ? 'Fuente: Yahoo Finance · Beta > 1 = más volátil que el mercado' : 'Source: Yahoo Finance · Beta > 1 = more volatile than the market'}</p>
           </div>
         )}
 
@@ -973,7 +1063,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
           <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700 flex-1 min-w-0">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <h3 className="text-xl font-bold text-white">
-              {t('label_comparison', lang)} · {TIME_RANGES[timeRange].label}
+              {t('label_comparison', lang)} · {lang === 'es' ? TIME_RANGES[timeRange].label_es : TIME_RANGES[timeRange].label}
             </h3>
             <div className="flex gap-4 text-slate-300 font-mono text-lg tabular-nums">
               <span>{currentTime.toLocaleTimeString('en-US', { timeZone: userTimezone, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
@@ -1048,7 +1138,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
 
             return (
               <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700 w-44 flex-shrink-0">
-                <h4 className="text-white font-semibold text-sm mb-3">vs. promedio</h4>
+                <h4 className="text-white font-semibold text-sm mb-3">{t('label_average', lang)}</h4>
                 <div className="space-y-4">
                   {outliers.map(({ symbol, deviation, current, color }) => {
                     const isHigh = deviation > 0;
@@ -1072,11 +1162,443 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
                     );
                   })}
                 </div>
-                <p className="text-slate-600 text-xs mt-3 border-t border-slate-700 pt-2">precio actual vs. promedio del período</p>
+                <p className="text-slate-600 text-xs mt-3 border-t border-slate-700 pt-2">{t('label_current_price', lang)} vs. {t('label_average', lang)}</p>
               </div>
             );
           })()}
         </div>
+
+        {/* Technical Indicators Panel */}
+        {stats && Object.keys(stats).length > 0 && (
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700 mb-4">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <h3 className="text-white font-semibold">{t('label_technical_indicators', lang)}</h3>
+              <div className="flex gap-1 flex-wrap">
+                {selectedStocks.map((sym) => (
+                  <button
+                    key={sym}
+                    onClick={() => handleShowIndicators(sym)}
+                    className={`px-3 py-1 rounded text-xs font-semibold transition-colors ${
+                      indicatorSymbols.has(sym) ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    }`}
+                  >
+                    {sym}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {indicatorSymbols.size > 0 && Object.keys(indicatorDataMap).length > 0 && (
+              <>
+                {/* Indicator selector */}
+                <div className="flex gap-1 mb-4 flex-wrap">
+                  {INDICATORS.map(({ id, label }) => (
+                    <button
+                      key={id}
+                      onClick={() => setActiveIndicator(id)}
+                      className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                        activeIndicator === id ? 'bg-purple-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {[...indicatorSymbols].map(sym => {
+                  const indicatorData = indicatorDataMap[sym];
+                  if (!indicatorData) return null;
+                  return (
+                    <div key={sym}>
+                      <div className="text-slate-300 text-xs font-semibold mb-2 mt-3 border-b border-slate-700 pb-1">{sym}</div>
+
+                      {/* RSI */}
+                      {activeIndicator === 'rsi' && (() => {
+                        const data = indicatorData.dates.map((date, i) => ({
+                          date,
+                          rsi: indicatorData.rsi[i] != null ? +indicatorData.rsi[i].toFixed(2) : null,
+                        })).filter(d => d.rsi != null);
+                        const last = data[data.length - 1]?.rsi;
+                        const signal = last > 70 ? t('label_overbought', lang) : last < 30 ? t('label_oversold', lang) : t('label_neutral', lang);
+                        return (
+                          <div>
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="text-slate-400 text-xs">{lang === 'es' ? 'RSI actual' : 'Current RSI'}: <span className="text-white font-bold">{last?.toFixed(1)}</span></span>
+                              <span className="text-slate-300 text-xs">{signal}</span>
+                              <span className="text-slate-500 text-xs">· &gt;70 {t('label_overbought', lang).toLowerCase()} · &lt;30 {t('label_oversold', lang).toLowerCase()}</span>
+                            </div>
+                            <ResponsiveContainer width="100%" height={180}>
+                              <LineChart data={data}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                <XAxis dataKey="date" stroke="#94a3b8" tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                                <YAxis domain={[0, 100]} stroke="#94a3b8" tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px' }} labelStyle={{ color: '#e2e8f0' }} itemStyle={{ color: '#e2e8f0' }} />
+                                <Line type="monotone" dataKey="rsi" stroke="#8b5cf6" strokeWidth={2} dot={false} name="RSI" />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </div>
+                        );
+                      })()}
+
+                      {/* MACD */}
+                      {activeIndicator === 'macd' && (() => {
+                        const data = indicatorData.dates.map((date, i) => ({
+                          date,
+                          macd:      indicatorData.macd.macd[i] != null ? +indicatorData.macd.macd[i].toFixed(4) : null,
+                          signal:    indicatorData.macd.signal[i] != null ? +indicatorData.macd.signal[i].toFixed(4) : null,
+                          histogram: indicatorData.macd.histogram[i] != null ? +indicatorData.macd.histogram[i].toFixed(4) : null,
+                        })).filter(d => d.macd != null);
+                        const last = data[data.length - 1];
+                        const crossSignal = last?.macd > last?.signal ? `${lang === 'es' ? 'Alcista' : 'Bullish'} (MACD > Signal)` : `${lang === 'es' ? 'Bajista' : 'Bearish'} (MACD < Signal)`;
+                        if (!data.length) return <p key="no-macd" className="text-slate-500 text-sm">{lang === 'es' ? 'Se necesitan al menos 35 puntos para MACD. Usa un rango más largo.' : 'At least 35 data points needed for MACD. Use a longer time range.'}</p>;
+                        return (
+                          <div>
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="text-slate-400 text-xs">MACD: <span className="text-white font-bold">{last?.macd?.toFixed(3)}</span></span>
+                              <span className="text-slate-400 text-xs">Signal: <span className="text-white font-bold">{last?.signal?.toFixed(3)}</span></span>
+                              <span className="text-slate-300 text-xs">{crossSignal}</span>
+                            </div>
+                            <ResponsiveContainer width="100%" height={180}>
+                              <LineChart data={data}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                <XAxis dataKey="date" stroke="#94a3b8" tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                                <YAxis stroke="#94a3b8" tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px' }} labelStyle={{ color: '#e2e8f0' }} itemStyle={{ color: '#e2e8f0' }} />
+                                <Line type="monotone" dataKey="macd" stroke="#3b82f6" strokeWidth={2} dot={false} name="MACD" />
+                                <Line type="monotone" dataKey="signal" stroke="#f59e0b" strokeWidth={1.5} dot={false} name="Signal" strokeDasharray="4 2" />
+                                <Line type="monotone" dataKey="histogram" stroke="#10b981" strokeWidth={1} dot={false} name="Histograma" />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Bollinger Bands */}
+                      {activeIndicator === 'bollinger' && (() => {
+                        const data = indicatorData.dates.map((date, i) => ({
+                          date,
+                          price:  +indicatorData.prices[i].toFixed(2),
+                          upper:  indicatorData.bollinger.upper[i] != null ? +indicatorData.bollinger.upper[i].toFixed(2) : null,
+                          middle: indicatorData.bollinger.middle[i] != null ? +indicatorData.bollinger.middle[i].toFixed(2) : null,
+                          lower:  indicatorData.bollinger.lower[i] != null ? +indicatorData.bollinger.lower[i].toFixed(2) : null,
+                        })).filter(d => d.upper != null);
+                        const last = data[data.length - 1];
+                        const pct = last ? ((last.price - last.lower) / (last.upper - last.lower) * 100).toFixed(0) : null;
+                        const signal = pct > 80 ? `${lang === 'es' ? 'Cerca del límite superior' : 'Near upper band'}` : pct < 20 ? `${lang === 'es' ? 'Cerca del límite inferior' : 'Near lower band'}` : `${lang === 'es' ? 'Dentro de las bandas' : 'Within bands'}`;
+                        return (
+                          <div>
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="text-slate-400 text-xs">%B: <span className="text-white font-bold">{pct}%</span></span>
+                              <span className="text-slate-300 text-xs">{signal}</span>
+                              <span className="text-slate-500 text-xs">· {lang === 'es' ? 'Banda superior' : 'Upper band'}: {fmt(last?.upper)} · {lang === 'es' ? 'Inferior' : 'Lower'}: {fmt(last?.lower)}</span>
+                            </div>
+                            <ResponsiveContainer width="100%" height={220}>
+                              <LineChart data={data}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                <XAxis dataKey="date" stroke="#94a3b8" tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                                <YAxis stroke="#94a3b8" tick={{ fill: '#94a3b8', fontSize: 10 }} tickFormatter={v => `${v.toFixed(0)}`} />
+                                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px' }} labelStyle={{ color: '#e2e8f0' }} itemStyle={{ color: '#e2e8f0' }} formatter={v => fmt(v)} />
+                                <Line type="monotone" dataKey="upper"  stroke="#ef4444" strokeWidth={1} dot={false} name={lang === 'es' ? 'Banda sup.' : 'Upper band'} strokeDasharray="4 2" />
+                                <Line type="monotone" dataKey="middle" stroke="#94a3b8" strokeWidth={1} dot={false} name={lang === 'es' ? 'Media (20)' : 'Middle (20)'} strokeDasharray="4 2" />
+                                <Line type="monotone" dataKey="lower"  stroke="#3b82f6" strokeWidth={1} dot={false} name={lang === 'es' ? 'Banda inf.' : 'Lower band'} strokeDasharray="4 2" />
+                                <Line type="monotone" dataKey="price"  stroke="#10b981" strokeWidth={2} dot={false} name={lang === 'es' ? 'Precio' : 'Price'} />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Stochastic */}
+                      {activeIndicator === 'stoch' && (() => {
+                        const data = indicatorData.dates.map((date, i) => ({
+                          date,
+                          k: indicatorData.stoch.k[i] != null ? +indicatorData.stoch.k[i].toFixed(2) : null,
+                          d: indicatorData.stoch.d[i] != null ? +indicatorData.stoch.d[i].toFixed(2) : null,
+                        })).filter(d => d.k != null);
+                        const last = data[data.length - 1];
+                        const signal = last?.k > 80 ? t('label_overbought', lang) : last?.k < 20 ? t('label_oversold', lang) : t('label_neutral', lang);
+                        return (
+                          <div>
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="text-slate-400 text-xs">%K: <span className="text-white font-bold">{last?.k?.toFixed(1)}</span></span>
+                              <span className="text-slate-400 text-xs">%D: <span className="text-white font-bold">{last?.d?.toFixed(1)}</span></span>
+                              <span className="text-slate-300 text-xs">{signal}</span>
+                              <span className="text-slate-500 text-xs">· &gt;80 {t('label_overbought', lang).toLowerCase()} · &lt;20 {t('label_oversold', lang).toLowerCase()}</span>
+                            </div>
+                            <ResponsiveContainer width="100%" height={180}>
+                              <LineChart data={data}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                <XAxis dataKey="date" stroke="#94a3b8" tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                                <YAxis domain={[0, 100]} stroke="#94a3b8" tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px' }} labelStyle={{ color: '#e2e8f0' }} itemStyle={{ color: '#e2e8f0' }} />
+                                <Line type="monotone" dataKey="k" stroke="#f59e0b" strokeWidth={2} dot={false} name="%K" />
+                                <Line type="monotone" dataKey="d" stroke="#8b5cf6" strokeWidth={1.5} dot={false} name="%D" strokeDasharray="4 2" />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  );
+                })}
+              </>
+            )}
+
+            {indicatorSymbols.size === 0 && (
+              <p className="text-slate-500 text-sm">{t('label_select_stock_indicators', lang)}</p>
+            )}
+          </div>
+        )}
+
+        {/* Pattern Recognition Panel */}
+        {stats && Object.keys(stats).length > 0 && (
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700 mb-4">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <h3 className="text-white font-semibold">{t('label_pattern_recognition', lang)}</h3>
+              <div className="flex gap-1 flex-wrap">
+                {selectedStocks.map((sym) => (
+                  <button key={sym} onClick={() => handleShowPatterns(sym)}
+                    className={`px-3 py-1 rounded text-xs font-semibold transition-colors ${patternSymbols.has(sym) ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
+                    {sym}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {patternSymbols.size === 0 && <p className="text-slate-500 text-sm">{t('label_select_stock_patterns', lang)}</p>}
+            {patternSymbols.size > 0 && Object.keys(patternsMap).length > 0 && (
+              <div className="space-y-4">
+                {[...patternSymbols].map(sym => {
+                  const symPatterns = patternsMap[sym] || [];
+                  return (
+                    <div key={sym}>
+                      <p className="text-slate-300 text-xs font-bold mb-2 border-b border-slate-700 pb-1">{sym}</p>
+                      {symPatterns.length === 0 ? (
+                        <p className="text-slate-400 text-sm">{t('label_no_patterns_detected', lang)}</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {symPatterns.map((p, i) => {
+                            const patternNames = {
+                              'Doble Techo': lang === 'es' ? 'Doble Techo' : 'Double Top',
+                              'Doble Suelo': lang === 'es' ? 'Doble Suelo' : 'Double Bottom',
+                              'Cabeza y Hombros': lang === 'es' ? 'Cabeza y Hombros' : 'Head and Shoulders',
+                              'Cabeza y Hombros Invertido': lang === 'es' ? 'Cabeza y Hombros Invertido' : 'Inverse Head and Shoulders',
+                              'Cuña Alcista': lang === 'es' ? 'Cuña Alcista' : 'Rising Wedge',
+                              'Cuña Bajista': lang === 'es' ? 'Cuña Bajista' : 'Falling Wedge',
+                            };
+                            const isBullish = p.signal === 'alcista';
+                            const reliabilityColor = p.reliability >= 70 ? 'text-green-400' : p.reliability >= 50 ? 'text-yellow-400' : 'text-orange-400';
+                            const reliabilityLabel = p.reliability >= 70 ? (lang === 'es' ? 'Alta' : 'High') : p.reliability >= 50 ? (lang === 'es' ? 'Media' : 'Medium') : (lang === 'es' ? 'Baja' : 'Low');
+                            return (
+                              <div key={i} className={`rounded-lg px-4 py-3 border ${isBullish ? 'bg-green-900/20 border-green-700/50' : 'bg-red-900/20 border-red-700/50'}`}>
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-white font-semibold text-sm">{patternNames[p.pattern] || p.pattern}</p>
+                                  <span className={`text-xs font-bold px-2 py-1 rounded ${isBullish ? 'bg-green-700 text-white' : 'bg-red-700 text-white'}`}>
+                                    {isBullish ? `▲ ${lang === 'es' ? 'Alcista' : 'Bullish'}` : `▼ ${lang === 'es' ? 'Bajista' : 'Bearish'}`}
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-xs">
+                                  <div><span className="text-slate-500">{lang === 'es' ? 'Confiabilidad' : 'Reliability'}: </span><span className={`font-semibold ${reliabilityColor}`}>{p.reliability}% ({reliabilityLabel})</span></div>
+                                  {p.targetPrice && <div><span className="text-slate-500">{lang === 'es' ? 'Precio objetivo' : 'Target'}: </span><span className="text-white font-semibold">{fmt(p.targetPrice)}</span></div>}
+                                  {p.stopLoss && <div><span className="text-slate-500">Stop loss: </span><span className="text-red-300 font-semibold">{fmt(p.stopLoss)}</span></div>}
+                                  <div><span className="text-slate-500">{lang === 'es' ? 'Precio actual' : 'Current'}: </span><span className="text-white">{fmt(p.currentPrice)}</span></div>
+                                  <div><span className="text-slate-500">{lang === 'es' ? 'Estado' : 'Status'}: </span><span className={isBullish ? 'text-green-400' : 'text-red-400'}>{isBullish ? (lang === 'es' ? 'Señal de compra' : 'Buy signal') : (lang === 'es' ? 'Señal de venta' : 'Sell signal')}</span></div>
+                                  <div><span className="text-slate-500">{lang === 'es' ? 'Puntos' : 'Points'}: </span><span className="text-slate-300">{p.dataPoints}</span></div>
+                                </div>
+                                {p.targetPrice && (
+                                  <div className="mt-2 flex gap-2 flex-wrap">
+                                    <button
+                                      onClick={() => {
+                                        setAlerts(prev => [...prev, { id: Date.now(), symbol: sym, condition: isBullish ? 'above' : 'below', price: p.targetPrice }]);
+                                        if (Notification.permission === 'default') Notification.requestPermission();
+                                      }}
+                                      className="text-xs bg-amber-700/50 hover:bg-amber-600/60 text-amber-200 px-2 py-1 rounded border border-amber-600/40"
+                                    >
+                                      {lang === 'es' ? `Alerta: objetivo ${fmt(p.targetPrice)}` : `Alert: target ${fmt(p.targetPrice)}`}
+                                    </button>
+                                    {p.stopLoss && (
+                                      <button
+                                        onClick={() => {
+                                          setAlerts(prev => [...prev, { id: Date.now() + 1, symbol: sym, condition: 'below', price: p.stopLoss }]);
+                                          if (Notification.permission === 'default') Notification.requestPermission();
+                                        }}
+                                        className="text-xs bg-red-900/40 hover:bg-red-800/50 text-red-300 px-2 py-1 rounded border border-red-700/40"
+                                      >
+                                        {lang === 'es' ? `Alerta: stop loss ${fmt(p.stopLoss)}` : `Alert: stop loss ${fmt(p.stopLoss)}`}
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                <p className="text-slate-500 text-xs mt-2">{t('label_patterns_disclaimer', lang)}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Backtesting Panel */}
+        {stats && Object.keys(stats).length > 0 && (
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700 mb-4">
+            <h3 className="text-white font-semibold mb-3">{t('label_backtesting', lang)}</h3>
+            <div className="flex flex-wrap gap-3 mb-4 items-end">
+              <div>
+                <p className="text-slate-400 text-xs mb-1">{t('label_symbol', lang)}</p>
+                <div className="flex gap-1">
+                  {selectedStocks.map((sym) => (
+                    <button key={sym} onClick={() => setBacktestSymbols(prev => { const n = new Set(prev); n.has(sym) ? n.delete(sym) : n.add(sym); return n; })}
+                      className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${backtestSymbols.has(sym) ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
+                      {sym}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-slate-400 text-xs mb-1">{t('label_strategy', lang)}</p>
+                <select
+                  className="bg-slate-700 text-white rounded px-3 py-1.5 text-xs outline-none"
+                  value={backtestStrategy}
+                  onChange={(e) => setBacktestStrategy(e.target.value)}
+                >
+                  {STRATEGIES.map(s => <option key={s.id} value={s.id}>{lang === 'es' ? s.name_es : s.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <p className="text-slate-400 text-xs mb-1">{t('label_initial_capital', lang)} ({currency})</p>
+                <input
+                  className="bg-slate-700 text-white rounded px-3 py-1.5 text-xs outline-none w-28"
+                  type="number" value={backtestCapital}
+                  onChange={(e) => setBacktestCapital(e.target.value)}
+                />
+              </div>
+              <button
+                onClick={() => backtestSymbols.size > 0 && handleRunBacktest()}
+                disabled={backtestSymbols.size === 0}
+                className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-4 py-1.5 rounded text-xs font-semibold"
+              >
+                {t('btn_search', lang)}
+              </button>
+            </div>
+            {STRATEGIES.find(s => s.id === backtestStrategy) && (
+              <p className="text-slate-500 text-xs mb-3">{lang === 'es' ? STRATEGIES.find(s => s.id === backtestStrategy)?.description_es : STRATEGIES.find(s => s.id === backtestStrategy)?.description}</p>
+            )}
+            {backtestSymbols.size > 0 && Object.values(backtestResults).some(r => r === null) && (
+              <p className="text-amber-300 text-sm mt-2">{lang === 'es' ? 'Se necesitan al menos 50 puntos de datos. Selecciona un rango de tiempo más largo (3 meses o más).' : 'At least 50 data points required. Select a longer time range (3 months or more).'}</p>
+            )}
+            {Object.keys(backtestResults).length > 0 && (
+              <div className="space-y-6">
+                {Object.entries(backtestResults).map(([sym, result]) => (
+                  <div key={sym}>
+                    <p className="text-slate-300 text-xs font-bold mb-2 border-b border-slate-700 pb-1">{sym}</p>
+                    {result === null ? (
+                      <p className="text-amber-300 text-sm">{lang === 'es' ? 'Datos insuficientes.' : 'Insufficient data.'}</p>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                          {[
+                            { label: lang === 'es' ? 'Retorno total' : 'Total return', value: `${result.metrics.totalReturn > 0 ? '+' : ''}${result.metrics.totalReturn}%`, color: result.metrics.totalReturn >= 0 ? 'text-green-400' : 'text-red-400' },
+                            { label: 'Buy & Hold', value: `${result.metrics.buyHoldReturn > 0 ? '+' : ''}${result.metrics.buyHoldReturn}%`, color: result.metrics.buyHoldReturn >= 0 ? 'text-green-400' : 'text-red-400' },
+                            { label: 'Win Rate', value: `${result.metrics.winRate}%`, color: 'text-blue-400' },
+                            { label: 'Max Drawdown', value: `-${result.metrics.maxDrawdown}%`, color: 'text-orange-400' },
+                            { label: t('label_final_capital', lang), value: fmt(result.metrics.finalValue), color: 'text-white' },
+                            { label: t('label_trades', lang), value: result.metrics.totalTrades, color: 'text-white' },
+                            { label: t('label_avg_pnl', lang), value: `${result.metrics.avgPnl > 0 ? '+' : ''}${result.metrics.avgPnl}%`, color: result.metrics.avgPnl >= 0 ? 'text-green-400' : 'text-red-400' },
+                            { label: t('label_initial_capital', lang), value: fmt(result.metrics.initialCapital), color: 'text-slate-400' },
+                          ].map(({ label, value, color }) => (
+                            <div key={label} className="bg-slate-700/50 rounded-lg p-3">
+                              <p className="text-slate-400 text-xs mb-1">{label}</p>
+                              <p className={`font-bold text-sm ${color}`}>{value}</p>
+                            </div>
+                          ))}
+                        </div>
+                        {result.equity.length > 0 && (
+                          <ResponsiveContainer width="100%" height={160}>
+                            <LineChart data={result.equity}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                              <XAxis dataKey="date" stroke="#94a3b8" tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                              <YAxis stroke="#94a3b8" tick={{ fill: '#94a3b8', fontSize: 10 }} tickFormatter={v => `${(v/1000).toFixed(1)}K`} />
+                              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px' }} labelStyle={{ color: '#e2e8f0' }} itemStyle={{ color: '#e2e8f0' }} formatter={v => [`${v.toLocaleString()}`, 'Capital']} />
+                              <Line type="monotone" dataKey="value" stroke="#10b981" strokeWidth={2} dot={false} name="Capital" />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ))}
+                <p className="text-slate-500 text-xs">{lang === 'es' ? 'Resultados históricos no garantizan rendimientos futuros. Solo con fines educativos.' : 'Historical results do not guarantee future returns. For educational purposes only.'}</p>
+              </div>
+            )}
+            {backtestSymbols.size === 0 && <p className="text-slate-500 text-sm">{t('label_select_stock_backtest', lang)}</p>}
+          </div>
+        )}
+
+        {/* Analysis Panel — using existing data */}
+        {stats && Object.keys(stats).length > 0 && (
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700 mb-4">
+            <h3 className="text-white font-semibold mb-4">{t('label_comparative_analysis', lang)}</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-slate-400 border-b border-slate-700 text-xs">
+                    <th className="text-left py-2 pr-4">{t('label_companies', lang)}</th>
+                    <th className="text-right py-2 px-3">{t('label_current_price', lang)}</th>
+                    <th className="text-right py-2 px-3">{t('label_change_pct', lang)}</th>
+                    <th className="text-right py-2 px-3">{t('label_volatility', lang)}</th>
+                    <th className="text-right py-2 px-3">{t('label_range_pct', lang)}</th>
+                    <th className="text-right py-2 px-3">{t('label_vs_average', lang)}</th>
+                    <th className="text-right py-2 px-3">P/E</th>
+                    <th className="text-right py-2 px-3">Beta</th>
+                    <th className="text-right py-2 pl-3">{t('label_rsi_signal', lang)}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedStocks.map((symbol) => {
+                    const s = stats[symbol];
+                    const f = fundamentals[symbol];
+                    if (!s) return null;
+                    const range = ((s.max - s.min) / s.min * 100).toFixed(1);
+                    const vsAvg = ((s.current - s.average) / s.average * 100).toFixed(1);
+                    // Volatility: std dev of prices
+                    const prices = stockData.map(d => d[symbol]).filter(v => v != null);
+                    const mean = prices.reduce((a, b) => a + b, 0) / prices.length;
+                    const stdDev = Math.sqrt(prices.reduce((sum, v) => sum + (v - mean) ** 2, 0) / prices.length);
+                    const volatility = ((stdDev / mean) * 100).toFixed(1);
+                    // RSI signal
+                    const rsiVals = rsi(prices, 14);
+                    const lastRsi = rsiVals.filter(v => v != null).pop();
+                    const rsiSignal = lastRsi > 70 ? `${lang === 'es' ? 'SC' : 'OB'}` : lastRsi < 30 ? `${lang === 'es' ? 'SV' : 'OS'}` : 'N';
+                    return (
+                      <tr key={symbol} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                        <td className="py-2 pr-4 font-bold text-white">{symbol}</td>
+                        <td className="text-right py-2 px-3 text-slate-200">{fmt(s.current)}</td>
+                        <td className={`text-right py-2 px-3 font-semibold ${s.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {s.change >= 0 ? '+' : ''}{s.change.toFixed(2)}%
+                        </td>
+                        <td className="text-right py-2 px-3 text-slate-200">{volatility}%</td>
+                        <td className="text-right py-2 px-3 text-slate-200">{range}%</td>
+                        <td className={`text-right py-2 px-3 font-semibold ${parseFloat(vsAvg) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {parseFloat(vsAvg) >= 0 ? '+' : ''}{vsAvg}%
+                        </td>
+                        <td className="text-right py-2 px-3 text-slate-200">{f?.trailingPE ? f.trailingPE.toFixed(1) : '—'}</td>
+                        <td className={`text-right py-2 px-3 ${f?.beta != null ? (f.beta > 1 ? 'text-orange-400' : 'text-green-400') : 'text-slate-200'}`}>
+                          {f?.beta != null ? f.beta.toFixed(2) : '—'}
+                        </td>
+                        <td className={`text-right py-2 pl-3 text-xs font-semibold ${lastRsi > 70 ? 'text-red-400' : lastRsi < 30 ? 'text-green-400' : 'text-slate-300'}`}>{lastRsi ? `${rsiSignal} (${lastRsi.toFixed(0)})` : '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-slate-500 text-xs mt-2">{t('label_rsi_legend', lang)}</p>
+          </div>
+        )}
 
         {/* News panel */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700 mb-4">
@@ -1099,13 +1621,13 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
 
           {newsLoading && (
             <div className="flex items-center gap-2 text-slate-400 text-sm py-4">
-              <RefreshCw size={14} className="animate-spin" /> Cargando noticias...
+              <RefreshCw size={14} className="animate-spin" /> {t('portfolio_loading_news', lang)}
             </div>
           )}
 
           {!newsLoading && newsItems.length === 0 && (
             <p className="text-slate-600 text-sm py-2">
-              Presiona "Actualizar" para cargar noticias de las acciones seleccionadas.
+              {t('label_press_update_news', lang)}
             </p>
           )}
 
@@ -1117,9 +1639,9 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
             });
             return (
               <>
-                <p className="text-slate-500 text-xs mb-3">{filtered.length} noticias · {selectedStocks.join(', ')}</p>
+                <p className="text-slate-500 text-xs mb-3">{filtered.length} {t('portfolio_news', lang)} · {selectedStocks.join(', ')}</p>
                 {filtered.length === 0 ? (
-                  <p className="text-slate-500 text-sm">No hay noticias en este período.</p>
+                  <p className="text-slate-500 text-sm">{t('portfolio_no_news_in_period', lang)}</p>
                 ) : (
                   <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
                     {filtered.map((item, i) => (
@@ -1163,53 +1685,8 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
         {/* Footer */}
         <div className="bg-slate-800/30 rounded-xl p-4 border border-slate-700 text-center">
           <p className="text-slate-400 text-sm">
-            📊 Yahoo Finance API · ExchangeRate API · 1 USD = {rates?.MXN?.toFixed(2)} MXN · 1 USD = {rates?.EUR?.toFixed(4)} EUR · {currentTime.toLocaleString('en-US', { timeZone: 'America/New_York' })} ET
+            Yahoo Finance API · ExchangeRate API · 1 USD = {rates?.MXN?.toFixed(2)} MXN · 1 USD = {rates?.EUR?.toFixed(4)} EUR · {currentTime.toLocaleString('en-US', { timeZone: 'America/New_York' })} ET
           </p>
-        </div>
-
-        {/* Manual */}
-        <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700 mt-4">
-          <h2 className="text-white text-lg font-bold mb-4">Manual de valores</h2>
-
-          <div className="mb-5">
-            <h3 className="text-blue-400 font-semibold mb-2">Precios y variación</h3>
-            <p className="text-slate-300 text-sm mb-1"><span className="text-white font-medium">Precio Actual:</span> El último precio de cierre registrado para la acción en el mercado.</p>
-            <p className="text-slate-300 text-sm mb-1"><span className="text-white font-medium">Promedio:</span> El precio promedio de la acción durante el período de tiempo seleccionado.</p>
-            <p className="text-slate-300 text-sm mb-1"><span className="text-white font-medium">Cambio %:</span> La variación porcentual del precio entre el primer y el último dato del período seleccionado. Un valor positivo indica que la acción subió; negativo, que bajó.</p>
-            <p className="text-slate-300 text-sm mb-1"><span className="text-white font-medium">Mín:</span> El precio más bajo registrado durante el período seleccionado.</p>
-            <p className="text-slate-300 text-sm mb-1"><span className="text-white font-medium">Máx:</span> El precio más alto registrado durante el período seleccionado.</p>
-          </div>
-
-          <div className="mb-5">
-            <h3 className="text-blue-400 font-semibold mb-2">Datos de Valoración (¿Precio Justo?)</h3>
-            <p className="text-slate-300 text-sm mb-1"><span className="text-white font-medium">P/E (Precio/Ganancia):</span> Indica cuántos años de beneficios estás pagando al comprar la acción hoy. Un P/E alto puede significar que el mercado espera mucho crecimiento futuro; uno bajo puede indicar que la acción está barata o que la empresa tiene problemas.</p>
-            <p className="text-slate-300 text-sm mb-1"><span className="text-white font-medium">P/B (Precio/Valor Contable):</span> Compara el valor de mercado con lo que la empresa posee físicamente. Un valor menor a 1 puede indicar que la acción cotiza por debajo de su valor real en libros.</p>
-            <p className="text-slate-300 text-sm mb-1"><span className="text-white font-medium">EPS (Ganancias por Acción):</span> Es el beneficio neto repartido entre cada acción. Debe ser creciente a lo largo del tiempo; si cae, puede ser señal de que la empresa está perdiendo rentabilidad.</p>
-          </div>
-
-          <div className="mb-5">
-            <h3 className="text-blue-400 font-semibold mb-2">Salud y Eficiencia Financiera</h3>
-            <p className="text-slate-300 text-sm mb-1"><span className="text-white font-medium">ROE (Retorno sobre Capital):</span> Mide qué tan eficiente es la empresa usando el dinero de sus inversores para generar más dinero. Un ROE alto y sostenido es señal de una empresa bien gestionada.</p>
-            <p className="text-slate-300 text-sm mb-1"><span className="text-white font-medium">D/E (Deuda/Patrimonio):</span> Compara la deuda total de la empresa con el capital de sus accionistas. Un valor alto indica que la empresa depende mucho del endeudamiento, lo cual puede ser riesgoso en sectores de infraestructura pesada como petróleo o manufactura.</p>
-          </div>
-
-          <div className="mb-5">
-            <h3 className="text-blue-400 font-semibold mb-2">Rendimiento y Riesgo</h3>
-            <p className="text-slate-300 text-sm mb-1"><span className="text-white font-medium">Div. Yield (Dividendo):</span> El porcentaje de rentabilidad extra que recibes en efectivo cada año solo por ser dueño de la acción. Por ejemplo, un Div. Yield de 3% significa que por cada $100 invertidos recibes $3 al año en dividendos.</p>
-            <p className="text-slate-300 text-sm mb-1"><span className="text-white font-medium">Beta:</span> Mide la volatilidad de la acción comparada con el mercado general. Si es mayor a 1, la acción se mueve más bruscamente que el mercado; si es menor a 1, es más estable. Por ejemplo, una Beta de 1.5 significa que si el mercado sube 10%, la acción tiende a subir 15%.</p>
-            <p className="text-slate-300 text-sm mb-1"><span className="text-white font-medium">Margen:</span> El margen de beneficio neto indica qué tanto dinero queda libre tras pagar todos los costos de operación y producción. Un margen del 20% significa que de cada $100 en ventas, $20 son ganancia neta.</p>
-          </div>
-
-          <div className="mb-5">
-            <h3 className="text-blue-400 font-semibold mb-2">Monedas y tiempo</h3>
-            <p className="text-slate-300 text-sm mb-1"><span className="text-white font-medium">USD / MXN / EUR:</span> Puedes ver todos los precios en dólares americanos, pesos mexicanos o euros. El tipo de cambio se obtiene automáticamente al cargar la app.</p>
-            <p className="text-slate-300 text-sm mb-1"><span className="text-white font-medium">Hora ET:</span> Hora del Este de Estados Unidos, que es la zona horaria de la Bolsa de Nueva York (NYSE). El mercado abre a las 9:30 AM ET y cierra a las 4:00 PM ET de lunes a viernes.</p>
-            <p className="text-slate-300 text-sm mb-1"><span className="text-white font-medium">Hora CDMX:</span> Hora local de la Ciudad de México. Normalmente es 1 hora menos que ET (por ejemplo, si en Nueva York son las 10:00 AM, en CDMX son las 9:00 AM).</p>
-          </div>
-
-          <div className="border-t border-slate-700 pt-4 text-center">
-            <p className="text-slate-500 text-xs">Created on Kiro by Pablo Casas</p>
-          </div>
         </div>
 
       </div>

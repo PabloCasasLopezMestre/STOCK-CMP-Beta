@@ -7,8 +7,9 @@
   "main": "electron/main.js",
   "scripts": {
     "deploy": "wrangler deploy",
-    "dev": "wrangler dev",
-    "start": "wrangler dev",
+    "dev": "concurrently -n worker,vite -c blue,magenta \"wrangler dev\" \"vite\"",
+    "dev:api": "wrangler dev",
+    "start": "npm run dev",
     "frontend": "vite",
     "test": "vitest",
     "electron": "electron .",
@@ -35,9 +36,22 @@
       "vite.config.js"
     ],
     "extraResources": [
-      { "from": "dist", "to": "app_dist", "filter": ["index.html", "assets/**"] },
-      { "from": "src", "to": "src" },
-      { "from": "wrangler.jsonc", "to": "wrangler.jsonc" }
+      {
+        "from": "dist",
+        "to": "app_dist",
+        "filter": [
+          "index.html",
+          "assets/**"
+        ]
+      },
+      {
+        "from": "src",
+        "to": "src"
+      },
+      {
+        "from": "wrangler.jsonc",
+        "to": "wrangler.jsonc"
+      }
     ]
   },
   "devDependencies": {
@@ -52,6 +66,7 @@
     "wrangler": "^4.81.0"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.103.0",
     "lucide-react": "^1.7.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",

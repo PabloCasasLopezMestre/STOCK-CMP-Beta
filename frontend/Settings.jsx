@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { LANGUAGES, t } from './i18n';
+import CommunityProfileSettings from './CommunityProfileSettings';
+import AuthEmailPanel from './AuthEmailPanel';
 
 export const ALL_CURRENCIES = [
   { code: 'USD', label: 'Dólar estadounidense', symbol: '$',   flag: '🇺🇸' },
@@ -99,9 +101,28 @@ export default function Settings({
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">{t('settings_title', lang)}</h1>
-        <p className="text-slate-400">Configura el comportamiento de la app.</p>
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2">{t('settings_title', lang)}</h1>
+          <p className="text-slate-400">{lang === 'es' ? 'Configura el comportamiento de la app.' : 'Configure app behavior.'}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setLang('es');
+            setEnabledCurrencies(['USD', 'MXN', 'EUR']);
+            setCurrency('USD');
+            setUserTimezone('America/New_York');
+            try {
+              localStorage.setItem('lang', 'es');
+              localStorage.setItem('enabledCurrencies', JSON.stringify(['USD', 'MXN', 'EUR']));
+              localStorage.setItem('userTimezone', 'America/New_York');
+            } catch {}
+          }}
+          className="bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+        >
+          Reset to default
+        </button>
       </div>
 
       {/* Language */}
@@ -126,11 +147,13 @@ export default function Settings({
         </div>
       </div>
 
+      <AuthEmailPanel lang={lang} />
+
       {/* Timezone */}
       <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
         <h2 className="text-white font-semibold mb-1">{t('settings_timezone', lang)}</h2>
         <p className="text-slate-400 text-sm mb-3">
-          Selecciona tu zona horaria. El reloj del comparador mostrará la hora en esta zona.
+          {lang === 'es' ? 'Selecciona tu zona horaria. El reloj del comparador mostrará la hora en esta zona.' : 'Select your time zone. The comparator clock will show the time in this zone.'}
         </p>
         <div className="flex items-center gap-2 mb-3 bg-slate-700/50 rounded-lg px-3 py-2 border border-slate-600">
           <span className="text-lg">{currentTz?.flag ?? '🌍'}</span>
@@ -169,7 +192,7 @@ export default function Settings({
       <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
         <h2 className="text-white font-semibold mb-1">{t('settings_currencies', lang)}</h2>
         <p className="text-slate-400 text-sm mb-4">
-          Selecciona las monedas que aparecen al presionar el botón de tipo de cambio. USD siempre está incluido.
+          {lang === 'es' ? 'Selecciona las monedas que aparecen al presionar el botón de tipo de cambio. USD siempre está incluido.' : 'Select the currencies shown when pressing the exchange rate button. USD is always included.'}
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {ALL_CURRENCIES.map(({ code, label, symbol, flag }) => {
@@ -199,26 +222,28 @@ export default function Settings({
           })}
         </div>
         <p className="text-slate-500 text-xs mt-4">
-          Rotación activa: {enabledCurrencies.join(' → ')} → (vuelve a USD)
+          {lang === 'es' ? `Rotación activa: ${enabledCurrencies.join(' → ')} → (vuelve a USD)` : `Active rotation: ${enabledCurrencies.join(' → ')} → (back to USD)`}
         </p>
       </div>
 
+      <CommunityProfileSettings lang={lang} />
+
       {/* Credits */}
       <div className="bg-slate-800/30 rounded-xl p-4 border border-slate-700/50">
-        <h2 className="text-white font-semibold mb-3 text-sm">Fuentes de tipos de cambio</h2>
+        <h2 className="text-white font-semibold mb-3 text-sm">{lang === 'es' ? 'Fuentes de tipos de cambio' : 'Exchange rate sources'}</h2>
         <div className="space-y-2">
           <div className="flex items-start gap-2">
             <span className="text-green-400 text-xs mt-0.5">●</span>
             <div>
-              <p className="text-slate-200 text-xs font-medium">ExchangeRate API (fuente principal)</p>
-              <p className="text-slate-500 text-xs">160+ monedas · Plan gratuito · 1,500 llamadas/mes</p>
+              <p className="text-slate-200 text-xs font-medium">ExchangeRate API ({lang === 'es' ? 'fuente principal' : 'primary source'})</p>
+              <p className="text-slate-500 text-xs">{lang === 'es' ? '160+ monedas · Plan gratuito · 1,500 llamadas/mes' : '160+ currencies · Free plan · 1,500 calls/month'}</p>
             </div>
           </div>
           <div className="flex items-start gap-2">
             <span className="text-slate-500 text-xs mt-0.5">●</span>
             <div>
               <p className="text-slate-400 text-xs font-medium">Frankfurter (fallback)</p>
-              <p className="text-slate-500 text-xs">Banco Central Europeo · Sin límites · Sin API key · frankfurter.app</p>
+              <p className="text-slate-500 text-xs">{lang === 'es' ? 'Banco Central Europeo · Sin límites · Sin API key · frankfurter.app' : 'European Central Bank · No limits · No API key · frankfurter.app'}</p>
             </div>
           </div>
         </div>
