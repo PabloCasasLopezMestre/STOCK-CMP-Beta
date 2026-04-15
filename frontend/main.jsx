@@ -216,76 +216,79 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="sticky top-0 z-50 bg-slate-900/90 backdrop-blur border-b border-slate-700 px-4 py-2 flex items-center justify-between">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setTab('compare')}
-            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === 'compare' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
-          >
-            {t('nav_compare', lang)}
-          </button>
-          <button
-            onClick={() => setTab('portfolio')}
-            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === 'portfolio' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
-          >
-            {t('nav_portfolio', lang)}
-          </button>
-          <button
-            onClick={() => setTab('community')}
-            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === 'community' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
-          >
-            {t('nav_community', lang)}
-          </button>
-          <a
-            href="https://buymeacoffee.com/pablocasas"
-            target="_blank"
-            rel="noreferrer"
-            className="px-5 py-2 rounded-lg text-sm font-semibold bg-amber-500 hover:bg-amber-400 text-slate-900 transition-colors"
-          >
-            {lang === 'es' ? 'Contribuir' : 'Contribute'}
-          </a>
+      <div className="sticky top-0 z-50 bg-slate-900/90 backdrop-blur border-b border-slate-700 px-3 py-2">
+        {/* Row 1: main tabs */}
+        <div className="flex items-center justify-between gap-1">
+          <div className="flex gap-1 flex-wrap">
+            <button
+              onClick={() => setTab('compare')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${tab === 'compare' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+            >
+              {t('nav_compare', lang)}
+            </button>
+            <button
+              onClick={() => setTab('portfolio')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${tab === 'portfolio' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+            >
+              {t('nav_portfolio', lang)}
+            </button>
+            <button
+              onClick={() => setTab('community')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${tab === 'community' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+            >
+              {t('nav_community', lang)}
+            </button>
+            <a
+              href="https://buymeacoffee.com/pablocasas"
+              target="_blank"
+              rel="noreferrer"
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-900 transition-colors"
+            >
+              {lang === 'es' ? 'Contribuir' : 'Contribute'}
+            </a>
+          </div>
+          <div className="flex gap-1">
+            <button
+              onClick={() => setTab('settings')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${tab === 'settings' ? 'bg-slate-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'}`}
+            >
+              {t('nav_settings', lang)}
+            </button>
+            <button
+              onClick={() => setTab('about')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${tab === 'about' ? 'bg-slate-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'}`}
+            >
+              {t('nav_about', lang)}
+            </button>
+          </div>
         </div>
 
-        {/* Center: currency rotate + update (only on compare/portfolio) */}
+        {/* Row 2: currency + update + alerts (only on compare/portfolio) */}
         {(tab === 'compare' || tab === 'portfolio') && (
-          <div className="flex items-center gap-2 absolute left-1/2 -translate-x-1/2">
+          <div className="flex items-center gap-2 mt-1.5">
             <button
               onClick={nextCurrency}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded-lg text-sm font-semibold"
+              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-lg text-xs font-semibold"
             >
               {currencyLabel}
             </button>
             <button
               onClick={() => setRefreshTrigger(r => r + 1)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
               {lang === 'es' ? 'Actualizar' : 'Update'}
             </button>
             {tab === 'portfolio' && (
               <button
                 onClick={() => setShowAlertsPanel(p => !p)}
-                className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${showAlertsPanel ? 'bg-amber-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${showAlertsPanel ? 'bg-amber-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
               >
                 {lang === 'es' ? 'Alertas' : 'Alerts'}
               </button>
             )}
           </div>
         )}
-        <div className="flex gap-2">
-          <button
-            onClick={() => setTab('settings')}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === 'settings' ? 'bg-slate-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'}`}
-          >
-            {t('nav_settings', lang)}
-          </button>
-          <button
-            onClick={() => setTab('about')}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === 'about' ? 'bg-slate-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'}`}
-          >
-            {t('nav_about', lang)}
-          </button>
-        </div>
       </div>
 
       <TickerBar selectedStocks={tickerSymbols} currency={currency} rates={rates} />
