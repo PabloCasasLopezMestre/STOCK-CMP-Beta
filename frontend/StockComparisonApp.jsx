@@ -335,8 +335,14 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
       const next = new Set(prev);
       if (next.has(symbol)) {
         next.delete(symbol);
+        setIndicatorDataMap(m => { const n = { ...m }; delete n[symbol]; return n; });
       } else {
         next.add(symbol);
+        // Calculate immediately using current stockData
+        if (stockData.length > 0) {
+          const data = calcIndicators(symbol);
+          setIndicatorDataMap(m => ({ ...m, [symbol]: data }));
+        }
       }
       return next;
     });
