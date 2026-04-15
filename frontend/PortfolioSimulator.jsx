@@ -7,9 +7,8 @@ const WORKER_BASE = 'https://proxy.stockcmp-proxy.workers.dev';
 
 // Mini dropdown that suggests stocks from the comparator
 function StockSuggest({ value, onChange, placeholder, comparatorStocks, holdingSymbols, lang }) {
-  const suggestions = [
-    ...new Set([...(comparatorStocks || []), ...(holdingSymbols || [])]),
-  ].filter(s => s && (!value || s.startsWith(value)));
+  const [focused, setFocused] = useState(false);
+  const suggestions = [...new Set([...(comparatorStocks || [])])];
 
   return (
     <div className="relative mb-2">
@@ -18,15 +17,17 @@ function StockSuggest({ value, onChange, placeholder, comparatorStocks, holdingS
         placeholder={placeholder}
         value={value}
         onChange={e => onChange(e.target.value.toUpperCase())}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setTimeout(() => setFocused(false), 150)}
         maxLength={10}
       />
-      {suggestions.length > 0 && value === '' && (
+      {focused && suggestions.length > 0 && (
         <div className="absolute top-full left-0 right-0 z-20 bg-slate-800 border border-slate-600 rounded-lg mt-0.5 overflow-hidden shadow-lg">
           {suggestions.map(sym => (
             <button
               key={sym}
               type="button"
-              onClick={() => onChange(sym)}
+              onMouseDown={() => onChange(sym)}
               className="w-full text-left px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-700 font-mono"
             >
               {sym}
