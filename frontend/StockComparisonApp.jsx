@@ -523,6 +523,14 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
       } else {
         next.add(key);
       }
+      // Remove selectedStocks that don't belong to any selected sector
+      const validSymbols = new Set(
+        [...next].flatMap(k => (sectors[k]?.stocks || []).map(s => s.symbol))
+      );
+      setSelectedStocks(prev => {
+        const filtered = prev.filter(s => validSymbols.has(s));
+        return filtered.length > 0 ? filtered : [sectors[key]?.stocks[0]?.symbol].filter(Boolean);
+      });
       return next;
     });
     setEditingSector(null);
