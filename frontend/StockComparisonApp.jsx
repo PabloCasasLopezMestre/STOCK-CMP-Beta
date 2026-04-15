@@ -110,7 +110,7 @@ function saveSectors(sectors) {
 // Main component
 // ---------------------------------------------------------------------------
 
-const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel, rates, alerts, setAlerts, userTimezone = 'America/New_York', lang = 'es', onOpenCommunityIdea, refreshTrigger, onSelectedStocksChange, maxStocks = 8 }) => {
+const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel, rates, alerts, setAlerts, userTimezone = 'America/New_York', lang = 'es', onOpenCommunityIdea, refreshTrigger, onSelectedStocksChange, maxStocks = 8, enabledFeatures = {} }) => {
   const exchangeRate = rates?.MXN ?? 20.5;
   const exchangeRateEUR = rates?.EUR ?? 0.92;
   const [sectors, setSectors] = useState(loadSectors);
@@ -1059,7 +1059,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
         )}
 
         {/* Fundamentals */}
-        {selectedStocks.some((s) => fundamentals[s]) && (
+        {enabledFeatures.fundamentals !== false && selectedStocks.some((s) => fundamentals[s]) && (
           <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 mb-4 border border-slate-700">
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <h3 className="text-white font-semibold">{t('label_fundamentals', lang)}</h3>
@@ -1233,7 +1233,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
         </div>
 
         {/* Technical Indicators Panel */}
-        {stats && Object.keys(stats).length > 0 && (
+        {enabledFeatures.technicalIndicators !== false && stats && Object.keys(stats).length > 0 && (
           <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700 mb-4">
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <h3 className="text-white font-semibold">{t('label_technical_indicators', lang)}</h3>
@@ -1415,7 +1415,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
         )}
 
         {/* Pattern Recognition Panel */}
-        {stats && Object.keys(stats).length > 0 && (
+        {enabledFeatures.patternRecognition !== false && stats && Object.keys(stats).length > 0 && (
           <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700 mb-4">
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <h3 className="text-white font-semibold">{t('label_pattern_recognition', lang)}</h3>
@@ -1507,7 +1507,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
         )}
 
         {/* Backtesting Panel */}
-        {stats && Object.keys(stats).length > 0 && (
+        {enabledFeatures.backtesting !== false && stats && Object.keys(stats).length > 0 && (
           <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700 mb-4">
             <h3 className="text-white font-semibold mb-3">{t('label_backtesting', lang)}</h3>
             <div className="flex flex-wrap gap-3 mb-4 items-end">
@@ -1603,7 +1603,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
         )}
 
         {/* Analysis Panel — using existing data */}
-        {stats && Object.keys(stats).length > 0 && (
+        {enabledFeatures.comparativeAnalysis !== false && stats && Object.keys(stats).length > 0 && (
           <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700 mb-4">
             <h3 className="text-white font-semibold mb-4">{t('label_comparative_analysis', lang)}</h3>
             <div className="overflow-x-auto">
@@ -1665,6 +1665,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
         )}
 
         {/* News panel */}
+        {enabledFeatures.comparatorNews !== false && (
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700 mb-4">
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
             <h3 className="text-white font-semibold">{t('label_news', lang)}</h3>
@@ -1745,6 +1746,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
             );
           })()}
         </div>
+        )}
 
         {/* Footer */}
         <div className="bg-slate-800/30 rounded-xl p-4 border border-slate-700 text-center">

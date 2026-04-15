@@ -61,6 +61,7 @@ export const TIMEZONES = [
 export default function Settings({
   enabledCurrencies, setEnabledCurrencies, currency, setCurrency,
   userTimezone, setUserTimezone, lang, setLang, maxStocks = 8, setMaxStocks,
+  enabledFeatures = {}, setEnabledFeatures,
 }) {
   const [tzSearch, setTzSearch] = useState('');
 
@@ -114,11 +115,17 @@ export default function Settings({
             setCurrency('USD');
             setUserTimezone('America/New_York');
             if (setMaxStocks) setMaxStocks(8);
+            if (setEnabledFeatures) setEnabledFeatures({
+              fundamentals: true, technicalIndicators: true, patternRecognition: true,
+              backtesting: true, comparativeAnalysis: true, comparatorNews: true,
+              bankAccounts: true, portfolioNews: true, transactionHistory: true, positions: true,
+            });
             try {
               localStorage.setItem('lang', 'es');
               localStorage.setItem('enabledCurrencies', JSON.stringify(['USD', 'MXN', 'EUR']));
               localStorage.setItem('userTimezone', 'America/New_York');
               localStorage.setItem('maxStocks', '8');
+              localStorage.removeItem('enabledFeatures');
             } catch {}
           }}
           className="bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
@@ -256,6 +263,66 @@ export default function Settings({
           <span>4</span>
           <span>20</span>
         </div>
+      </div>
+
+      {/* Feature toggles */}
+      <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+        <h2 className="text-white font-semibold mb-1">
+          {lang === 'es' ? 'Funciones visibles' : 'Visible features'}
+        </h2>
+        <p className="text-slate-400 text-sm mb-4">
+          {lang === 'es'
+            ? 'Activa o desactiva secciones de la app. Las secciones desactivadas desaparecen completamente — puedes volver a activarlas aquí en cualquier momento. Los datos nunca se borran.'
+            : 'Enable or disable sections of the app. Disabled sections disappear completely — you can re-enable them here at any time. Data is never deleted.'}
+        </p>
+        {[
+          {
+            group: lang === 'es' ? 'Comparador' : 'Comparator',
+            items: [
+              { key: 'fundamentals',        label: lang === 'es' ? 'Datos fundamentales' : 'Fundamental data' },
+              { key: 'technicalIndicators', label: lang === 'es' ? 'Indicadores técnicos' : 'Technical indicators' },
+              { key: 'patternRecognition',  label: lang === 'es' ? 'Reconocimiento de patrones' : 'Pattern recognition' },
+              { key: 'backtesting',         label: lang === 'es' ? 'Backtesting de estrategias' : 'Strategy backtesting' },
+              { key: 'comparativeAnalysis', label: lang === 'es' ? 'Análisis comparativo' : 'Comparative analysis' },
+              { key: 'comparatorNews',      label: lang === 'es' ? 'Noticias' : 'News' },
+            ],
+          },
+          {
+            group: lang === 'es' ? 'Portafolio' : 'Portfolio',
+            items: [
+              { key: 'positions',          label: lang === 'es' ? 'Posiciones' : 'Positions' },
+              { key: 'transactionHistory', label: lang === 'es' ? 'Historial de transacciones' : 'Transaction history' },
+              { key: 'bankAccounts',       label: lang === 'es' ? 'Cuentas de banco' : 'Bank accounts' },
+              { key: 'portfolioNews',      label: lang === 'es' ? 'Noticias' : 'News' },
+            ],
+          },
+        ].map(({ group, items }) => (
+          <div key={group} className="mb-4">
+            <p className="text-slate-400 text-xs font-semibold uppercase tracking-wide mb-2">{group}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {items.map(({ key, label }) => {
+                const enabled = enabledFeatures[key] !== false;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setEnabledFeatures && setEnabledFeatures({ ...enabledFeatures, [key]: !enabled })}
+                    className={`flex items-center justify-between px-3 py-2 rounded-lg border text-sm transition-all ${
+                      enabled
+                        ? 'bg-blue-600/20 border-blue-500 text-white'
+                        : 'bg-slate-700/50 border-slate-600 text-slate-400'
+                    }`}
+                  >
+                    <span>{label}</span>
+                    <span className={`w-8 h-4 rounded-full relative transition-colors ${enabled ? 'bg-blue-500' : 'bg-slate-600'}`}>
+                      <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${enabled ? 'left-4' : 'left-0.5'}`} />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Credits */}

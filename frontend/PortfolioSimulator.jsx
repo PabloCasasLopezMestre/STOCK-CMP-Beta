@@ -55,7 +55,7 @@ const DEFAULT_PORTFOLIO = {
   dividendsReceived: 0,
 };
 
-export default function PortfolioSimulator({ currency, setCurrency, nextCurrency, currencyLabel, rates, alerts, setAlerts, lang = 'es', onOpenCommunityIdea, initialPortfolio, onPortfolioChange, refreshTrigger, showAlertsPanel, setShowAlertsPanel, comparatorStocks = [] }) {
+export default function PortfolioSimulator({ currency, setCurrency, nextCurrency, currencyLabel, rates, alerts, setAlerts, lang = 'es', onOpenCommunityIdea, initialPortfolio, onPortfolioChange, refreshTrigger, showAlertsPanel, setShowAlertsPanel, comparatorStocks = [], enabledFeatures = {} }) {
   const [portfolio, setPortfolio] = useState(() => initialPortfolio || loadPortfolio() || DEFAULT_PORTFOLIO);
   const [prices, setPrices] = useState({});
   const [historicalPrices, setHistoricalPrices] = useState({});
@@ -810,7 +810,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
       </div>
 
       {/* Holdings */}
-      {Object.keys(portfolio.holdings).length > 0 && (
+      {enabledFeatures.positions !== false && Object.keys(portfolio.holdings).length > 0 && (
         <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
             <h3 className="text-white font-semibold">{t('portfolio_positions', lang)}</h3>
@@ -1081,6 +1081,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
       })()}
 
       {/* Bank Accounts Section */}
+      {enabledFeatures.bankAccounts !== false && (
       <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-white font-semibold">{lang === 'es' ? 'Cuentas Bancarias' : 'Bank Accounts'}</h3>
@@ -1185,8 +1186,10 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
           <p className="text-slate-500 text-sm">{lang === 'es' ? 'Agrega cuentas bancarias para rastrear su crecimiento.' : 'Add bank accounts to track their growth.'}</p>
         )}
       </div>
+      )}
 
       {/* News section */}
+      {enabledFeatures.portfolioNews !== false && (
       <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
         <h3 className="text-white font-semibold mb-3">{t('portfolio_news', lang)}</h3>
         <div className="flex gap-2 mb-4">
@@ -1314,9 +1317,10 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
           <p className="text-slate-600 text-sm">{t('portfolio_enter_symbol_news')}, lang</p>
         )}
       </div>
+      )}
 
       {/* Transaction history */}
-      {portfolio.transactions.length > 0 && (
+      {enabledFeatures.transactionHistory !== false && portfolio.transactions.length > 0 && (
         <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
           <h3 className="text-white font-semibold mb-3">{t('portfolio_transaction_history', lang)}</h3>
           <div className="space-y-1 max-h-64 overflow-y-auto">
