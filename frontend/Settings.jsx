@@ -60,7 +60,7 @@ export const TIMEZONES = [
 
 export default function Settings({
   enabledCurrencies, setEnabledCurrencies, currency, setCurrency,
-  userTimezone, setUserTimezone, lang, setLang,
+  userTimezone, setUserTimezone, lang, setLang, maxStocks = 8, setMaxStocks,
 }) {
   const [tzSearch, setTzSearch] = useState('');
 
@@ -113,10 +113,12 @@ export default function Settings({
             setEnabledCurrencies(['USD', 'MXN', 'EUR']);
             setCurrency('USD');
             setUserTimezone('America/New_York');
+            if (setMaxStocks) setMaxStocks(8);
             try {
               localStorage.setItem('lang', 'es');
               localStorage.setItem('enabledCurrencies', JSON.stringify(['USD', 'MXN', 'EUR']));
               localStorage.setItem('userTimezone', 'America/New_York');
+              localStorage.setItem('maxStocks', '8');
             } catch {}
           }}
           className="bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
@@ -227,6 +229,34 @@ export default function Settings({
       </div>
 
       <CommunityProfileSettings lang={lang} />
+
+      {/* Max stocks */}
+      <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+        <h2 className="text-white font-semibold mb-1">
+          {lang === 'es' ? 'Máximo de acciones simultáneas' : 'Maximum simultaneous stocks'}
+        </h2>
+        <p className="text-slate-400 text-sm mb-4">
+          {lang === 'es'
+            ? 'Define cuántas acciones puedes tener seleccionadas a la vez en el Comparador. Rango: 4–20.'
+            : 'Set how many stocks you can have selected at once in the Comparator. Range: 4–20.'}
+        </p>
+        <div className="flex items-center gap-4">
+          <input
+            type="range"
+            min={4}
+            max={20}
+            step={1}
+            value={maxStocks}
+            onChange={e => setMaxStocks && setMaxStocks(parseInt(e.target.value, 10))}
+            className="flex-1 accent-blue-500"
+          />
+          <span className="text-white font-bold text-lg w-8 text-center">{maxStocks}</span>
+        </div>
+        <div className="flex justify-between text-slate-500 text-xs mt-1">
+          <span>4</span>
+          <span>20</span>
+        </div>
+      </div>
 
       {/* Credits */}
       <div className="bg-slate-800/30 rounded-xl p-4 border border-slate-700/50">

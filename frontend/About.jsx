@@ -524,7 +524,8 @@ export default function About({ lang = 'es' }) {
                 <li>{s('Configura las monedas activas para la rotación (USD, MXN, EUR y más de 20 monedas disponibles).', 'Configure active currencies for rotation (USD, MXN, EUR and 20+ available currencies.')}</li>
                 <li>{s('Ajusta la zona horaria para que los datos intradía se muestren en tu hora local.', 'Adjust the time zone so intraday data is shown in your local time.')}</li>
                 <li>{s('Configura tu perfil de comunidad: handle, nombre, bio, avatar y país.', 'Configure your community profile: handle, name, bio, avatar, and country.')}</li>
-                <li>{s('Usa "Restablecer valores predeterminados" para volver al idioma español, monedas USD/MXN/EUR y zona horaria NYSE.', 'Use "Reset to Defaults" to return to Spanish, USD/MXN/EUR currencies, and NYSE time zone.')}</li>
+                <li>{s('Usa el slider de "Máximo de acciones simultáneas" para elegir cuántas acciones puedes tener seleccionadas a la vez en el Comparador (rango: 4–20).', 'Use the "Maximum simultaneous stocks" slider to choose how many stocks you can have selected at once in the Comparator (range: 4–20).')}</li>
+                <li>{s('Usa "Restablecer valores predeterminados" para volver al idioma español, monedas USD/MXN/EUR, zona horaria NYSE y máximo de 8 acciones.', 'Use "Reset to Defaults" to return to Spanish, USD/MXN/EUR currencies, NYSE time zone, and 8 max stocks.')}</li>
               </ol>
             </div>
 
@@ -610,6 +611,7 @@ export default function About({ lang = 'es' }) {
                 s('Idioma: Español, English, Français, Italiano, Deutsch, Português, 中文, Русский, العربية, 日本語, 한국어', 'Language: Spanish, English, French, Italian, German, Portuguese, Chinese, Russian, Arabic, Japanese, Korean'),
                 s('Rotación de monedas: USD, MXN, EUR y más de 20 monedas', 'Currency rotation: USD, MXN, EUR and 20+ currencies'),
                 s('Zona horaria personalizable', 'Customizable time zone'),
+                s('Máximo de acciones simultáneas: slider de 4 a 20 acciones', 'Maximum simultaneous stocks: slider from 4 to 20'),
                 s('Perfil de comunidad: handle, nombre, bio, avatar, país', 'Community profile: handle, name, bio, avatar, country'),
                 s('Restablecer valores predeterminados', 'Reset to defaults'),
                 s('Inicio de sesión con email y contraseña', 'Email and password sign in'),

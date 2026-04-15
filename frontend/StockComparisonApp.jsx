@@ -110,7 +110,7 @@ function saveSectors(sectors) {
 // Main component
 // ---------------------------------------------------------------------------
 
-const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel, rates, alerts, setAlerts, userTimezone = 'America/New_York', lang = 'es', onOpenCommunityIdea, refreshTrigger, onSelectedStocksChange }) => {
+const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel, rates, alerts, setAlerts, userTimezone = 'America/New_York', lang = 'es', onOpenCommunityIdea, refreshTrigger, onSelectedStocksChange, maxStocks = 8 }) => {
   const exchangeRate = rates?.MXN ?? 20.5;
   const exchangeRateEUR = rates?.EUR ?? 0.92;
   const [sectors, setSectors] = useState(loadSectors);
@@ -642,7 +642,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
     if (selectedStocks.includes(symbol)) {
       if (selectedStocks.length > 1) setSelectedStocks(selectedStocks.filter((s) => s !== symbol));
     } else {
-      if (selectedStocks.length < 8) setSelectedStocks([...selectedStocks, symbol]);
+      if (selectedStocks.length < maxStocks) setSelectedStocks([...selectedStocks, symbol]);
     }
   }
 
@@ -891,7 +891,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
 
         {/* Stock Selection */}
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 mb-4 border border-slate-700">
-          <h3 className="text-white font-semibold mb-3">{t('label_companies', lang)} ({selectedStocks.length}/8)</h3>
+          <h3 className="text-white font-semibold mb-3">{t('label_companies', lang)} ({selectedStocks.length}/{maxStocks})</h3>
           <div className="flex flex-wrap gap-2">
             {[...new Map(
               [...selectedSectors].flatMap(key => (sectors[key]?.stocks || []).map(s => [s.symbol, s]))

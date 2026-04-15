@@ -161,6 +161,13 @@ function App() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [showAlertsPanel, setShowAlertsPanel] = useState(false);
   const [tickerSymbols, setTickerSymbols] = useState([]);
+  const [maxStocks, setMaxStocks] = useState(() => {
+    try { return parseInt(localStorage.getItem('maxStocks') || '8', 10); } catch { return 8; }
+  });
+  const setMaxStocksPersist = (v) => {
+    setMaxStocks(v);
+    try { localStorage.setItem('maxStocks', String(v)); } catch {}
+  };
 
   // Welcome popup + visitor counter
   const [showWelcome, setShowWelcome] = useState(false);
@@ -295,7 +302,7 @@ function App() {
       </div>
 
       {tab === 'compare' && (
-        <StockComparisonApp {...sharedProps} userTimezone={userTimezone} onOpenCommunityIdea={openCommunityIdea} refreshTrigger={refreshTrigger} onSelectedStocksChange={setTickerSymbols} />
+        <StockComparisonApp {...sharedProps} userTimezone={userTimezone} onOpenCommunityIdea={openCommunityIdea} refreshTrigger={refreshTrigger} onSelectedStocksChange={setTickerSymbols} maxStocks={maxStocks} />
       )}
       {tab === 'portfolio' && (
         <div className="max-w-7xl mx-auto p-4">
@@ -320,6 +327,8 @@ function App() {
           setUserTimezone={setUserTimezoneSync}
           lang={lang}
           setLang={setLangPersist}
+          maxStocks={maxStocks}
+          setMaxStocks={setMaxStocksPersist}
         />
       )}
 
