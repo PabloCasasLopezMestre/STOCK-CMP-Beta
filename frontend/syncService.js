@@ -44,6 +44,18 @@ function lsRemove(key) {
 
 let _userId = null;
 
+// Keep _userId in sync whenever auth state changes
+function _initAuthListener() {
+  const supabase = getSupabase();
+  if (!supabase) return;
+  supabase.auth.onAuthStateChange(async (_evt, session) => {
+    const newId = session?.user?.id ?? null;
+    if (newId !== _userId) {
+      _userId = newId;
+    }
+  });
+}
+
 // ── Task 2.4: _flushPendingIfNeeded ──────────────────────────────────────────
 
 async function _flushPendingIfNeeded() {
@@ -122,6 +134,8 @@ async function loadUserData() {
 
 async function initSync() {
   const supabase = getSupabase();
+
+  _initAuthListener();
 
   if (!supabase) {
     return {
