@@ -331,6 +331,24 @@ function App() {
               <p className="text-white font-bold text-lg">STCK-CMP Beta</p>
             </div>
             <div className="px-6 py-4">
+              {/* Language selector */}
+              <div className="mb-4">
+                <p className="text-slate-400 text-xs text-center mb-2">Select your language · Selecciona tu idioma</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setLangPersist('en'); }}
+                    className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition-colors ${lang === 'en' ? 'bg-blue-600 text-white border-blue-500' : 'bg-slate-800 text-slate-300 border-slate-600 hover:bg-slate-700'}`}
+                  >
+                    English
+                  </button>
+                  <button
+                    onClick={() => { setLangPersist('es'); }}
+                    className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition-colors ${lang === 'es' ? 'bg-blue-600 text-white border-blue-500' : 'bg-slate-800 text-slate-300 border-slate-600 hover:bg-slate-700'}`}
+                  >
+                    Español
+                  </button>
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-4 text-sm leading-relaxed mb-4">
                 <div className="border-l-2 border-amber-500 pl-3 space-y-2">
                   <p className="text-amber-300 font-semibold text-xs uppercase tracking-wide">A note on our current data</p>
