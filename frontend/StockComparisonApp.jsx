@@ -83,6 +83,7 @@ const TIME_RANGES = {
   '5years':  { label: '5Y',    label_es: '5 Años',   interval: '1mo', range: '5y',  intraday: false },
   '10years': { label: '10Y',   label_es: '10 Años',  interval: '3mo', range: '10y', intraday: false },
   '15years': { label: '15Y',   label_es: '15 Años',  interval: '3mo', range: '15y', intraday: false },
+  'alltime': { label: 'All',   label_es: 'Todo',     interval: '3mo', range: 'max', intraday: false },
 };
 
 const STOCK_COLORS = ['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316'];
