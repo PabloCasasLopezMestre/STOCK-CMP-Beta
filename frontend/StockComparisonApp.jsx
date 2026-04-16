@@ -110,7 +110,7 @@ function saveSectors(sectors) {
 // Main component
 // ---------------------------------------------------------------------------
 
-const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel, rates, alerts, setAlerts, userTimezone = 'America/New_York', lang = 'es', onOpenCommunityIdea, refreshTrigger, onSelectedStocksChange, maxStocks = 8, enabledFeatures = {} }) => {
+const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel, rates, alerts, setAlerts, userTimezone = 'America/New_York', lang = 'es', onOpenCommunityIdea, refreshTrigger, onSelectedStocksChange, maxStocks = 8, enabledFeatures = {}, defaultTimeRange = '1month' }) => {
   const exchangeRate = rates?.MXN ?? 20.5;
   const exchangeRateEUR = rates?.EUR ?? 0.92;
   const [sectors, setSectors] = useState(loadSectors);
@@ -125,7 +125,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
     return s[first].stocks.slice(0, 2).map((x) => x.symbol);
   });
 
-  const [timeRange, setTimeRange] = useState('1month');
+  const [timeRange, setTimeRange] = useState(defaultTimeRange);
   const [stockData, setStockData] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -1006,7 +1006,7 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
             })}
 
             {/* Bloque de promedios del sector */}
-            {(() => {
+            {enabledFeatures.averageCard !== false && (() => {
               const validStats = selectedStocks.map((s) => stats[s]).filter(Boolean);
               if (validStats.length < 2) return null;
               const avg = (key) => validStats.reduce((sum, s) => sum + s[key], 0) / validStats.length;

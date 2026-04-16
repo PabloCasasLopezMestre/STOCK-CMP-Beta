@@ -161,12 +161,50 @@ function App() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [showAlertsPanel, setShowAlertsPanel] = useState(false);
   const [tickerSymbols, setTickerSymbols] = useState([]);
+  const [navDisplayName, setNavDisplayName] = useState(() => {
+    try { return localStorage.getItem('navDisplayName') || ''; } catch { return ''; }
+  });
+
+  // Load display name from Supabase profile when session changes
+  useEffect(() => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user?.id) return;
+      supabase.from('profiles').select('display_name').eq('id', session.user.id).single()
+        .then(({ data }) => {
+          if (data?.display_name) {
+            setNavDisplayName(data.display_name);
+            try { localStorage.setItem('navDisplayName', data.display_name); } catch {}
+          }
+        }).catch(() => {});
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_evt, session) => {
+      if (!session?.user?.id) { setNavDisplayName(''); return; }
+      supabase.from('profiles').select('display_name').eq('id', session.user.id).single()
+        .then(({ data }) => {
+          if (data?.display_name) {
+            setNavDisplayName(data.display_name);
+            try { localStorage.setItem('navDisplayName', data.display_name); } catch {}
+          }
+        }).catch(() => {});
+    });
+    return () => subscription.unsubscribe();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [maxStocks, setMaxStocks] = useState(() => {
     try { return parseInt(localStorage.getItem('maxStocks') || '8', 10); } catch { return 8; }
   });
   const setMaxStocksPersist = (v) => {
     setMaxStocks(v);
     try { localStorage.setItem('maxStocks', String(v)); } catch {}
+  };
+
+  const [defaultTimeRange, setDefaultTimeRange] = useState(() => {
+    try { return localStorage.getItem('defaultTimeRange') || '1month'; } catch { return '1month'; }
+  });
+  const setDefaultTimeRangePersist = (v) => {
+    setDefaultTimeRange(v);
+    try { localStorage.setItem('defaultTimeRange', v); } catch {}
   };
 
   const [tickerAutoScroll, setTickerAutoScroll] = useState(() => {
@@ -212,7 +250,7 @@ function App() {
     fundamentals: true, technicalIndicators: true, patternRecognition: true,
     backtesting: true, comparativeAnalysis: true, comparatorNews: true,
     bankAccounts: true, portfolioNews: true, transactionHistory: true, positions: true,
-    portfolioChart: true,
+    portfolioChart: true, averageCard: true, investmentSimulator: true,
   };
   const [enabledFeatures, setEnabledFeatures] = useState(() => {
     try {
@@ -311,7 +349,10 @@ function App() {
               {lang === 'es' ? 'Contribuir' : 'Contribute'}
             </a>
           </div>
-          <div className="flex gap-1">
+          <div className="flex items-center gap-1">
+            {navDisplayName && (
+              <span className="text-slate-400 text-xs font-medium px-2 hidden sm:block truncate max-w-[100px]">{navDisplayName}</span>
+            )}
             <button
               onClick={() => setTab('settings')}
               className={`p-1.5 rounded-lg transition-colors ${tab === 'settings' ? 'bg-slate-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'}`}
@@ -360,7 +401,7 @@ function App() {
       </div>
 
       {tab === 'compare' && (
-        <StockComparisonApp {...sharedProps} userTimezone={userTimezone} onOpenCommunityIdea={openCommunityIdea} refreshTrigger={refreshTrigger} onSelectedStocksChange={setTickerSymbols} maxStocks={maxStocks} enabledFeatures={enabledFeatures} />
+        <StockComparisonApp {...sharedProps} userTimezone={userTimezone} onOpenCommunityIdea={openCommunityIdea} refreshTrigger={refreshTrigger} onSelectedStocksChange={setTickerSymbols} maxStocks={maxStocks} enabledFeatures={enabledFeatures} defaultTimeRange={defaultTimeRange} />
       )}
       {tab === 'portfolio' && (
         <div className="max-w-7xl mx-auto p-4">
@@ -387,6 +428,8 @@ function App() {
           setLang={setLangPersist}
           maxStocks={maxStocks}
           setMaxStocks={setMaxStocksPersist}
+          defaultTimeRange={defaultTimeRange}
+          setDefaultTimeRange={setDefaultTimeRangePersist}
           enabledFeatures={enabledFeatures}
           setEnabledFeatures={setEnabledFeaturesPersist}
           tickerAutoScroll={tickerAutoScroll}

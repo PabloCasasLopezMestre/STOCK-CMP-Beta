@@ -312,6 +312,56 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
   // Dividend simulation
   const [divSymbol, setDivSymbol] = useState('');
 
+  // Investment simulator
+  const [simEntries, setSimEntries] = useState([]); // [{sym, amount, date}]
+  const [simSymbol, setSimSymbol] = useState('');
+  const [simAmount, setSimAmount] = useState('');
+  const [simDate, setSimDate] = useState('');
+  const [simResults, setSimResults] = useState({}); // keyed by sym+date
+  const [simLoading, setSimLoading] = useState(false);
+
+  const runSimulation = async () => {
+    if (!simEntries.length) return;
+    setSimLoading(true);
+    const results = {};
+    await Promise.all(simEntries.map(async (entry) => {
+      const key = `${entry.sym}_${entry.date}`;
+      try {
+        const data = await fetch(`${WORKER_BASE}/api/stock/${encodeURIComponent(entry.sym)}?interval=1d&range=max`).then(r => r.json());
+        const result = data?.chart?.result?.[0];
+        if (!result) return;
+        const timestamps = result.timestamp ?? [];
+        const closes = result.indicators?.quote?.[0]?.close ?? [];
+        const purchaseTs = new Date(entry.date).getTime() / 1000;
+        // Find closest date >= purchase date
+        let startIdx = timestamps.findIndex(t => t >= purchaseTs);
+        if (startIdx < 0) startIdx = 0;
+        const startPrice = closes[startIdx];
+        const endPrice = closes.filter(Boolean).slice(-1)[0];
+        if (!startPrice || !endPrice) return;
+        const amountUSD = entry.currency === 'USD' ? parseFloat(entry.amount) : parseFloat(entry.amount) / (rates?.[entry.currency] ?? 1);
+        const shares = amountUSD / startPrice;
+        const currentValue = shares * endPrice;
+        const gain = currentValue - amountUSD;
+        const gainPct = (gain / amountUSD) * 100;
+        const startDate = new Date(timestamps[startIdx] * 1000).toLocaleDateString();
+        const endDate = new Date(timestamps[timestamps.length - 1] * 1000).toLocaleDateString();
+        results[key] = { startPrice, endPrice, shares, amountUSD, currentValue, gain, gainPct, startDate, endDate };
+      } catch {}
+    }));
+    setSimResults(results);
+    setSimLoading(false);
+  };
+
+  const addSimEntry = () => {
+    const sym = simSymbol.trim().toUpperCase();
+    if (!sym || !simAmount || !simDate) return;
+    setSimEntries(prev => [...prev, { sym, amount: simAmount, date: simDate, currency }]);
+    setSimSymbol('');
+    setSimAmount('');
+    setSimDate('');
+  };
+
   // Bank accounts
   const [bankAccounts, setBankAccounts] = useState(() => {
     try { return JSON.parse(localStorage.getItem('bankAccounts') || '[]'); } catch { return []; }
@@ -1079,6 +1129,95 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
           </div>
         );
       })()}
+
+      {/* Investment Simulator */}
+      {enabledFeatures.investmentSimulator !== false && (
+      <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+        <h3 className="text-white font-semibold mb-1">{lang === 'es' ? 'Simulador de inversión' : 'Investment Simulator'}</h3>
+        <p className="text-slate-400 text-xs mb-3">{lang === 'es' ? 'Ingresa un activo, monto y fecha de compra para ver cuánto valdría hoy.' : 'Enter an asset, amount, and purchase date to see what it would be worth today.'}</p>
+        <div className="space-y-2 mb-3">
+          <StockSuggest
+            value={simSymbol}
+            onChange={setSimSymbol}
+            placeholder={lang === 'es' ? 'Símbolo (ej. AAPL)' : 'Symbol (e.g. AAPL)'}
+            comparatorStocks={comparatorStocks}
+            holdingSymbols={Object.keys(portfolio.holdings)}
+            lang={lang}
+          />
+          <div className="flex gap-2">
+            <input
+              type="number"
+              className="flex-1 bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder={lang === 'es' ? `Monto (${currency})` : `Amount (${currency})`}
+              value={simAmount}
+              onChange={e => setSimAmount(e.target.value)}
+            />
+            <input
+              type="date"
+              className="flex-1 bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+              value={simDate}
+              max={new Date().toISOString().slice(0, 10)}
+              onChange={e => setSimDate(e.target.value)}
+            />
+          </div>
+          <button
+            onClick={addSimEntry}
+            disabled={!simSymbol.trim() || !simAmount || !simDate}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-1.5 rounded text-sm font-semibold"
+          >
+            + {lang === 'es' ? 'Agregar' : 'Add'}
+          </button>
+        </div>
+        {simEntries.length > 0 && (
+          <div className="space-y-1 mb-3">
+            {simEntries.map((e, i) => (
+              <div key={i} className="flex items-center justify-between bg-slate-700/50 rounded px-3 py-1.5 text-xs">
+                <span className="text-white font-bold">{e.sym}</span>
+                <span className="text-slate-300">{fmt(parseFloat(e.amount))} · {e.date}</span>
+                <button onClick={() => setSimEntries(prev => prev.filter((_, j) => j !== i))} className="text-slate-500 hover:text-red-400 ml-2">×</button>
+              </div>
+            ))}
+            <button
+              onClick={runSimulation}
+              disabled={simLoading}
+              className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white py-1.5 rounded text-sm font-semibold flex items-center justify-center gap-2"
+            >
+              {simLoading && <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="4" className="opacity-75"/></svg>}
+              {lang === 'es' ? 'Calcular' : 'Calculate'}
+            </button>
+          </div>
+        )}
+        {Object.keys(simResults).length > 0 && (
+          <div className="space-y-2 mt-2">
+            {simEntries.map((e, i) => {
+              const key = `${e.sym}_${e.date}`;
+              const r = simResults[key];
+              if (!r) return null;
+              const isGain = r.gain >= 0;
+              return (
+                <div key={i} className={`rounded-lg p-3 border ${isGain ? 'bg-green-900/20 border-green-700/40' : 'bg-red-900/20 border-red-700/40'}`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-white font-bold text-sm">{e.sym}</span>
+                    <span className={`text-sm font-bold ${isGain ? 'text-green-400' : 'text-red-400'}`}>
+                      {isGain ? '+' : ''}{r.gainPct.toFixed(2)}%
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+                    <div><span className="text-slate-500">{lang === 'es' ? 'Invertido' : 'Invested'}: </span><span className="text-slate-200">{fmt(r.amountUSD)}</span></div>
+                    <div><span className="text-slate-500">{lang === 'es' ? 'Valor hoy' : 'Value today'}: </span><span className="text-white font-semibold">{fmt(r.currentValue)}</span></div>
+                    <div><span className="text-slate-500">{lang === 'es' ? 'Precio compra' : 'Buy price'}: </span><span className="text-slate-200">{fmt(r.startPrice)}</span></div>
+                    <div><span className="text-slate-500">{lang === 'es' ? 'Precio actual' : 'Current price'}: </span><span className="text-slate-200">{fmt(r.endPrice)}</span></div>
+                    <div><span className="text-slate-500">{lang === 'es' ? 'Ganancia' : 'Gain'}: </span><span className={isGain ? 'text-green-400' : 'text-red-400'}>{isGain ? '+' : ''}{fmt(r.gain)}</span></div>
+                    <div><span className="text-slate-500">{lang === 'es' ? 'Acciones' : 'Shares'}: </span><span className="text-slate-200">{r.shares.toFixed(4)}</span></div>
+                  </div>
+                  <p className="text-slate-600 text-xs mt-1">{r.startDate} → {r.endDate}</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      )}
 
       {/* Bank Accounts Section */}
       {enabledFeatures.bankAccounts !== false && (

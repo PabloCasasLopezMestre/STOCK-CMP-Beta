@@ -61,6 +61,7 @@ export const TIMEZONES = [
 export default function Settings({
   enabledCurrencies, setEnabledCurrencies, currency, setCurrency,
   userTimezone, setUserTimezone, lang, setLang, maxStocks = 8, setMaxStocks,
+  defaultTimeRange = '1month', setDefaultTimeRange,
   enabledFeatures = {}, setEnabledFeatures,
   tickerAutoScroll = true, setTickerAutoScroll,
   useCustomTicker = false, toggleUseCustomTicker,
@@ -120,11 +121,12 @@ export default function Settings({
             setUserTimezone('America/New_York');
             if (setMaxStocks) setMaxStocks(8);
             if (setTickerAutoScroll) setTickerAutoScroll(true);
+            if (setDefaultTimeRange) setDefaultTimeRange('1month');
             if (setEnabledFeatures) setEnabledFeatures({
               fundamentals: true, technicalIndicators: true, patternRecognition: true,
               backtesting: true, comparativeAnalysis: true, comparatorNews: true,
               bankAccounts: true, portfolioNews: true, transactionHistory: true, positions: true,
-              portfolioChart: true,
+              portfolioChart: true, averageCard: true, investmentSimulator: true,
             });
             try {
               localStorage.setItem('lang', 'es');
@@ -133,6 +135,7 @@ export default function Settings({
               localStorage.setItem('maxStocks', '8');
               localStorage.removeItem('enabledFeatures');
               localStorage.removeItem('tickerAutoScroll');
+              localStorage.removeItem('defaultTimeRange');
             } catch {}
           }}
           className="bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
@@ -271,6 +274,32 @@ export default function Settings({
           <span>20</span>
         </div>
 
+        {/* Default time range */}
+        <div className="mt-5 pt-4 border-t border-slate-700">
+          <p className="text-white text-sm font-medium mb-2">
+            {lang === 'es' ? 'Escala de tiempo predeterminada' : 'Default time range'}
+          </p>
+          <p className="text-slate-400 text-xs mb-3">
+            {lang === 'es' ? 'Se aplica al Comparador, Indicadores Técnicos, Patrones y Backtesting al cargar.' : 'Applied to Comparator, Technical Indicators, Patterns and Backtesting on load.'}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              ['1hour','1h'],['6hours','6h'],['1day','24h'],['1week','1W'],['1month','1M'],
+              ['3months','3M'],['6months','6M'],['1year','1Y'],['2years','2Y'],['3years','3Y'],
+              ['5years','5Y'],['10years','10Y'],['15years','15Y'],['alltime','All'],
+            ].map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setDefaultTimeRange && setDefaultTimeRange(key)}
+                className={`px-3 py-1 rounded text-xs font-semibold transition-colors ${defaultTimeRange === key ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Ticker auto-scroll + mode */}
         <div className="mt-5 pt-4 border-t border-slate-700 space-y-4">
           <div className="flex items-center justify-between">
@@ -366,6 +395,7 @@ export default function Settings({
             group: lang === 'es' ? 'Comparador' : 'Comparator',
             items: [
               { key: 'fundamentals',        label: lang === 'es' ? 'Datos fundamentales' : 'Fundamental data' },
+              { key: 'averageCard',         label: lang === 'es' ? 'Tarjeta de promedio' : 'Average card' },
               { key: 'technicalIndicators', label: lang === 'es' ? 'Indicadores técnicos' : 'Technical indicators' },
               { key: 'patternRecognition',  label: lang === 'es' ? 'Reconocimiento de patrones' : 'Pattern recognition' },
               { key: 'backtesting',         label: lang === 'es' ? 'Backtesting de estrategias' : 'Strategy backtesting' },
@@ -376,11 +406,12 @@ export default function Settings({
           {
             group: lang === 'es' ? 'Portafolio' : 'Portfolio',
             items: [
-              { key: 'portfolioChart',     label: lang === 'es' ? 'Gráfica de valor total' : 'Total value chart' },
-              { key: 'positions',          label: lang === 'es' ? 'Posiciones' : 'Positions' },
-              { key: 'transactionHistory', label: lang === 'es' ? 'Historial de transacciones' : 'Transaction history' },
-              { key: 'bankAccounts',       label: lang === 'es' ? 'Cuentas de banco' : 'Bank accounts' },
-              { key: 'portfolioNews',      label: lang === 'es' ? 'Noticias' : 'News' },
+              { key: 'portfolioChart',      label: lang === 'es' ? 'Gráfica de valor total' : 'Total value chart' },
+              { key: 'investmentSimulator', label: lang === 'es' ? 'Simulador de inversión' : 'Investment simulator' },
+              { key: 'positions',           label: lang === 'es' ? 'Posiciones' : 'Positions' },
+              { key: 'transactionHistory',  label: lang === 'es' ? 'Historial de transacciones' : 'Transaction history' },
+              { key: 'bankAccounts',        label: lang === 'es' ? 'Cuentas de banco' : 'Bank accounts' },
+              { key: 'portfolioNews',       label: lang === 'es' ? 'Noticias' : 'News' },
             ],
           },
         ].map(({ group, items }) => (
