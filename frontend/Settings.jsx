@@ -63,6 +63,9 @@ export default function Settings({
   userTimezone, setUserTimezone, lang, setLang, maxStocks = 8, setMaxStocks,
   enabledFeatures = {}, setEnabledFeatures,
   tickerAutoScroll = true, setTickerAutoScroll,
+  useCustomTicker = false, toggleUseCustomTicker,
+  customTickerSymbols = [], addCustomTickerSymbol, removeCustomTickerSymbol,
+  tickerInput = '', setTickerInput,
 }) {
   const [tzSearch, setTzSearch] = useState('');
 
@@ -268,8 +271,8 @@ export default function Settings({
           <span>20</span>
         </div>
 
-        {/* Ticker auto-scroll */}
-        <div className="mt-5 pt-4 border-t border-slate-700">
+        {/* Ticker auto-scroll + mode */}
+        <div className="mt-5 pt-4 border-t border-slate-700 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-white text-sm font-medium">
@@ -288,6 +291,62 @@ export default function Settings({
             >
               <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${tickerAutoScroll ? 'left-6' : 'left-0.5'}`} />
             </button>
+          </div>
+
+          <div>
+            <p className="text-white text-sm font-medium mb-2">
+              {lang === 'es' ? 'Acciones en la banda' : 'Ticker stocks'}
+            </p>
+            <div className="flex gap-2 mb-3">
+              <button
+                type="button"
+                onClick={() => toggleUseCustomTicker && toggleUseCustomTicker(false)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${!useCustomTicker ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+              >
+                {lang === 'es' ? 'Acciones seleccionadas' : 'Selected stocks'}
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleUseCustomTicker && toggleUseCustomTicker(true)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${useCustomTicker ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+              >
+                {lang === 'es' ? 'Personalizada' : 'Custom'}
+              </button>
+            </div>
+            {useCustomTicker && (
+              <div className="space-y-2">
+                <div className="flex gap-1 flex-wrap">
+                  {customTickerSymbols.map(sym => (
+                    <span key={sym} className="flex items-center gap-1 bg-slate-700 text-slate-200 text-xs px-2 py-1 rounded">
+                      {sym}
+                      <button
+                        type="button"
+                        onClick={() => removeCustomTickerSymbol && removeCustomTickerSymbol(sym)}
+                        className="text-slate-400 hover:text-red-400 ml-0.5"
+                      >×</button>
+                    </span>
+                  ))}
+                  {customTickerSymbols.length === 0 && (
+                    <p className="text-slate-500 text-xs">{lang === 'es' ? 'Agrega símbolos abajo.' : 'Add symbols below.'}</p>
+                  )}
+                </div>
+                <div className="flex gap-1">
+                  <input
+                    className="bg-slate-600 text-white rounded px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-blue-500 uppercase flex-1"
+                    placeholder="AAPL, BTC-USD, ^GSPC…"
+                    value={tickerInput}
+                    onChange={e => setTickerInput && setTickerInput(e.target.value.toUpperCase())}
+                    onKeyDown={e => e.key === 'Enter' && addCustomTickerSymbol && addCustomTickerSymbol(tickerInput)}
+                    maxLength={10}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => addCustomTickerSymbol && addCustomTickerSymbol(tickerInput)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-semibold"
+                  >+</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
