@@ -177,6 +177,37 @@ function App() {
     try { localStorage.setItem('tickerAutoScroll', String(v)); } catch {}
   };
 
+  const [customTickerSymbols, setCustomTickerSymbols] = useState(() => {
+    try {
+      const saved = localStorage.getItem('customTickerSymbols');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const [tickerInput, setTickerInput] = useState('');
+  const [useCustomTicker, setUseCustomTicker] = useState(() => {
+    try { return localStorage.getItem('useCustomTicker') === 'true'; } catch { return false; }
+  });
+
+  const addCustomTickerSymbol = (sym) => {
+    const s = sym.trim().toUpperCase();
+    if (!s || customTickerSymbols.includes(s)) return;
+    const next = [...customTickerSymbols, s];
+    setCustomTickerSymbols(next);
+    try { localStorage.setItem('customTickerSymbols', JSON.stringify(next)); } catch {}
+    setTickerInput('');
+  };
+
+  const removeCustomTickerSymbol = (sym) => {
+    const next = customTickerSymbols.filter(s => s !== sym);
+    setCustomTickerSymbols(next);
+    try { localStorage.setItem('customTickerSymbols', JSON.stringify(next)); } catch {}
+  };
+
+  const toggleUseCustomTicker = (v) => {
+    setUseCustomTicker(v);
+    try { localStorage.setItem('useCustomTicker', String(v)); } catch {}
+  };
+
   const DEFAULT_FEATURES = {
     fundamentals: true, technicalIndicators: true, patternRecognition: true,
     backtesting: true, comparativeAnalysis: true, comparatorNews: true,
@@ -325,11 +356,59 @@ function App() {
           </div>
         )}
       </div>
-      <TickerBar selectedStocks={tickerSymbols} currency={currency} rates={rates} autoScroll={tickerAutoScroll} />
+      <TickerBar selectedStocks={useCustomTicker && customTickerSymbols.length > 0 ? customTickerSymbols : tickerSymbols} currency={currency} rates={rates} autoScroll={tickerAutoScroll} />
       </div>
 
       {tab === 'compare' && (
-        <StockComparisonApp {...sharedProps} userTimezone={userTimezone} onOpenCommunityIdea={openCommunityIdea} refreshTrigger={refreshTrigger} onSelectedStocksChange={setTickerSymbols} maxStocks={maxStocks} enabledFeatures={enabledFeatures} />
+        <>
+          {/* Custom ticker bar controls */}
+          <div className="max-w-7xl mx-auto px-4 pt-3 pb-0">
+            <div className="bg-slate-800/50 rounded-xl p-3 border border-slate-700 flex flex-wrap items-center gap-2">
+              <span className="text-slate-400 text-xs font-semibold shrink-0">
+                {lang === 'es' ? 'Banda de precios:' : 'Price ticker:'}
+              </span>
+              <button
+                onClick={() => toggleUseCustomTicker(false)}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${!useCustomTicker ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+              >
+                {lang === 'es' ? 'Acciones seleccionadas' : 'Selected stocks'}
+              </button>
+              <button
+                onClick={() => toggleUseCustomTicker(true)}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${useCustomTicker ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+              >
+                {lang === 'es' ? 'Personalizada' : 'Custom'}
+              </button>
+              {useCustomTicker && (
+                <>
+                  <div className="flex gap-1 flex-wrap">
+                    {customTickerSymbols.map(sym => (
+                      <span key={sym} className="flex items-center gap-1 bg-slate-700 text-slate-200 text-xs px-2 py-0.5 rounded">
+                        {sym}
+                        <button onClick={() => removeCustomTickerSymbol(sym)} className="text-slate-400 hover:text-red-400 ml-0.5">×</button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-1">
+                    <input
+                      className="bg-slate-700 text-white rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-blue-500 uppercase w-20"
+                      placeholder="AAPL"
+                      value={tickerInput}
+                      onChange={e => setTickerInput(e.target.value.toUpperCase())}
+                      onKeyDown={e => e.key === 'Enter' && addCustomTickerSymbol(tickerInput)}
+                      maxLength={10}
+                    />
+                    <button
+                      onClick={() => addCustomTickerSymbol(tickerInput)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs font-semibold"
+                    >+</button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+          <StockComparisonApp {...sharedProps} userTimezone={userTimezone} onOpenCommunityIdea={openCommunityIdea} refreshTrigger={refreshTrigger} onSelectedStocksChange={setTickerSymbols} maxStocks={maxStocks} enabledFeatures={enabledFeatures} />
+        </>
       )}
       {tab === 'portfolio' && (
         <div className="max-w-7xl mx-auto p-4">

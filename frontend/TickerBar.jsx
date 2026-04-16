@@ -8,9 +8,6 @@ export default function TickerBar({ selectedStocks = [], currency = 'USD', rates
   const symbols = selectedStocks.length > 0 ? selectedStocks : DEFAULT_SYMBOLS;
   const [tickers, setTickers] = useState([]);
   const intervalRef = useRef(null);
-  const scrollRef = useRef(null);
-  const animRef = useRef(null);
-  const posRef = useRef(0);
 
   const fetchTickers = async () => {
     const results = await Promise.all(
@@ -39,30 +36,6 @@ export default function TickerBar({ selectedStocks = [], currency = 'USD', rates
     return () => clearInterval(intervalRef.current);
   }, [symbols.join(',')]);
 
-  // Auto-scroll animation
-  useEffect(() => {
-    if (!autoScroll || !scrollRef.current) return;
-
-    const el = scrollRef.current;
-    const speed = 0.5; // px per frame
-
-    const animate = () => {
-      if (!el) return;
-      posRef.current += speed;
-      // Reset when first copy scrolled fully out
-      if (posRef.current >= el.scrollWidth / 2) {
-        posRef.current = 0;
-      }
-      el.scrollLeft = posRef.current;
-      animRef.current = requestAnimationFrame(animate);
-    };
-
-    animRef.current = requestAnimationFrame(animate);
-    return () => {
-      if (animRef.current) cancelAnimationFrame(animRef.current);
-    };
-  }, [autoScroll, tickers]);
-
   const fmt = (v) => {
     if (v == null) return '—';
     const rate = currency === 'USD' ? 1 : (rates?.[currency] ?? 1);
@@ -71,46 +44,59 @@ export default function TickerBar({ selectedStocks = [], currency = 'USD', rates
 
   if (tickers.length === 0) return null;
 
-  // Duplicate tickers for seamless loop
-  const items = autoScroll ? [...tickers, ...tickers] : tickers;
+  const itemWidth = 160; // px per item approx
+  const totalWidth = tickers.length * itemWidth;
+  const duration = Math.max(10, tickers.length * 3); // seconds
+
+  const TickerItem = ({ sym, current, change, changePct, idx }) => {
+    const isUp = change >= 0;
+    return (
+      <div
+        key={`${sym}-${idx}`}
+        className="flex items-center gap-2 px-4 py-1.5 border-r border-slate-700/50 shrink-0"
+        style={{ minWidth: `${itemWidth}px` }}
+      >
+        <span className="text-white text-xs font-bold">{sym}</span>
+        <span className="text-slate-200 text-xs">{fmt(current)}</span>
+        <span className={`text-xs font-semibold ${isUp ? 'text-green-400' : 'text-red-400'}`}>
+          {isUp ? '+' : ''}{changePct.toFixed(2)}%
+        </span>
+      </div>
+    );
+  };
 
   return (
     <div className="bg-slate-900/95 border-b border-slate-700/50 overflow-hidden">
-      <div
-        ref={scrollRef}
-        className="flex items-center gap-0 overflow-x-auto scrollbar-none"
-        style={{ scrollBehavior: 'auto' }}
-        onMouseEnter={() => { if (animRef.current) cancelAnimationFrame(animRef.current); }}
-        onMouseLeave={() => {
-          if (!autoScroll) return;
-          const el = scrollRef.current;
-          const speed = 0.5;
-          const animate = () => {
-            if (!el) return;
-            posRef.current += speed;
-            if (posRef.current >= el.scrollWidth / 2) posRef.current = 0;
-            el.scrollLeft = posRef.current;
-            animRef.current = requestAnimationFrame(animate);
-          };
-          animRef.current = requestAnimationFrame(animate);
-        }}
-      >
-        {items.map(({ sym, current, change, changePct }, idx) => {
-          const isUp = change >= 0;
-          return (
-            <div
-              key={`${sym}-${idx}`}
-              className="flex items-center gap-2 px-4 py-1.5 border-r border-slate-700/50 shrink-0 min-w-[140px]"
-            >
-              <span className="text-white text-xs font-bold">{sym}</span>
-              <span className="text-slate-200 text-xs">{fmt(current)}</span>
-              <span className={`text-xs font-semibold ${isUp ? 'text-green-400' : 'text-red-400'}`}>
-                {isUp ? '+' : ''}{changePct.toFixed(2)}%
-              </span>
-            </div>
-          );
-        })}
-      </div>
+      {autoScroll ? (
+        <>
+          <style>{`
+            @keyframes ticker-scroll {
+              0%   { transform: translateX(0); }
+              100% { transform: translateX(-50%); }
+            }
+            .ticker-track {
+              display: flex;
+              width: max-content;
+              animation: ticker-scroll ${duration}s linear infinite;
+            }
+            .ticker-track:hover {
+              animation-play-state: paused;
+            }
+          `}</style>
+          <div className="ticker-track">
+            {/* Duplicate for seamless loop */}
+            {[...tickers, ...tickers].map(({ sym, current, change, changePct }, idx) => (
+              <TickerItem key={`${sym}-${idx}`} sym={sym} current={current} change={change} changePct={changePct} idx={idx} />
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="flex items-center gap-0 overflow-x-auto scrollbar-none">
+          {tickers.map(({ sym, current, change, changePct }, idx) => (
+            <TickerItem key={`${sym}-${idx}`} sym={sym} current={current} change={change} changePct={changePct} idx={idx} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
