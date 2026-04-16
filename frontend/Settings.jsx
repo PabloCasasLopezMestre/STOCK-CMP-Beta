@@ -62,6 +62,7 @@ export default function Settings({
   enabledCurrencies, setEnabledCurrencies, currency, setCurrency,
   userTimezone, setUserTimezone, lang, setLang, maxStocks = 8, setMaxStocks,
   defaultTimeRange = '1month', setDefaultTimeRange,
+  visibleTimeRanges, setVisibleTimeRanges,
   enabledFeatures = {}, setEnabledFeatures,
   tickerAutoScroll = true, setTickerAutoScroll,
   useCustomTicker = false, toggleUseCustomTicker,
@@ -135,6 +136,7 @@ export default function Settings({
               localStorage.setItem('maxStocks', '8');
               localStorage.removeItem('enabledFeatures');
               localStorage.removeItem('tickerAutoScroll');
+              localStorage.removeItem('visibleTimeRanges');
               localStorage.removeItem('defaultTimeRange');
             } catch {}
           }}
@@ -297,6 +299,42 @@ export default function Settings({
                 {label}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Visible time ranges */}
+        <div className="mt-5 pt-4 border-t border-slate-700">
+          <p className="text-white text-sm font-medium mb-1">
+            {lang === 'es' ? 'Escalas de tiempo visibles' : 'Visible time ranges'}
+          </p>
+          <p className="text-slate-400 text-xs mb-3">
+            {lang === 'es' ? 'Elige qué escalas aparecen en la barra del Comparador. Siempre debe haber al menos una.' : 'Choose which time ranges appear in the Comparator bar. At least one must remain.'}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              ['1hour','1h'],['6hours','6h'],['1day','24h'],['1week','1W'],['1month','1M'],
+              ['3months','3M'],['6months','6M'],['1year','1Y'],['2years','2Y'],['3years','3Y'],
+              ['5years','5Y'],['10years','10Y'],['15years','15Y'],['alltime','All'],
+            ].map(([key, label]) => {
+              const active = !visibleTimeRanges || visibleTimeRanges.includes(key);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => {
+                    if (!setVisibleTimeRanges || !visibleTimeRanges) return;
+                    const next = active
+                      ? visibleTimeRanges.filter(k => k !== key)
+                      : [...visibleTimeRanges, key];
+                    if (next.length === 0) return; // keep at least one
+                    setVisibleTimeRanges(next);
+                  }}
+                  className={`px-3 py-1 rounded text-xs font-semibold transition-colors border ${active ? 'bg-blue-600/20 border-blue-500 text-white' : 'bg-slate-700/50 border-slate-600 text-slate-500'}`}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
         </div>
 

@@ -4,6 +4,7 @@ import { t } from './i18n';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const WORKER_BASE = 'https://proxy.stockcmp-proxy.workers.dev';
+const STOCK_COLORS = ['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316'];
 
 // Mini dropdown that suggests stocks from the comparator
 function StockSuggest({ value, onChange, placeholder, comparatorStocks, holdingSymbols, lang }) {
@@ -317,13 +318,18 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
   const [simSymbol, setSimSymbol] = useState('');
   const [simAmount, setSimAmount] = useState('');
   const [simDate, setSimDate] = useState('');
+  const [simEndDate, setSimEndDate] = useState('');
   const [simResults, setSimResults] = useState({}); // keyed by sym+date
+  const [simChartData, setSimChartData] = useState([]); // [{date, SYM: value, ...}]
   const [simLoading, setSimLoading] = useState(false);
 
   const runSimulation = async () => {
     if (!simEntries.length) return;
     setSimLoading(true);
     const results = {};
+    const chartSeries = {}; // sym -> [{ts, value}]
+    const endDateTs = simEndDate ? new Date(simEndDate).getTime() / 1000 : Date.now() / 1000;
+
     await Promise.all(simEntries.map(async (entry) => {
       const key = `${entry.sym}_${entry.date}`;
       try {
@@ -333,11 +339,16 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
         const timestamps = result.timestamp ?? [];
         const closes = result.indicators?.quote?.[0]?.close ?? [];
         const purchaseTs = new Date(entry.date).getTime() / 1000;
-        // Find closest date >= purchase date
         let startIdx = timestamps.findIndex(t => t >= purchaseTs);
         if (startIdx < 0) startIdx = 0;
+        // Find end index
+        let endIdx = timestamps.length - 1;
+        if (simEndDate) {
+          const ei = timestamps.findLastIndex ? timestamps.findLastIndex(t => t <= endDateTs) : [...timestamps].reverse().findIndex(t => t <= endDateTs);
+          if (ei >= 0) endIdx = timestamps.findLastIndex ? ei : timestamps.length - 1 - ei;
+        }
         const startPrice = closes[startIdx];
-        const endPrice = closes.filter(Boolean).slice(-1)[0];
+        const endPrice = closes[endIdx];
         if (!startPrice || !endPrice) return;
         const amountUSD = entry.currency === 'USD' ? parseFloat(entry.amount) : parseFloat(entry.amount) / (rates?.[entry.currency] ?? 1);
         const shares = amountUSD / startPrice;
@@ -345,11 +356,33 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
         const gain = currentValue - amountUSD;
         const gainPct = (gain / amountUSD) * 100;
         const startDate = new Date(timestamps[startIdx] * 1000).toLocaleDateString();
-        const endDate = new Date(timestamps[timestamps.length - 1] * 1000).toLocaleDateString();
+        const endDate = new Date(timestamps[endIdx] * 1000).toLocaleDateString();
         results[key] = { startPrice, endPrice, shares, amountUSD, currentValue, gain, gainPct, startDate, endDate };
+
+        // Build chart series: normalized to % gain from start
+        const sliced = timestamps.slice(startIdx, endIdx + 1);
+        const slicedCloses = closes.slice(startIdx, endIdx + 1);
+        chartSeries[entry.sym] = sliced.map((ts, i) => ({
+          ts,
+          date: new Date(ts * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }),
+          pct: slicedCloses[i] != null ? ((slicedCloses[i] - startPrice) / startPrice) * 100 : null,
+        })).filter(p => p.pct != null);
       } catch {}
     }));
+
+    // Merge chart series by date
+    const allDates = [...new Set(Object.values(chartSeries).flatMap(s => s.map(p => p.date)))].sort();
+    const merged = allDates.map(date => {
+      const point = { date };
+      Object.entries(chartSeries).forEach(([sym, series]) => {
+        const found = series.find(p => p.date === date);
+        if (found) point[sym] = parseFloat(found.pct.toFixed(2));
+      });
+      return point;
+    });
+
     setSimResults(results);
+    setSimChartData(merged);
     setSimLoading(false);
   };
 
@@ -1133,8 +1166,8 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
       {/* Investment Simulator */}
       {enabledFeatures.investmentSimulator !== false && (
       <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-        <h3 className="text-white font-semibold mb-1">{lang === 'es' ? 'Simulador de inversión' : 'Investment Simulator'}</h3>
-        <p className="text-slate-400 text-xs mb-3">{lang === 'es' ? 'Ingresa un activo, monto y fecha de compra para ver cuánto valdría hoy.' : 'Enter an asset, amount, and purchase date to see what it would be worth today.'}</p>
+        <h3 className="text-white font-semibold mb-1">{lang === 'es' ? 'Simulador de inversión histórico' : 'Historical Investment Simulator'}</h3>
+        <p className="text-slate-400 text-xs mb-3">{lang === 'es' ? 'Ingresa un activo, monto y rango de fechas para ver cuánto habría crecido.' : 'Enter an asset, amount and date range to see how much it would have grown.'}</p>
         <div className="space-y-2 mb-3">
           <StockSuggest
             value={simSymbol}
@@ -1144,21 +1177,35 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
             holdingSymbols={Object.keys(portfolio.holdings)}
             lang={lang}
           />
+          <input
+            type="number"
+            className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+            placeholder={lang === 'es' ? `Monto (${currency})` : `Amount (${currency})`}
+            value={simAmount}
+            onChange={e => setSimAmount(e.target.value)}
+          />
           <div className="flex gap-2">
-            <input
-              type="number"
-              className="flex-1 bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
-              placeholder={lang === 'es' ? `Monto (${currency})` : `Amount (${currency})`}
-              value={simAmount}
-              onChange={e => setSimAmount(e.target.value)}
-            />
-            <input
-              type="date"
-              className="flex-1 bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
-              value={simDate}
-              max={new Date().toISOString().slice(0, 10)}
-              onChange={e => setSimDate(e.target.value)}
-            />
+            <div className="flex-1">
+              <label className="block text-slate-500 text-xs mb-1">{lang === 'es' ? 'Fecha de compra' : 'Purchase date'}</label>
+              <input
+                type="date"
+                className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                value={simDate}
+                max={simEndDate || new Date().toISOString().slice(0, 10)}
+                onChange={e => setSimDate(e.target.value)}
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-slate-500 text-xs mb-1">{lang === 'es' ? 'Fecha final (opcional)' : 'End date (optional)'}</label>
+              <input
+                type="date"
+                className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                value={simEndDate}
+                min={simDate || undefined}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={e => setSimEndDate(e.target.value)}
+              />
+            </div>
           </div>
           <button
             onClick={addSimEntry}
@@ -1187,6 +1234,26 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
             </button>
           </div>
         )}
+        {simChartData.length > 0 && (
+          <div className="mb-4">
+            <p className="text-slate-400 text-xs mb-2">{lang === 'es' ? 'Crecimiento (%)' : 'Growth (%)'}</p>
+            <ResponsiveContainer width="100%" height={180}>
+              <LineChart data={simChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 9 }} tickLine={false} interval="preserveStartEnd" />
+                <YAxis tick={{ fill: '#94a3b8', fontSize: 9 }} tickLine={false} tickFormatter={v => `${v > 0 ? '+' : ''}${v.toFixed(0)}%`} width={48} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: 8 }}
+                  labelStyle={{ color: '#94a3b8', fontSize: 11 }}
+                  formatter={(v, name) => [`${v > 0 ? '+' : ''}${v.toFixed(2)}%`, name]}
+                />
+                {simEntries.map((e, i) => (
+                  <Line key={e.sym} type="monotone" dataKey={e.sym} stroke={STOCK_COLORS[i % STOCK_COLORS.length]} dot={false} strokeWidth={2} connectNulls />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
         {Object.keys(simResults).length > 0 && (
           <div className="space-y-2 mt-2">
             {simEntries.map((e, i) => {
@@ -1204,9 +1271,9 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                   </div>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
                     <div><span className="text-slate-500">{lang === 'es' ? 'Invertido' : 'Invested'}: </span><span className="text-slate-200">{fmt(r.amountUSD)}</span></div>
-                    <div><span className="text-slate-500">{lang === 'es' ? 'Valor hoy' : 'Value today'}: </span><span className="text-white font-semibold">{fmt(r.currentValue)}</span></div>
+                    <div><span className="text-slate-500">{lang === 'es' ? 'Valor final' : 'Final value'}: </span><span className="text-white font-semibold">{fmt(r.currentValue)}</span></div>
                     <div><span className="text-slate-500">{lang === 'es' ? 'Precio compra' : 'Buy price'}: </span><span className="text-slate-200">{fmt(r.startPrice)}</span></div>
-                    <div><span className="text-slate-500">{lang === 'es' ? 'Precio actual' : 'Current price'}: </span><span className="text-slate-200">{fmt(r.endPrice)}</span></div>
+                    <div><span className="text-slate-500">{lang === 'es' ? 'Precio final' : 'End price'}: </span><span className="text-slate-200">{fmt(r.endPrice)}</span></div>
                     <div><span className="text-slate-500">{lang === 'es' ? 'Ganancia' : 'Gain'}: </span><span className={isGain ? 'text-green-400' : 'text-red-400'}>{isGain ? '+' : ''}{fmt(r.gain)}</span></div>
                     <div><span className="text-slate-500">{lang === 'es' ? 'Acciones' : 'Shares'}: </span><span className="text-slate-200">{r.shares.toFixed(4)}</span></div>
                   </div>

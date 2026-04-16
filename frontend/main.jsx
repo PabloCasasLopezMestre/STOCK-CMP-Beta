@@ -207,6 +207,18 @@ function App() {
     try { localStorage.setItem('defaultTimeRange', v); } catch {}
   };
 
+  const ALL_TIME_RANGE_KEYS = ['1hour','6hours','1day','1week','1month','3months','6months','1year','2years','3years','5years','10years','15years','alltime'];
+  const [visibleTimeRanges, setVisibleTimeRanges] = useState(() => {
+    try {
+      const saved = localStorage.getItem('visibleTimeRanges');
+      return saved ? JSON.parse(saved) : ALL_TIME_RANGE_KEYS;
+    } catch { return ALL_TIME_RANGE_KEYS; }
+  });
+  const setVisibleTimeRangesPersist = (v) => {
+    setVisibleTimeRanges(v);
+    try { localStorage.setItem('visibleTimeRanges', JSON.stringify(v)); } catch {}
+  };
+
   const [tickerAutoScroll, setTickerAutoScroll] = useState(() => {
     try { return localStorage.getItem('tickerAutoScroll') !== 'false'; } catch { return true; }
   });
@@ -401,7 +413,7 @@ function App() {
       </div>
 
       {tab === 'compare' && (
-        <StockComparisonApp {...sharedProps} userTimezone={userTimezone} onOpenCommunityIdea={openCommunityIdea} refreshTrigger={refreshTrigger} onSelectedStocksChange={setTickerSymbols} maxStocks={maxStocks} enabledFeatures={enabledFeatures} defaultTimeRange={defaultTimeRange} />
+        <StockComparisonApp {...sharedProps} userTimezone={userTimezone} onOpenCommunityIdea={openCommunityIdea} refreshTrigger={refreshTrigger} onSelectedStocksChange={setTickerSymbols} maxStocks={maxStocks} enabledFeatures={enabledFeatures} defaultTimeRange={defaultTimeRange} visibleTimeRanges={visibleTimeRanges} />
       )}
       {tab === 'portfolio' && (
         <div className="max-w-7xl mx-auto p-4">
@@ -430,6 +442,8 @@ function App() {
           setMaxStocks={setMaxStocksPersist}
           defaultTimeRange={defaultTimeRange}
           setDefaultTimeRange={setDefaultTimeRangePersist}
+          visibleTimeRanges={visibleTimeRanges}
+          setVisibleTimeRanges={setVisibleTimeRangesPersist}
           enabledFeatures={enabledFeatures}
           setEnabledFeatures={setEnabledFeaturesPersist}
           tickerAutoScroll={tickerAutoScroll}
