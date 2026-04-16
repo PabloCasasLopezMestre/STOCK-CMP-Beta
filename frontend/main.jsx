@@ -169,6 +169,14 @@ function App() {
     try { localStorage.setItem('maxStocks', String(v)); } catch {}
   };
 
+  const [tickerAutoScroll, setTickerAutoScroll] = useState(() => {
+    try { return localStorage.getItem('tickerAutoScroll') !== 'false'; } catch { return true; }
+  });
+  const setTickerAutoScrollPersist = (v) => {
+    setTickerAutoScroll(v);
+    try { localStorage.setItem('tickerAutoScroll', String(v)); } catch {}
+  };
+
   const DEFAULT_FEATURES = {
     fundamentals: true, technicalIndicators: true, patternRecognition: true,
     backtesting: true, comparativeAnalysis: true, comparatorNews: true,
@@ -317,7 +325,7 @@ function App() {
           </div>
         )}
       </div>
-      <TickerBar selectedStocks={tickerSymbols} currency={currency} rates={rates} />
+      <TickerBar selectedStocks={tickerSymbols} currency={currency} rates={rates} autoScroll={tickerAutoScroll} />
       </div>
 
       {tab === 'compare' && (
@@ -350,6 +358,8 @@ function App() {
           setMaxStocks={setMaxStocksPersist}
           enabledFeatures={enabledFeatures}
           setEnabledFeatures={setEnabledFeaturesPersist}
+          tickerAutoScroll={tickerAutoScroll}
+          setTickerAutoScroll={setTickerAutoScrollPersist}
         />
       )}
 

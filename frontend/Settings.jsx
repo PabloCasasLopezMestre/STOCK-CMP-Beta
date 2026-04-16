@@ -62,6 +62,7 @@ export default function Settings({
   enabledCurrencies, setEnabledCurrencies, currency, setCurrency,
   userTimezone, setUserTimezone, lang, setLang, maxStocks = 8, setMaxStocks,
   enabledFeatures = {}, setEnabledFeatures,
+  tickerAutoScroll = true, setTickerAutoScroll,
 }) {
   const [tzSearch, setTzSearch] = useState('');
 
@@ -115,6 +116,7 @@ export default function Settings({
             setCurrency('USD');
             setUserTimezone('America/New_York');
             if (setMaxStocks) setMaxStocks(8);
+            if (setTickerAutoScroll) setTickerAutoScroll(true);
             if (setEnabledFeatures) setEnabledFeatures({
               fundamentals: true, technicalIndicators: true, patternRecognition: true,
               backtesting: true, comparativeAnalysis: true, comparatorNews: true,
@@ -127,6 +129,7 @@ export default function Settings({
               localStorage.setItem('userTimezone', 'America/New_York');
               localStorage.setItem('maxStocks', '8');
               localStorage.removeItem('enabledFeatures');
+              localStorage.removeItem('tickerAutoScroll');
             } catch {}
           }}
           className="bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
@@ -263,6 +266,29 @@ export default function Settings({
         <div className="flex justify-between text-slate-500 text-xs mt-1">
           <span>4</span>
           <span>20</span>
+        </div>
+
+        {/* Ticker auto-scroll */}
+        <div className="mt-5 pt-4 border-t border-slate-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-white text-sm font-medium">
+                {lang === 'es' ? 'Banda de precios animada' : 'Animated price ticker'}
+              </p>
+              <p className="text-slate-400 text-xs mt-0.5">
+                {lang === 'es'
+                  ? 'La banda de precios se desplaza automáticamente. Desactívala para que sea estática.'
+                  : 'The price ticker scrolls automatically. Disable it to make it static.'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setTickerAutoScroll && setTickerAutoScroll(!tickerAutoScroll)}
+              className={`w-12 h-6 rounded-full relative transition-colors shrink-0 ml-4 ${tickerAutoScroll ? 'bg-blue-500' : 'bg-slate-600'}`}
+            >
+              <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${tickerAutoScroll ? 'left-6' : 'left-0.5'}`} />
+            </button>
+          </div>
         </div>
       </div>
 

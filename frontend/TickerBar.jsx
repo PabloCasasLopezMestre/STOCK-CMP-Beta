@@ -4,10 +4,13 @@ const WORKER_BASE = 'https://proxy.stockcmp-proxy.workers.dev';
 
 const DEFAULT_SYMBOLS = ['SPY', 'QQQ', 'DIA', 'GLD', 'BTC-USD'];
 
-export default function TickerBar({ selectedStocks = [], currency = 'USD', rates = {} }) {
+export default function TickerBar({ selectedStocks = [], currency = 'USD', rates = {}, autoScroll = true }) {
   const symbols = selectedStocks.length > 0 ? selectedStocks : DEFAULT_SYMBOLS;
   const [tickers, setTickers] = useState([]);
   const intervalRef = useRef(null);
+  const scrollRef = useRef(null);
+  const animRef = useRef(null);
+  const posRef = useRef(0);
 
   const fetchTickers = async () => {
     const results = await Promise.all(
@@ -32,9 +35,33 @@ export default function TickerBar({ selectedStocks = [], currency = 'USD', rates
 
   useEffect(() => {
     fetchTickers();
-    intervalRef.current = setInterval(fetchTickers, 60000); // refresh every minute
+    intervalRef.current = setInterval(fetchTickers, 60000);
     return () => clearInterval(intervalRef.current);
   }, [symbols.join(',')]);
+
+  // Auto-scroll animation
+  useEffect(() => {
+    if (!autoScroll || !scrollRef.current) return;
+
+    const el = scrollRef.current;
+    const speed = 0.5; // px per frame
+
+    const animate = () => {
+      if (!el) return;
+      posRef.current += speed;
+      // Reset when first copy scrolled fully out
+      if (posRef.current >= el.scrollWidth / 2) {
+        posRef.current = 0;
+      }
+      el.scrollLeft = posRef.current;
+      animRef.current = requestAnimationFrame(animate);
+    };
+
+    animRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+    };
+  }, [autoScroll, tickers]);
 
   const fmt = (v) => {
     if (v == null) return '—';
@@ -44,14 +71,35 @@ export default function TickerBar({ selectedStocks = [], currency = 'USD', rates
 
   if (tickers.length === 0) return null;
 
+  // Duplicate tickers for seamless loop
+  const items = autoScroll ? [...tickers, ...tickers] : tickers;
+
   return (
     <div className="bg-slate-900/95 border-b border-slate-700/50 overflow-hidden">
-      <div className="flex items-center gap-0 overflow-x-auto scrollbar-none">
-        {tickers.map(({ sym, current, change, changePct }) => {
+      <div
+        ref={scrollRef}
+        className="flex items-center gap-0 overflow-x-auto scrollbar-none"
+        style={{ scrollBehavior: 'auto' }}
+        onMouseEnter={() => { if (animRef.current) cancelAnimationFrame(animRef.current); }}
+        onMouseLeave={() => {
+          if (!autoScroll) return;
+          const el = scrollRef.current;
+          const speed = 0.5;
+          const animate = () => {
+            if (!el) return;
+            posRef.current += speed;
+            if (posRef.current >= el.scrollWidth / 2) posRef.current = 0;
+            el.scrollLeft = posRef.current;
+            animRef.current = requestAnimationFrame(animate);
+          };
+          animRef.current = requestAnimationFrame(animate);
+        }}
+      >
+        {items.map(({ sym, current, change, changePct }, idx) => {
           const isUp = change >= 0;
           return (
             <div
-              key={sym}
+              key={`${sym}-${idx}`}
               className="flex items-center gap-2 px-4 py-1.5 border-r border-slate-700/50 shrink-0 min-w-[140px]"
             >
               <span className="text-white text-xs font-bold">{sym}</span>
