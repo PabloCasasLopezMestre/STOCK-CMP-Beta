@@ -315,7 +315,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
 
   // Investment simulator
   const [simEntries, setSimEntries] = useState([]); // [{sym, amount, date}]
-  const [simSymbol, setSimSymbol] = useState('');
+  const [simSymbols, setSimSymbols] = useState('');
   const [simAmount, setSimAmount] = useState('');
   const [simDate, setSimDate] = useState('');
   const [simEndDate, setSimEndDate] = useState('');
@@ -342,8 +342,9 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
         let startIdx = timestamps.findIndex(t => t >= purchaseTs);
         if (startIdx < 0) startIdx = 0;
         // Find end index
+        const endDateTs = entry.endDate ? new Date(entry.endDate).getTime() / 1000 : Date.now() / 1000;
         let endIdx = timestamps.length - 1;
-        if (simEndDate) {
+        if (entry.endDate) {
           const ei = timestamps.findLastIndex ? timestamps.findLastIndex(t => t <= endDateTs) : [...timestamps].reverse().findIndex(t => t <= endDateTs);
           if (ei >= 0) endIdx = timestamps.findLastIndex ? ei : timestamps.length - 1 - ei;
         }
@@ -387,12 +388,14 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
   };
 
   const addSimEntry = () => {
-    const sym = simSymbol.trim().toUpperCase();
-    if (!sym || !simAmount || !simDate) return;
-    setSimEntries(prev => [...prev, { sym, amount: simAmount, date: simDate, currency }]);
-    setSimSymbol('');
+    const symbols = simSymbols.split(',').map(s => s.trim().toUpperCase()).filter(s => s);
+    if (!symbols.length || !simAmount || !simDate) return;
+    const newEntries = symbols.map(sym => ({ sym, amount: simAmount, date: simDate, endDate: simEndDate }));
+    setSimEntries(prev => [...prev, ...newEntries]);
+    setSimSymbols('');
     setSimAmount('');
     setSimDate('');
+    setSimEndDate('');
   };
 
   // Bank accounts
@@ -1169,13 +1172,12 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
         <h3 className="text-white font-semibold mb-1">{lang === 'es' ? 'Simulador de inversión histórico' : 'Historical Investment Simulator'}</h3>
         <p className="text-slate-400 text-xs mb-3">{lang === 'es' ? 'Ingresa un activo, monto y rango de fechas para ver cuánto habría crecido.' : 'Enter an asset, amount and date range to see how much it would have grown.'}</p>
         <div className="space-y-2 mb-3">
-          <StockSuggest
-            value={simSymbol}
-            onChange={setSimSymbol}
-            placeholder={lang === 'es' ? 'Símbolo (ej. AAPL)' : 'Symbol (e.g. AAPL)'}
-            comparatorStocks={comparatorStocks}
-            holdingSymbols={Object.keys(portfolio.holdings)}
-            lang={lang}
+          <input
+            className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 uppercase"
+            placeholder={lang === 'es' ? 'Símbolos (ej. AAPL, MSFT)' : 'Symbols (e.g. AAPL, MSFT)'}
+            value={simSymbols}
+            onChange={e => setSimSymbols(e.target.value.toUpperCase())}
+            maxLength={100}
           />
           <input
             type="number"
@@ -1209,10 +1211,10 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
           </div>
           <button
             onClick={addSimEntry}
-            disabled={!simSymbol.trim() || !simAmount || !simDate}
+            disabled={!simSymbols.trim() || !simAmount || !simDate}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-1.5 rounded text-sm font-semibold"
           >
-            + {lang === 'es' ? 'Agregar' : 'Add'}
+            + {lang === 'es' ? 'Agregar Todos' : 'Add All'}
           </button>
         </div>
         {simEntries.length > 0 && (
@@ -1220,7 +1222,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
             {simEntries.map((e, i) => (
               <div key={i} className="flex items-center justify-between bg-slate-700/50 rounded px-3 py-1.5 text-xs">
                 <span className="text-white font-bold">{e.sym}</span>
-                <span className="text-slate-300">{fmt(parseFloat(e.amount))} · {e.date}</span>
+                <span className="text-slate-300">{fmt(parseFloat(e.amount))} · {e.date}{e.endDate ? ` → ${e.endDate}` : ''}</span>
                 <button onClick={() => setSimEntries(prev => prev.filter((_, j) => j !== i))} className="text-slate-500 hover:text-red-400 ml-2">×</button>
               </div>
             ))}
