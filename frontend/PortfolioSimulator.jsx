@@ -543,7 +543,6 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
   };
 
   useEffect(() => { fetchPrices(); }, [JSON.stringify(Object.keys(portfolio.holdings))]);
-  useEffect(() => { if (refreshTrigger > 0) { fetchPrices(); fetchHistoricalPrices(compareRange); } }, [refreshTrigger]);
   useEffect(() => { fetchAllNewsCounts(); }, [JSON.stringify(Object.keys(portfolio.holdings))]);
 
   // Fetch historical prices for comparison
@@ -589,6 +588,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
   };
 
   useEffect(() => { fetchHistoricalPrices(compareRange); }, [JSON.stringify(Object.keys(portfolio.holdings)), compareRange]);
+  useEffect(() => { if (refreshTrigger > 0) { fetchPrices(); fetchHistoricalPrices(compareRange); } }, [refreshTrigger]);
 
   // Deposit / withdraw
   const handleDeposit = () => {
