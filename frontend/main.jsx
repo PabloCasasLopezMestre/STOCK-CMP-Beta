@@ -421,7 +421,7 @@ function App() {
             <h1 className="text-3xl font-bold text-white mb-1">{t('label_portfolio_title', lang)}</h1>
             <p className="text-slate-400 text-sm">{lang === 'es' ? 'Deposita dinero, compra y vende acciones, recibe dividendos' : 'Deposit money, buy and sell stocks, receive dividends'}</p>
           </div>
-          <PortfolioSimulator {...sharedProps} onOpenCommunityIdea={openCommunityIdea} initialPortfolio={initialPortfolio} onPortfolioChange={onPortfolioChange} refreshTrigger={refreshTrigger} showAlertsPanel={showAlertsPanel} setShowAlertsPanel={setShowAlertsPanel} comparatorStocks={tickerSymbols} enabledFeatures={enabledFeatures} />
+          <PortfolioSimulator {...sharedProps} onOpenCommunityIdea={openCommunityIdea} initialPortfolio={initialPortfolio} onPortfolioChange={onPortfolioChange} refreshTrigger={refreshTrigger} showAlertsPanel={showAlertsPanel} setShowAlertsPanel={setShowAlertsPanel} comparatorStocks={tickerSymbols} enabledFeatures={enabledFeatures} visibleTimeRanges={visibleTimeRanges} defaultTimeRange={defaultTimeRange} />
         </div>
       )}
       {tab === 'community' && (

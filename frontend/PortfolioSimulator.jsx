@@ -1,10 +1,29 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { TrendingUp, TrendingDown, Plus, Minus, DollarSign, RefreshCw, AlertCircle } from 'lucide-react';
 import { t } from './i18n';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const WORKER_BASE = 'https://proxy.stockcmp-proxy.workers.dev';
 const STOCK_COLORS = ['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316'];
+const CHART_COLORS = ['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316'];
+
+// Chart ranges — labels are translated at render time using the key
+const CHART_RANGES = [
+  { key: '1hour',   labelEs: '1 Hora',   labelEn: '1 Hour',    interval: '2m',  range: '1h',  trimHours: 1 },
+  { key: '6hours',  labelEs: '6 Horas',  labelEn: '6 Hours',   interval: '5m',  range: '1d',  trimHours: 6 },
+  { key: '1day',    labelEs: '24 Horas', labelEn: '24 Hours',  interval: '5m',  range: '1d'  },
+  { key: '1week',   labelEs: '1 Semana', labelEn: '1 Week',    interval: '1h',  range: '5d'  },
+  { key: '1month',  labelEs: '1 Mes',    labelEn: '1 Month',   interval: '1d',  range: '1mo' },
+  { key: '3months', labelEs: '3 Meses',  labelEn: '3 Months',  interval: '1d',  range: '3mo' },
+  { key: '6months', labelEs: '6 Meses',  labelEn: '6 Months',  interval: '1d',  range: '6mo' },
+  { key: '1year',   labelEs: '1 Año',    labelEn: '1 Year',    interval: '1wk', range: '1y'  },
+  { key: '2years',  labelEs: '2 Años',   labelEn: '2 Years',   interval: '1wk', range: '2y'  },
+  { key: '3years',  labelEs: '3 Años',   labelEn: '3 Years',   interval: '1mo', range: '3y'  },
+  { key: '5years',  labelEs: '5 Años',   labelEn: '5 Years',   interval: '1mo', range: '5y'  },
+  { key: '10years', labelEs: '10 Años',  labelEn: '10 Years',  interval: '3mo', range: '10y' },
+  { key: '15years', labelEs: '15 Años',  labelEn: '15 Years',  interval: '3mo', range: '15y' },
+  { key: 'alltime', labelEs: 'Todo',     labelEn: 'All',       interval: '1mo', range: 'max' },
+];
 
 // Mini dropdown that suggests stocks from the comparator
 function StockSuggest({ value, onChange, placeholder, comparatorStocks, holdingSymbols, lang }) {
@@ -56,7 +75,7 @@ const DEFAULT_PORTFOLIO = {
   dividendsReceived: 0,
 };
 
-export default function PortfolioSimulator({ currency, setCurrency, nextCurrency, currencyLabel, rates, alerts, setAlerts, lang = 'es', onOpenCommunityIdea, initialPortfolio, onPortfolioChange, refreshTrigger, showAlertsPanel, setShowAlertsPanel, comparatorStocks = [], enabledFeatures = {} }) {
+export default function PortfolioSimulator({ currency, setCurrency, nextCurrency, currencyLabel, rates, alerts, setAlerts, lang = 'es', onOpenCommunityIdea, initialPortfolio, onPortfolioChange, refreshTrigger, showAlertsPanel, setShowAlertsPanel, comparatorStocks = [], enabledFeatures = {}, visibleTimeRanges = [], defaultTimeRange = '1month' }) {
   const [portfolio, setPortfolio] = useState(() => initialPortfolio || loadPortfolio() || DEFAULT_PORTFOLIO);
   const [prices, setPrices] = useState({});
   const [historicalPrices, setHistoricalPrices] = useState({});
@@ -110,25 +129,15 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     localStorage.setItem('priceAlerts', JSON.stringify(next));
   };
 
-  // Chart state
-  const CHART_RANGES = [
-    { label: lang === 'es' ? '1 Hora'   : '1 Hour',    interval: '2m',  range: '1h'  },
-    { label: lang === 'es' ? '6 Horas'  : '6 Hours',   interval: '5m',  range: '1d', trimHours: 6 },
-    { label: lang === 'es' ? '24 Horas' : '24 Hours',  interval: '5m',  range: '1d'  },
-    { label: lang === 'es' ? '1 Semana' : '1 Week',    interval: '1h',  range: '5d'  },
-    { label: lang === 'es' ? '1 Mes'    : '1 Month',   interval: '1d',  range: '1mo' },
-    { label: lang === 'es' ? '3 Meses'  : '3 Months',  interval: '1d',  range: '3mo' },
-    { label: lang === 'es' ? '6 Meses'  : '6 Months',  interval: '1d',  range: '6mo' },
-    { label: lang === 'es' ? '1 Año'    : '1 Year',    interval: '1wk', range: '1y'  },
-    { label: lang === 'es' ? '2 Años'   : '2 Years',   interval: '1wk', range: '2y'  },
-    { label: lang === 'es' ? '3 Años'   : '3 Years',   interval: '1mo', range: '3y'  },
-    { label: lang === 'es' ? '5 Años'   : '5 Years',   interval: '1mo', range: '5y'  },
-    { label: lang === 'es' ? '10 Años'  : '10 Years',  interval: '3mo', range: '10y' },
-    { label: lang === 'es' ? '15 Años'  : '15 Years',  interval: '3mo', range: '15y' },
-  ];
-  const CHART_COLORS = ['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316'];
+  // Chart state — CHART_RANGES and CHART_COLORS are module-level constants above
 
-  const [activeRange, setActiveRange] = useState('1 Mes');
+  const resolveInitialRange = () => {
+    if (visibleTimeRanges?.includes(defaultTimeRange)) return defaultTimeRange;
+    if (visibleTimeRanges?.length) return visibleTimeRanges[0];
+    return '1month';
+  };
+
+  const [activeRange, setActiveRange] = useState(resolveInitialRange);
   const [chartData, setChartData] = useState([]);
   const [chartSymbols, setChartSymbols] = useState([]);
   const [showAverage, setShowAverage] = useState(false);
@@ -214,10 +223,10 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     }
   }, [portfolio.holdings]);
 
-  const fetchChartData = useCallback(async (symbols, rangeLabel) => {
+  const fetchChartData = useCallback(async (symbols, rangeKey) => {
     if (!symbols.length) { setChartData([]); return; }
     setLoadingChart(true);
-    const cfg = CHART_RANGES.find((r) => r.label === rangeLabel) ?? CHART_RANGES[1];
+    const cfg = CHART_RANGES.find((r) => r.key === rangeKey) ?? CHART_RANGES[4];
     try {
       const results = await Promise.all(
         symbols.map((sym) =>
@@ -266,11 +275,36 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     if (syms.length) fetchChartData(syms, activeRange);
   }, [portfolio.holdings, fetchChartData]);
 
-  const handleChartRangeChange = (label) => {
-    setActiveRange(label);
-    fetchChartData(chartSymbols, label);
-    fetchHistoricalPrices(CHART_RANGES.find((r) => r.label === label)?.range ?? '1mo');
+  const visibleChartRanges = CHART_RANGES.filter((r) => !visibleTimeRanges || visibleTimeRanges.includes(r.key));
+
+  useEffect(() => {
+    const next = visibleTimeRanges?.includes(defaultTimeRange) ? defaultTimeRange : visibleChartRanges?.[0]?.key ?? '1month';
+    if (next !== activeRange) {
+      setActiveRange(next);
+      fetchChartData(chartSymbols, next);
+      fetchHistoricalPrices(CHART_RANGES.find((r) => r.key === next)?.range ?? '1mo');
+    }
+  }, [visibleTimeRanges, defaultTimeRange, visibleChartRanges, activeRange, chartSymbols, fetchChartData, fetchHistoricalPrices]);
+
+  const handleChartRangeChange = (key) => {
+    setActiveRange(key);
+    fetchChartData(chartSymbols, key);
+    fetchHistoricalPrices(CHART_RANGES.find((r) => r.key === key)?.range ?? '1mo');
   };
+
+  const rangePerformance = useMemo(() => {
+    if (!chartData.length) return [];
+    const first = chartData[0];
+    const last = chartData[chartData.length - 1];
+    return chartSymbols.map((sym) => {
+      const start = first[sym];
+      const end = last[sym];
+      if (start == null || end == null || start === 0) return null;
+      const pct = ((end - start) / start) * 100;
+      const diff = end - start;
+      return { sym, pct, diff };
+    }).filter(Boolean);
+  }, [chartData, chartSymbols]);
 
   const toggleChartSymbol = (sym) => {
     const next = chartSymbols.includes(sym)
@@ -354,11 +388,11 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
         const amountUSD = entry.currency === 'USD' ? parseFloat(entry.amount) : parseFloat(entry.amount) / (rates?.[entry.currency] ?? 1);
         const shares = amountUSD / startPrice;
         const currentValue = shares * endPrice;
-        const gain = currentValue - amountUSD;
-        const gainPct = (gain / amountUSD) * 100;
+        const profit = currentValue - amountUSD;
+        const profitPct = (profit / amountUSD) * 100;
         const startDate = new Date(timestamps[startIdx] * 1000).toLocaleDateString();
         const endDate = new Date(timestamps[endIdx] * 1000).toLocaleDateString();
-        results[key] = { startPrice, endPrice, shares, amountUSD, currentValue, gain, gainPct, startDate, endDate };
+        results[key] = { startPrice, endPrice, shares, amountUSD, currentValue, profit, profitPct, startDate, endDate };
 
         // Build chart series: normalized to % gain from start
         const sliced = timestamps.slice(startIdx, endIdx + 1);
@@ -371,13 +405,21 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
       } catch {}
     }));
 
-    // Merge chart series by date
-    const allDates = [...new Set(Object.values(chartSeries).flatMap(s => s.map(p => p.date)))].sort();
-    const merged = allDates.map(date => {
+    // Merge chart series by date and carry forward the last known value so the tooltip shows all symbols consistently
+    const allDates = [...new Set(Object.values(chartSeries).flatMap(s => s.map(p => p.date)))].sort((a, b) => new Date(a) - new Date(b));
+    const pointers = Object.fromEntries(Object.keys(chartSeries).map((sym) => [sym, 0]));
+    const merged = allDates.map((date) => {
       const point = { date };
       Object.entries(chartSeries).forEach(([sym, series]) => {
-        const found = series.find(p => p.date === date);
-        if (found) point[sym] = parseFloat(found.pct.toFixed(2));
+        let pointer = pointers[sym];
+        while (pointer < series.length && new Date(series[pointer].date) <= new Date(date)) {
+          pointer += 1;
+        }
+        pointers[sym] = pointer;
+        const idx = pointer - 1;
+        if (idx >= 0) {
+          point[sym] = parseFloat(series[idx].pct.toFixed(2));
+        }
       });
       return point;
     });
@@ -672,19 +714,19 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
   const totalReturnPct = netDeposited > 0 ? (totalReturn / netDeposited) * 100 : 0;
 
   // Gains breakdown
-  const unrealizedGain = Object.entries(portfolio.holdings).reduce((sum, [sym, h]) => {
+  const unrealizedProfit = Object.entries(portfolio.holdings).reduce((sum, [sym, h]) => {
     const currentPrice = prices[sym] ?? h.avgCost;
     return sum + h.shares * (currentPrice - h.avgCost);
   }, 0);
-  const realizedGain = portfolio.transactions
+  const realizedProfit = portfolio.transactions
     .filter((tx) => tx.type === 'sell')
     .reduce((sum, tx) => {
       return sum + tx.total;
     }, 0) - portfolio.transactions
     .filter((tx) => tx.type === 'sell')
     .reduce((sum, tx) => sum + tx.shares * (portfolio.holdings[tx.symbol]?.avgCost ?? tx.price), 0);
-  const dividendGain = portfolio.dividendsReceived;
-  const totalGain = unrealizedGain + dividendGain;
+  const dividendProfit = portfolio.dividendsReceived;
+  const totalProfit = unrealizedProfit + dividendProfit;
 
   const fmt = fmtCurrency;
 
@@ -757,22 +799,22 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="bg-slate-700/50 rounded-lg p-4 border border-purple-500/30">
             <p className="text-slate-400 text-xs mb-1">{t('portfolio_dividend_gains', lang)}</p>
-            <p className={`text-2xl font-bold ${dividendGain >= 0 ? 'text-purple-400' : 'text-red-400'}`}>
-              {dividendGain >= 0 ? '+' : ''}{fmt(dividendGain)}
+            <p className={`text-2xl font-bold ${dividendProfit >= 0 ? 'text-purple-400' : 'text-red-400'}`}>
+              {dividendProfit >= 0 ? '+' : ''}{fmt(dividendProfit)}
             </p>
             <p className="text-slate-500 text-xs mt-1">{t('portfolio_dividends_accumulated', lang)}</p>
           </div>
           <div className="bg-slate-700/50 rounded-lg p-4 border border-blue-500/30">
             <p className="text-slate-400 text-xs mb-1">{t('portfolio_stock_value_gain', lang)}</p>
-            <p className={`text-2xl font-bold ${unrealizedGain >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
-              {unrealizedGain >= 0 ? '+' : ''}{fmt(unrealizedGain)}
+            <p className={`text-2xl font-bold ${unrealizedProfit >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+              {unrealizedProfit >= 0 ? '+' : ''}{fmt(unrealizedProfit)}
             </p>
             <p className="text-slate-500 text-xs mt-1">{t('portfolio_current_vs_avg', lang)}</p>
           </div>
           <div className="bg-slate-700/50 rounded-lg p-4 border border-green-500/30">
             <p className="text-slate-400 text-xs mb-1">{t('portfolio_total_gain', lang)}</p>
-            <p className={`text-2xl font-bold ${totalGain >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {totalGain >= 0 ? '+' : ''}{fmt(totalGain)}
+            <p className={`text-2xl font-bold ${totalProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              {totalProfit >= 0 ? '+' : ''}{fmt(totalProfit)}
             </p>
             <p className="text-slate-500 text-xs mt-1">{t('portfolio_dividends_plus_stocks', lang)}</p>
           </div>
@@ -1009,10 +1051,10 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
             <h3 className="text-white font-semibold">{t('portfolio_chart_title', lang)}</h3>
             <div className="flex gap-1 flex-wrap">
-              {CHART_RANGES.map(({ label }) => (
-                <button key={label} onClick={() => handleChartRangeChange(label)}
-                  className={`px-2 py-1 rounded text-xs font-medium transition-colors ${activeRange === label ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
-                  {label}
+              {visibleChartRanges.map(({ key, labelEs, labelEn }) => (
+                <button key={key} onClick={() => handleChartRangeChange(key)}
+                  className={`px-2 py-1 rounded text-xs font-medium transition-colors ${activeRange === key ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
+                  {lang === 'es' ? labelEs : labelEn}
                 </button>
               ))}
               <button onClick={() => fetchChartData(chartSymbols, activeRange)} disabled={loadingChart}
@@ -1021,8 +1063,16 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
               </button>
             </div>
           </div>
-
-          {/* Symbol toggles */}
+          {rangePerformance.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-2 text-slate-300 text-xs">
+              {rangePerformance.map(({ sym, pct, diff }) => (
+                <div key={sym} className="rounded-lg bg-slate-800/80 border border-slate-700 px-3 py-2">
+                  <div className="font-semibold text-white">{sym}</div>
+                  <div>{pct >= 0 ? '+' : ''}{pct.toFixed(2)}% · {fmtCurrency(diff)}</div>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="flex flex-wrap gap-2 mb-3">
             {Object.keys(portfolio.holdings).map((sym, i) => (
               <button key={sym} onClick={() => toggleChartSymbol(sym)}
@@ -1239,7 +1289,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
         {simChartData.length > 0 && (
           <div className="mb-4">
             <p className="text-slate-400 text-xs mb-2">{lang === 'es' ? 'Crecimiento (%)' : 'Growth (%)'}</p>
-            <ResponsiveContainer width="100%" height={180}>
+            <ResponsiveContainer width="100%" height={300}>
               <LineChart data={simChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                 <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 9 }} tickLine={false} interval="preserveStartEnd" />
@@ -1254,6 +1304,15 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                 ))}
               </LineChart>
             </ResponsiveContainer>
+            {simChartData.length > 0 && (
+              <div className="mt-2 text-center text-xs text-slate-300">
+                {Object.entries(simChartData[simChartData.length - 1]).filter(([k]) => k !== 'date').map(([sym, pct]) => (
+                  <span key={sym} className="mx-2">
+                    <span className="font-bold text-white">{sym}:</span> {pct > 0 ? '+' : ''}{pct.toFixed(2)}%
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
         {Object.keys(simResults).length > 0 && (
@@ -1262,13 +1321,13 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
               const key = `${e.sym}_${e.date}`;
               const r = simResults[key];
               if (!r) return null;
-              const isGain = r.gain >= 0;
+              const isGain = r.profit >= 0;
               return (
                 <div key={i} className={`rounded-lg p-3 border ${isGain ? 'bg-green-900/20 border-green-700/40' : 'bg-red-900/20 border-red-700/40'}`}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-white font-bold text-sm">{e.sym}</span>
                     <span className={`text-sm font-bold ${isGain ? 'text-green-400' : 'text-red-400'}`}>
-                      {isGain ? '+' : ''}{r.gainPct.toFixed(2)}%
+                      {isGain ? '+' : ''}{r.profitPct.toFixed(2)}%
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
@@ -1276,7 +1335,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                     <div><span className="text-slate-500">{lang === 'es' ? 'Valor final' : 'Final value'}: </span><span className="text-white font-semibold">{fmt(r.currentValue)}</span></div>
                     <div><span className="text-slate-500">{lang === 'es' ? 'Precio compra' : 'Buy price'}: </span><span className="text-slate-200">{fmt(r.startPrice)}</span></div>
                     <div><span className="text-slate-500">{lang === 'es' ? 'Precio final' : 'End price'}: </span><span className="text-slate-200">{fmt(r.endPrice)}</span></div>
-                    <div><span className="text-slate-500">{lang === 'es' ? 'Ganancia' : 'Gain'}: </span><span className={isGain ? 'text-green-400' : 'text-red-400'}>{isGain ? '+' : ''}{fmt(r.gain)}</span></div>
+                    <div><span className="text-slate-500">{lang === 'es' ? 'Ganancia' : 'Gain'}: </span><span className={isGain ? 'text-green-400' : 'text-red-400'}>{isGain ? '+' : ''}{fmt(r.profit)}</span></div>
                     <div><span className="text-slate-500">{lang === 'es' ? 'Acciones' : 'Shares'}: </span><span className="text-slate-200">{r.shares.toFixed(4)}</span></div>
                   </div>
                   <p className="text-slate-600 text-xs mt-1">{r.startDate} → {r.endDate}</p>
