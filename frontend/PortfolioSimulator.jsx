@@ -510,14 +510,14 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     }
   };
 
-  const updatePortfolio = (next) => {
+  const updatePortfolio = useCallback((next) => {
     setPortfolio(next);
     savePortfolio(next);
     if (onPortfolioChange) onPortfolioChange(next);
-  };
+  }, [onPortfolioChange]);
 
   // Fetch current prices for all holdings
-  const fetchPrices = async () => {
+  const fetchPrices = useCallback(async () => {
     const symbols = Object.keys(portfolio.holdings);
     if (!symbols.length) return;
     setLoadingPrices(true);
@@ -540,13 +540,13 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     } catch {} finally {
       setLoadingPrices(false);
     }
-  };
+  }, [portfolio.holdings]);
 
   useEffect(() => { fetchPrices(); }, [JSON.stringify(Object.keys(portfolio.holdings))]);
   useEffect(() => { fetchAllNewsCounts(); }, [JSON.stringify(Object.keys(portfolio.holdings))]);
 
   // Fetch historical prices for comparison
-  const fetchHistoricalPrices = async (range) => {
+  const fetchHistoricalPrices = useCallback(async (range) => {
     const symbols = Object.keys(portfolio.holdings);
     if (!symbols.length) return;
     setLoadingHistorical(true);
@@ -585,7 +585,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     } finally {
       setLoadingHistorical(false);
     }
-  };
+  }, [portfolio.holdings]);
 
   useEffect(() => { fetchHistoricalPrices(compareRange); }, [JSON.stringify(Object.keys(portfolio.holdings)), compareRange]);
   useEffect(() => { if (refreshTrigger > 0) { fetchPrices(); fetchHistoricalPrices(compareRange); } }, [refreshTrigger]);
