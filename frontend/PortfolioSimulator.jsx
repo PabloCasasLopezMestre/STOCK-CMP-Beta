@@ -275,7 +275,51 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     if (syms.length) fetchChartData(syms, activeRange);
   }, [portfolio.holdings, fetchChartData]);
 
-  const visibleChartRanges = CHART_RANGES.filter((r) => !visibleTimeRanges || visibleTimeRanges.includes(r.key));
+  const visibleChartRanges = useMemo(
+    () => CHART_RANGES.filter((r) => !visibleTimeRanges || visibleTimeRanges.includes(r.key)),
+    [visibleTimeRanges]
+  );
+
+  const fetchHistoricalPrices = useCallback(async (range) => {
+    const symbols = Object.keys(portfolio.holdings);
+    if (!symbols.length) return;
+    setLoadingHistorical(true);
+    const rangeMap = {
+      '1h':  { interval: '2m',  range: '1h'  },
+      '6h':  { interval: '5m',  range: '1d'  },
+      '1d':  { interval: '5m',  range: '1d'  },
+      '1wk': { interval: '1d',  range: '5d'  },
+      '1mo': { interval: '1d',  range: '1mo' },
+      '3mo': { interval: '1d',  range: '3mo' },
+      '6mo': { interval: '1d',  range: '6mo' },
+      '1y':  { interval: '1wk', range: '1y'  },
+      '2y':  { interval: '1wk', range: '2y'  },
+      '3y':  { interval: '1mo', range: '3y'  },
+      '5y':  { interval: '1mo', range: '5y'  },
+      '10y': { interval: '3mo', range: '10y' },
+      '15y': { interval: '3mo', range: '15y' },
+    };
+    const { interval, range: r } = rangeMap[range] ?? rangeMap['1mo'];
+    try {
+      const results = await Promise.all(
+        symbols.map((sym) =>
+          fetch(`${WORKER_BASE}/api/stock/${sym}?interval=${interval}&range=${r}`)
+            .then((res) => res.json())
+            .then((data) => {
+              const closes = data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
+              const first = closes.find(Boolean) ?? null;
+              return { sym, price: first };
+            })
+            .catch(() => ({ sym, price: null }))
+        )
+      );
+      const map = {};
+      results.forEach(({ sym, price }) => { map[sym] = price; });
+      setHistoricalPrices(map);
+    } finally {
+      setLoadingHistorical(false);
+    }
+  }, [portfolio.holdings]);
 
   useEffect(() => {
     const next = visibleTimeRanges?.includes(defaultTimeRange) ? defaultTimeRange : visibleChartRanges?.[0]?.key ?? '1month';
@@ -546,47 +590,6 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
   useEffect(() => { fetchAllNewsCounts(); }, [JSON.stringify(Object.keys(portfolio.holdings))]);
 
   // Fetch historical prices for comparison
-  const fetchHistoricalPrices = useCallback(async (range) => {
-    const symbols = Object.keys(portfolio.holdings);
-    if (!symbols.length) return;
-    setLoadingHistorical(true);
-    const rangeMap = {
-      '1h':  { interval: '2m',  range: '1h'  },
-      '6h':  { interval: '5m',  range: '1d'  },
-      '1d':  { interval: '5m',  range: '1d'  },
-      '1wk': { interval: '1d',  range: '5d'  },
-      '1mo': { interval: '1d',  range: '1mo' },
-      '3mo': { interval: '1d',  range: '3mo' },
-      '6mo': { interval: '1d',  range: '6mo' },
-      '1y':  { interval: '1wk', range: '1y'  },
-      '2y':  { interval: '1wk', range: '2y'  },
-      '3y':  { interval: '1mo', range: '3y'  },
-      '5y':  { interval: '1mo', range: '5y'  },
-      '10y': { interval: '3mo', range: '10y' },
-      '15y': { interval: '3mo', range: '15y' },
-    };
-    const { interval, range: r } = rangeMap[range] ?? rangeMap['1mo'];
-    try {
-      const results = await Promise.all(
-        symbols.map((sym) =>
-          fetch(`${WORKER_BASE}/api/stock/${sym}?interval=${interval}&range=${r}`)
-            .then((res) => res.json())
-            .then((data) => {
-              const closes = data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
-              const first = closes.find(Boolean) ?? null;
-              return { sym, price: first };
-            })
-            .catch(() => ({ sym, price: null }))
-        )
-      );
-      const map = {};
-      results.forEach(({ sym, price }) => { map[sym] = price; });
-      setHistoricalPrices(map);
-    } finally {
-      setLoadingHistorical(false);
-    }
-  }, [portfolio.holdings]);
-
   useEffect(() => { fetchHistoricalPrices(compareRange); }, [JSON.stringify(Object.keys(portfolio.holdings)), compareRange]);
   useEffect(() => { if (refreshTrigger > 0) { fetchPrices(); fetchHistoricalPrices(compareRange); } }, [refreshTrigger]);
 
