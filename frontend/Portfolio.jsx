@@ -29,6 +29,9 @@ export default function Portfolio() {
   const [tradeError, setTradeError] = useState('');
   const [tab, setTab] = useState('holdings');
   const [dividendYields, setDividendYields] = useState({});
+  const [performanceRange, setPerformanceRange] = useState('1month');
+  const [performanceData, setPerformanceData] = useState(null);
+  const [loadingPerformance, setLoadingPerformance] = useState(false);
 
   const symbols = Object.keys(portfolio.holdings);
 
@@ -67,6 +70,95 @@ export default function Portfolio() {
   };
 
   useEffect(() => { fetchPrices(); fetchDividends(); }, [symbols.join(',')]);
+
+  // Fetch portfolio performance data
+  const fetchPerformanceData = async () => {
+    if (!symbols.length) return;
+    setLoadingPerformance(true);
+    try {
+      const rangeMap = {
+        '3days': { interval: '1h', range: '5d' },
+        '1week': { interval: '1h', range: '5d' },
+        '2weeks': { interval: '1d', range: '10d' },
+        '1month': { interval: '1d', range: '1mo' },
+        '6weeks': { interval: '1d', range: '42d' },
+        '2months': { interval: '1d', range: '2mo' },
+        '3months': { interval: '1d', range: '3mo' },
+        '4months': { interval: '1d', range: '4mo' },
+        '6months': { interval: '1d', range: '6mo' },
+        '9months': { interval: '1d', range: '9mo' },
+        '1year': { interval: '1wk', range: '1y' },
+        '18months': { interval: '1wk', range: '18mo' },
+        '2years': { interval: '1wk', range: '2y' },
+        '30months': { interval: '1mo', range: '30mo' },
+        '3years': { interval: '1mo', range: '3y' },
+        '4years': { interval: '1mo', range: '4y' },
+        '5years': { interval: '1mo', range: '5y' },
+        '7years': { interval: '1mo', range: '7y' },
+        '10years': { interval: '3mo', range: '10y' },
+        '12years': { interval: '3mo', range: '12y' },
+        '15years': { interval: '3mo', range: '15y' },
+        '20years': { interval: '3mo', range: '20y' },
+        '25years': { interval: '3mo', range: '25y' },
+      };
+      const config = rangeMap[performanceRange] || rangeMap['1month'];
+      
+      const results = await Promise.all(
+        symbols.map(async (sym) => {
+          try {
+            const res = await fetch(`${WORKER_BASE}/api/stock/${sym}?interval=${config.interval}&range=${config.range}`);
+            const data = await res.json();
+            const closes = data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
+            const timestamps = data?.chart?.result?.[0]?.timestamp ?? [];
+            
+            if (closes.length < 2) return null;
+            
+            const startPrice = closes[0];
+            const endPrice = closes[closes.length - 1];
+            const change = ((endPrice - startPrice) / startPrice) * 100;
+            const shares = portfolio.holdings[sym]?.shares || 0;
+            const startValue = startPrice * shares;
+            const endValue = endPrice * shares;
+            const gain = endValue - startValue;
+            
+            return {
+              symbol: sym,
+              startPrice,
+              endPrice,
+              change,
+              shares,
+              startValue,
+              endValue,
+              gain
+            };
+          } catch {
+            return null;
+          }
+        })
+      );
+      
+      const validResults = results.filter(r => r !== null);
+      const totalStartValue = validResults.reduce((sum, r) => sum + r.startValue, 0);
+      const totalEndValue = validResults.reduce((sum, r) => sum + r.endValue, 0);
+      const totalGain = totalEndValue - totalStartValue;
+      const totalChange = totalStartValue > 0 ? (totalGain / totalStartValue) * 100 : 0;
+      
+      setPerformanceData({
+        range: performanceRange,
+        totalStartValue,
+        totalEndValue,
+        totalGain,
+        totalChange,
+        individual: validResults
+      });
+    } catch (error) {
+      console.error('Error fetching performance data:', error);
+    } finally {
+      setLoadingPerformance(false);
+    }
+  };
+
+  useEffect(() => { fetchPerformanceData(); }, [performanceRange, symbols.join(',')]);
 
   // Apply quarterly dividends
   const collectDividends = () => {
@@ -256,16 +348,47 @@ export default function Portfolio() {
       {/* Tabs */}
       <div className="bg-slate-800/50 rounded-xl border border-slate-700">
         <div className="flex border-b border-slate-700">
-          {['holdings', 'transactions', 'dividends'].map((t) => (
+          {['holdings', 'performance', 'transactions', 'dividends'].map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={`px-4 py-3 text-sm font-medium transition-colors ${tab === t ? 'text-white border-b-2 border-blue-500' : 'text-slate-400 hover:text-white'}`}
             >
-              {t === 'holdings' ? '📊 Posiciones' : t === 'transactions' ? '📋 Historial' : '💵 Dividendos'}
+              {t === 'holdings' ? '📊 Posiciones' : t === 'performance' ? '📈 Rendimiento' : t === 'transactions' ? '📋 Historial' : '💵 Dividendos'}
             </button>
           ))}
           <div className="flex-1" />
+          {tab === 'performance' && (
+            <select
+              value={performanceRange}
+              onChange={(e) => setPerformanceRange(e.target.value)}
+              className="m-2 bg-slate-700 text-white px-3 py-1.5 rounded text-xs outline-none"
+            >
+              <option value="3days">3 Días</option>
+              <option value="1week">1 Semana</option>
+              <option value="2weeks">2 Semanas</option>
+              <option value="1month">1 Mes</option>
+              <option value="6weeks">6 Semanas</option>
+              <option value="2months">2 Meses</option>
+              <option value="3months">3 Meses</option>
+              <option value="4months">4 Meses</option>
+              <option value="6months">6 Meses</option>
+              <option value="9months">9 Meses</option>
+              <option value="1year">1 Año</option>
+              <option value="18months">18 Meses</option>
+              <option value="2years">2 Años</option>
+              <option value="30months">30 Meses</option>
+              <option value="3years">3 Años</option>
+              <option value="4years">4 Años</option>
+              <option value="5years">5 Años</option>
+              <option value="7years">7 Años</option>
+              <option value="10years">10 Años</option>
+              <option value="12years">12 Años</option>
+              <option value="15years">15 Años</option>
+              <option value="20years">20 Años</option>
+              <option value="25years">25 Años</option>
+            </select>
+          )}
           {tab === 'dividends' && (
             <button onClick={collectDividends} className="m-2 bg-yellow-700 hover:bg-yellow-600 text-white px-3 py-1.5 rounded text-xs">
               Cobrar dividendos trimestrales
@@ -317,6 +440,71 @@ export default function Portfolio() {
                   })}
                 </tbody>
               </table>
+            )
+          )}
+
+          {tab === 'performance' && (
+            loadingPerformance ? (
+              <div className="text-center py-8">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <p className="text-slate-400 text-sm mt-2">Cargando datos de rendimiento...</p>
+              </div>
+            ) : !performanceData ? (
+              <p className="text-slate-500 text-sm text-center py-8">No hay datos de rendimiento disponibles.</p>
+            ) : (
+              <div className="space-y-4">
+                {/* Resumen de rendimiento */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="bg-slate-700/50 rounded-lg p-4 border border-slate-600">
+                    <p className="text-slate-400 text-xs mb-1">Valor inicial</p>
+                    <p className="text-xl font-bold text-white">{fmt(performanceData.totalStartValue)}</p>
+                  </div>
+                  <div className="bg-slate-700/50 rounded-lg p-4 border border-slate-600">
+                    <p className="text-slate-400 text-xs mb-1">Valor final</p>
+                    <p className="text-xl font-bold text-white">{fmt(performanceData.totalEndValue)}</p>
+                  </div>
+                  <div className={`rounded-lg p-4 border ${performanceData.totalGain >= 0 ? 'bg-green-900/30 border-green-600' : 'bg-red-900/30 border-red-600'}`}>
+                    <p className="text-slate-400 text-xs mb-1">Ganancia/Pérdida</p>
+                    <p className={`text-xl font-bold ${performanceData.totalGain >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {performanceData.totalGain >= 0 ? '+' : ''}{fmt(performanceData.totalGain)}
+                    </p>
+                    <p className={`text-xs ${performanceData.totalChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      {performanceData.totalChange >= 0 ? '+' : ''}{performanceData.totalChange.toFixed(2)}%
+                    </p>
+                  </div>
+                </div>
+
+                {/* Tabla de rendimiento individual */}
+                <h3 className="text-white font-semibold mb-3">Rendimiento por activo</h3>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-slate-400 border-b border-slate-700">
+                      <th className="text-left py-2 pr-4">Símbolo</th>
+                      <th className="text-right py-2 px-3">Acciones</th>
+                      <th className="text-right py-2 px-3">Precio inicial</th>
+                      <th className="text-right py-2 px-3">Precio final</th>
+                      <th className="text-right py-2 px-3">Ganancia/Pérdida</th>
+                      <th className="text-right py-2 pl-3">%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {performanceData.individual.map((item) => (
+                      <tr key={item.symbol} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                        <td className="py-2 pr-4 font-bold text-white">{item.symbol}</td>
+                        <td className="text-right py-2 px-3 text-slate-200">{item.shares.toFixed(4)}</td>
+                        <td className="text-right py-2 px-3 text-slate-200">{fmt(item.startPrice)}</td>
+                        <td className="text-right py-2 px-3 text-slate-200">{fmt(item.endPrice)}</td>
+                        <td className={`text-right py-2 px-3 font-semibold ${item.gain >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {item.gain >= 0 ? '+' : ''}{fmt(item.gain)}
+                        </td>
+                        <td className={`text-right py-2 pl-3 font-semibold ${item.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {item.change >= 0 ? '+' : ''}{item.change.toFixed(2)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )
           )}
 

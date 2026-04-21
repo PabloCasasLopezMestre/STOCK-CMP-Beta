@@ -70,25 +70,75 @@ const DEFAULT_SECTORS = {
 };
 
 const TIME_RANGES = {
+  '30min':   { label: '30m',   label_es: '30 Min',    interval: '1m',  range: '1d',  intraday: true, trimMinutes: 30 },
   '1hour':   { label: '1h',    label_es: '1 Hora',   interval: '2m',  range: '1h',  intraday: true },
+  '3hours':  { label: '3h',    label_es: '3 Horas',  interval: '5m',  range: '1d',  intraday: true, trimHours: 3 },
   '6hours':  { label: '6h',    label_es: '6 Horas',  interval: '5m',  range: '1d',  intraday: true, trimHours: 6 },
-  '1day':    { label: '24h',   label_es: '24 Horas', interval: '5m',  range: '1d',  intraday: true },
+  '12hours': { label: '12h',   label_es: '12 Horas', interval: '15m', range: '1d',  intraday: true, trimHours: 12 },
+  '1day':    { label: '24h',   label_es: '24 Horas', interval: '30m', range: '1d',  intraday: true },
+  '3days':   { label: '3D',    label_es: '3 Días',   interval: '1h',  range: '5d',  intraday: false },
   '1week':   { label: '1W',    label_es: '1 Semana', interval: '1h',  range: '5d',  intraday: false },
+  '2weeks':  { label: '2W',    label_es: '2 Semanas', interval: '1d',  range: '10d', intraday: false },
   '1month':  { label: '1M',    label_es: '1 Mes',    interval: '1d',  range: '1mo', intraday: false },
+  '6weeks':  { label: '6W',    label_es: '6 Semanas', interval: '1d',  range: '42d', intraday: false },
+  '2months': { label: '2M',    label_es: '2 Meses',  interval: '1d',  range: '2mo', intraday: false },
   '3months': { label: '3M',    label_es: '3 Meses',  interval: '1d',  range: '3mo', intraday: false },
+  '4months': { label: '4M',    label_es: '4 Meses',  interval: '1d',  range: '4mo', intraday: false },
   '6months': { label: '6M',    label_es: '6 Meses',  interval: '1d',  range: '6mo', intraday: false },
+  '9months': { label: '9M',    label_es: '9 Meses',  interval: '1d',  range: '9mo', intraday: false },
   '1year':   { label: '1Y',    label_es: '1 Año',    interval: '1wk', range: '1y',  intraday: false },
+  '18months': { label: '18M',   label_es: '18 Meses', interval: '1wk', range: '18mo', intraday: false },
   '2years':  { label: '2Y',    label_es: '2 Años',   interval: '1wk', range: '2y',  intraday: false },
+  '30months': { label: '30M',   label_es: '30 Meses', interval: '1mo', range: '30mo', intraday: false },
   '3years':  { label: '3Y',    label_es: '3 Años',   interval: '1mo', range: '3y',  intraday: false },
+  '4years':  { label: '4Y',    label_es: '4 Años',   interval: '1mo', range: '4y',  intraday: false },
   '5years':  { label: '5Y',    label_es: '5 Años',   interval: '1mo', range: '5y',  intraday: false },
+  '7years':  { label: '7Y',    label_es: '7 Años',   interval: '1mo', range: '7y',  intraday: false },
   '10years': { label: '10Y',   label_es: '10 Años',  interval: '3mo', range: '10y', intraday: false },
+  '12years': { label: '12Y',   label_es: '12 Años',  interval: '3mo', range: '12y', intraday: false },
   '15years': { label: '15Y',   label_es: '15 Años',  interval: '3mo', range: '15y', intraday: false },
+  '20years': { label: '20Y',   label_es: '20 Años',  interval: '3mo', range: '20y', intraday: false },
+  '25years': { label: '25Y',   label_es: '25 Años',  interval: '3mo', range: '25y', intraday: false },
   'alltime': { label: 'All',   label_es: 'Todo',     interval: '3mo', range: 'max', intraday: false },
 };
 
 const STOCK_COLORS = ['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316'];
 
 const SYMBOL_RE = /^[A-Z0-9=\-\.]{1,10}$/;
+
+// Mini dropdown that suggests stocks from the comparator
+function StockSuggest({ value, onChange, placeholder, comparatorStocks, holdingSymbols, lang }) {
+  const [focused, setFocused] = useState(false);
+  const suggestions = [...new Set([...(comparatorStocks || []), ...(holdingSymbols || [])])];
+
+  return (
+    <div className="relative mb-2">
+      <input
+        className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 uppercase"
+        placeholder={placeholder}
+        value={value}
+        onChange={e => onChange(e.target.value.toUpperCase())}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setTimeout(() => setFocused(false), 150)}
+        maxLength={10}
+      />
+      {focused && suggestions.length > 0 && (
+        <div className="absolute top-full left-0 right-0 z-20 bg-slate-800 border border-slate-600 rounded-lg mt-0.5 overflow-hidden shadow-lg">
+          {suggestions.map(sym => (
+            <button
+              key={sym}
+              type="button"
+              onMouseDown={() => onChange(sym)}
+              className="w-full text-left px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-700 font-mono"
+            >
+              {sym}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // localStorage helpers
@@ -181,6 +231,16 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
   const [addingSector, setAddingSector] = useState(false);
   const [newSectorName, setNewSectorName] = useState('');
   const [newSectorSymbols, setNewSectorSymbols] = useState('');
+
+  // Investment simulator state
+  const [simEntries, setSimEntries] = useState([]); // [{sym, amount, date}]
+  const [simSymbols, setSimSymbols] = useState('');
+  const [simAmount, setSimAmount] = useState('');
+  const [simDate, setSimDate] = useState('');
+  const [simEndDate, setSimEndDate] = useState('');
+  const [simResults, setSimResults] = useState({}); // keyed by sym+date
+  const [simChartData, setSimChartData] = useState([]); // [{date, SYM: value, ...}]
+  const [simLoading, setSimLoading] = useState(false);
 
   // Live clock
   useEffect(() => {
@@ -637,6 +697,89 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
   function removeAlert(id) {
     setAlerts((prev) => prev.filter((a) => a.id !== id));
   }
+
+  // Investment simulator functions
+  const runSimulation = async () => {
+    if (!simEntries.length) return;
+    setSimLoading(true);
+    const results = {};
+    const chartSeries = {}; // sym -> [{ts, value}]
+    const endDateTs = simEndDate ? new Date(simEndDate).getTime() / 1000 : Date.now() / 1000;
+
+    await Promise.all(simEntries.map(async (entry) => {
+      const key = `${entry.sym}_${entry.date}`;
+      try {
+        const data = await fetch(`${WORKER_BASE}/api/stock/${encodeURIComponent(entry.sym)}?interval=1d&range=max`).then(r => r.json());
+        const result = data?.chart?.result?.[0];
+        if (!result) return;
+        const timestamps = result.timestamp ?? [];
+        const closes = result.indicators?.quote?.[0]?.close ?? [];
+        const purchaseTs = new Date(entry.date).getTime() / 1000;
+        let startIdx = timestamps.findIndex(t => t >= purchaseTs);
+        if (startIdx < 0) startIdx = 0;
+        // Find end index
+        const endDateTs = entry.endDate ? new Date(entry.endDate).getTime() / 1000 : Date.now() / 1000;
+        let endIdx = timestamps.length - 1;
+        if (entry.endDate) {
+          const ei = timestamps.findLastIndex ? timestamps.findLastIndex(t => t <= endDateTs) : [...timestamps].reverse().findIndex(t => t <= endDateTs);
+          if (ei >= 0) endIdx = timestamps.findLastIndex ? ei : timestamps.length - 1 - ei;
+        }
+        const startPrice = closes[startIdx];
+        const endPrice = closes[endIdx];
+        if (!startPrice || !endPrice) return;
+        const amountUSD = entry.currency === 'USD' ? parseFloat(entry.amount) : parseFloat(entry.amount) / (rates?.[entry.currency] ?? 1);
+        const shares = amountUSD / startPrice;
+        const currentValue = shares * endPrice;
+        const profit = currentValue - amountUSD;
+        const profitPct = (profit / amountUSD) * 100;
+        const startDate = new Date(timestamps[startIdx] * 1000).toLocaleDateString();
+        const endDate = new Date(timestamps[endIdx] * 1000).toLocaleDateString();
+        results[key] = { startPrice, endPrice, shares, amountUSD, currentValue, profit, profitPct, startDate, endDate };
+
+        // Build chart series: normalized to % gain from start
+        const sliced = timestamps.slice(startIdx, endIdx + 1);
+        const slicedCloses = closes.slice(startIdx, endIdx + 1);
+        chartSeries[entry.sym] = sliced.map((ts, i) => ({
+          ts,
+          date: new Date(ts * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }),
+          pct: slicedCloses[i] != null ? ((slicedCloses[i] - startPrice) / startPrice) * 100 : null,
+        })).filter(p => p.pct != null);
+      } catch {}
+    }));
+
+    // Merge chart series by date and carry forward the last known value so the tooltip shows all symbols consistently
+    const allDates = [...new Set(Object.values(chartSeries).flatMap(s => s.map(p => p.date)))].sort((a, b) => new Date(a) - new Date(b));
+    const pointers = Object.fromEntries(Object.keys(chartSeries).map((sym) => [sym, 0]));
+    const merged = allDates.map((date) => {
+      const point = { date };
+      Object.entries(chartSeries).forEach(([sym, series]) => {
+        let pointer = pointers[sym];
+        while (pointer < series.length && new Date(series[pointer].date) <= new Date(date)) {
+          pointer += 1;
+        }
+        pointers[sym] = pointer;
+        const idx = pointer - 1;
+        if (idx >= 0) {
+          point[sym] = parseFloat(series[idx].pct.toFixed(2));
+        }
+      });
+      return point;
+    });
+
+    setSimResults(results);
+    setSimChartData(merged);
+    setSimLoading(false);
+  };
+
+  const addSimEntry = () => {
+    const symbols = simSymbols.split(',').map(s => s.trim().toUpperCase()).filter(s => s);
+    if (!symbols.length || !simAmount || !simDate) return;
+    const newEntries = symbols.map(sym => ({ sym, amount: simAmount, date: simDate, endDate: simEndDate }));
+    setSimEntries(prev => [...prev, ...newEntries]);
+    setSimSymbols('');
+    setSimAmount('');
+    // No reseteamos las fechas para que el usuario pueda seguir agregando con las mismas fechas
+  };
 
   function toggleStock(symbol) {
     if (selectedStocks.includes(symbol)) {
@@ -1747,6 +1890,138 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
               </>
             );
           })()}
+        </div>
+        )}
+
+        {/* Investment Simulator */}
+        {enabledFeatures.investmentSimulator === true && (
+        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700 mb-4">
+          <h3 className="text-white font-semibold mb-1">{lang === 'es' ? 'Simulador de inversión histórico' : 'Historical Investment Simulator'}</h3>
+          <p className="text-slate-400 text-xs mb-3">{lang === 'es' ? 'Ingresa un activo, monto y rango de fechas para ver cuánto habría crecido.' : 'Enter an asset, amount and date range to see how much it would have grown.'}</p>
+          <div className="space-y-2 mb-3">
+            <StockSuggest
+                value={simSymbols}
+                onChange={setSimSymbols}
+                placeholder={lang === 'es' ? 'Símbolos (ej. AAPL, MSFT)' : 'Symbols (e.g. AAPL, MSFT)'}
+                comparatorStocks={selectedStocks}
+                holdingSymbols={[]}
+                lang={lang}
+              />
+            <input
+              type="number"
+              className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder={lang === 'es' ? `Monto (${currency})` : `Amount (${currency})`}
+              value={simAmount}
+              onChange={e => setSimAmount(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="block text-slate-500 text-xs mb-1">{lang === 'es' ? 'Fecha de compra' : 'Purchase date'}</label>
+                <input
+                  type="date"
+                  className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                  value={simDate}
+                  max={simEndDate || new Date().toISOString().slice(0, 10)}
+                  onChange={e => setSimDate(e.target.value)}
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-slate-500 text-xs mb-1">{lang === 'es' ? 'Fecha final (opcional)' : 'End date (optional)'}</label>
+                <input
+                  type="date"
+                  className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                  value={simEndDate}
+                  min={simDate || undefined}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={e => setSimEndDate(e.target.value)}
+                />
+              </div>
+            </div>
+            <button
+              onClick={addSimEntry}
+              disabled={!simSymbols.trim() || !simAmount || !simDate}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-1.5 rounded text-sm font-semibold"
+            >
+              + {lang === 'es' ? 'Agregar Todos' : 'Add All'}
+            </button>
+          </div>
+          {simEntries.length > 0 && (
+            <div className="space-y-1 mb-3">
+              {simEntries.map((e, i) => (
+                <div key={i} className="flex items-center justify-between bg-slate-700/50 rounded px-3 py-1.5 text-xs">
+                  <span className="text-white font-bold">{e.sym}</span>
+                  <span className="text-slate-300">{fmt(parseFloat(e.amount))} · {e.date}{e.endDate ? ` → ${e.endDate}` : ''}</span>
+                  <button onClick={() => setSimEntries(prev => prev.filter((_, j) => j !== i))} className="text-slate-500 hover:text-red-400 ml-2">×</button>
+                </div>
+              ))}
+              <button
+                onClick={runSimulation}
+                disabled={simLoading}
+                className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white py-1.5 rounded text-sm font-semibold flex items-center justify-center gap-2"
+              >
+                {simLoading && <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="4" className="opacity-75"/></svg>}
+                {lang === 'es' ? 'Calcular' : 'Calculate'}
+              </button>
+            </div>
+          )}
+          {simChartData.length > 0 && (
+            <div className="mb-4">
+              <p className="text-slate-400 text-xs mb-2">{lang === 'es' ? 'Crecimiento (%)' : 'Growth (%)'}</p>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={simChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 9 }} tickLine={false} interval="preserveStartEnd" />
+                  <YAxis tick={{ fill: '#94a3b8', fontSize: 9 }} tickLine={false} tickFormatter={v => `${v > 0 ? '+' : ''}${v.toFixed(0)}%`} width={48} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: 8 }}
+                    labelStyle={{ color: '#94a3b8', fontSize: 11 }}
+                    formatter={(v, name) => [`${v > 0 ? '+' : ''}${v.toFixed(2)}%`, name]}
+                  />
+                  {simEntries.map((e, i) => (
+                    <Line key={e.sym} type="monotone" dataKey={e.sym} stroke={STOCK_COLORS[i % STOCK_COLORS.length]} dot={false} strokeWidth={2} connectNulls />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+              {simChartData.length > 0 && (
+                <div className="mt-2 text-center text-xs text-slate-300">
+                  {Object.entries(simChartData[simChartData.length - 1]).filter(([k]) => k !== 'date').map(([sym, pct]) => (
+                    <span key={sym} className="mx-2">
+                      <span className="font-bold text-white">{sym}:</span> {pct > 0 ? '+' : ''}{pct.toFixed(2)}%
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {Object.keys(simResults).length > 0 && (
+            <div className="space-y-2 mt-2">
+              {simEntries.map((e, i) => {
+                const key = `${e.sym}_${e.date}`;
+                const r = simResults[key];
+                if (!r) return null;
+                const isGain = r.profit >= 0;
+                return (
+                  <div key={i} className={`rounded-lg p-3 border ${isGain ? 'bg-green-900/20 border-green-700/40' : 'bg-red-900/20 border-red-700/40'}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-white font-bold text-sm">{e.sym}</span>
+                      <span className={`text-sm font-bold ${isGain ? 'text-green-400' : 'text-red-400'}`}>
+                        {isGain ? '+' : ''}{r.profitPct.toFixed(2)}%
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+                      <div><span className="text-slate-500">{lang === 'es' ? 'Invertido' : 'Invested'}: </span><span className="text-slate-200">{fmt(r.amountUSD)}</span></div>
+                      <div><span className="text-slate-500">{lang === 'es' ? 'Valor final' : 'Final value'}: </span><span className="text-white font-semibold">{fmt(r.currentValue)}</span></div>
+                      <div><span className="text-slate-500">{lang === 'es' ? 'Precio compra' : 'Buy price'}: </span><span className="text-slate-200">{fmt(r.startPrice)}</span></div>
+                      <div><span className="text-slate-500">{lang === 'es' ? 'Precio final' : 'End price'}: </span><span className="text-slate-200">{fmt(r.endPrice)}</span></div>
+                      <div><span className="text-slate-500">{lang === 'es' ? 'Ganancia' : 'Gain'}: </span><span className={isGain ? 'text-green-400' : 'text-red-400'}>{isGain ? '+' : ''}{fmt(r.profit)}</span></div>
+                      <div><span className="text-slate-500">{lang === 'es' ? 'Acciones' : 'Shares'}: </span><span className="text-slate-200">{r.shares.toFixed(4)}</span></div>
+                    </div>
+                    <p className="text-slate-600 text-xs mt-1">{r.startDate} → {r.endDate}</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
         )}
 
