@@ -312,9 +312,9 @@ export default function Settings({
           </p>
           <div className="flex flex-wrap gap-1.5">
             {[
-              ['1hour','1h'],['6hours','6h'],['1day','24h'],['1week','1W'],['1month','1M'],
-              ['3months','3M'],['6months','6M'],['1year','1Y'],['2years','2Y'],['3years','3Y'],
-              ['5years','5Y'],['10years','10Y'],['15years','15Y'],['alltime','All'],
+              ['30min','30m'],['1hour','1h'],['3hours','3h'],['6hours','6h'],['12hours','12h'],['1day','24h'],['3days','3D'],['1week','1W'],['2weeks','2W'],['1month','1M'],
+              ['6weeks','6W'],['2months','2M'],['3months','3M'],['4months','4M'],['6months','6M'],['9months','9M'],['1year','1Y'],['18months','18M'],['2years','2Y'],['30months','30M'],
+              ['3years','3Y'],['4years','4Y'],['5years','5Y'],['7years','7Y'],['10years','10Y'],['12years','12Y'],['15years','15Y'],['20years','20Y'],['25years','25Y'],['alltime','All'],
             ].map(([key, label]) => {
               const active = !visibleTimeRanges || visibleTimeRanges.includes(key);
               return (
