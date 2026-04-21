@@ -348,17 +348,17 @@ export default function Portfolio() {
       {/* Tabs */}
       <div className="bg-slate-800/50 rounded-xl border border-slate-700">
         <div className="flex border-b border-slate-700">
-          {['holdings', 'performance', 'transactions', 'dividends'].map((t) => (
+          {(enabledFeatures.portfolioPerformance !== false ? ['holdings', 'performance', 'portfolio-performance', 'transactions', 'dividends'] : ['holdings', 'performance', 'transactions', 'dividends']).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={`px-4 py-3 text-sm font-medium transition-colors ${tab === t ? 'text-white border-b-2 border-blue-500' : 'text-slate-400 hover:text-white'}`}
             >
-              {t === 'holdings' ? '📊 Posiciones' : t === 'performance' ? '📈 Rendimiento' : t === 'transactions' ? '📋 Historial' : '💵 Dividendos'}
+              {t === 'holdings' ? '📊 Posiciones' : t === 'performance' ? '📈 Rendimiento' : t === 'portfolio-performance' ? '📈 Rendimiento Simple' : t === 'transactions' ? '📋 Historial' : '💵 Dividendos'}
             </button>
           ))}
           <div className="flex-1" />
-          {tab === 'performance' && (
+          {(tab === 'performance' || tab === 'portfolio-performance') && (
             <select
               value={performanceRange}
               onChange={(e) => setPerformanceRange(e.target.value)}
@@ -505,6 +505,71 @@ export default function Portfolio() {
                   </tbody>
                 </table>
               </div>
+            )
+          )}
+
+          {tab === 'portfolio-performance' && (
+            loadingPerformance ? (
+              <p className="text-slate-500 text-sm text-center py-8">Cargando datos de rendimiento...</p>
+            ) : performanceData ? (
+              <div className="space-y-4">
+                {/* Resumen de rendimiento simple */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-slate-700/50 rounded-lg p-4">
+                    <h3 className="text-white font-semibold mb-2">Crecimiento Total</h3>
+                    <p className="text-2xl font-bold text-blue-400">
+                      {fmt(performanceData.totalEndValue - performanceData.totalStartValue)}
+                    </p>
+                    <p className={`text-sm ${performanceData.totalChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {performanceData.totalChange >= 0 ? '+' : ''}{performanceData.totalChange.toFixed(2)}%
+                    </p>
+                  </div>
+                  <div className="bg-slate-700/50 rounded-lg p-4">
+                    <h3 className="text-white font-semibold mb-2">Valor del Portafolio</h3>
+                    <p className="text-2xl font-bold text-white">
+                      {fmt(performanceData.totalEndValue)}
+                    </p>
+                    <p className="text-sm text-slate-400">
+                      Desde: {fmt(performanceData.totalStartValue)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Rendimiento por activo - solo números */}
+                <div>
+                  <h3 className="text-white font-semibold mb-3">Rendimiento por Activo</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {performanceData.individual.map((item) => (
+                      <div key={item.symbol} className="bg-slate-700/50 rounded-lg p-3">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-white font-bold">{item.symbol}</span>
+                          <span className={`text-sm font-semibold ${item.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {item.change >= 0 ? '+' : ''}{item.change.toFixed(2)}%
+                          </span>
+                        </div>
+                        <div className="space-y-1 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Ganancia:</span>
+                            <span className={item.gain >= 0 ? 'text-green-400' : 'text-red-400'}>
+                              {item.gain >= 0 ? '+' : ''}{fmt(item.gain)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Valor:</span>
+                            <span className="text-white">{fmt(item.endPrice * item.shares)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Acciones:</span>
+                            <span className="text-slate-200">{item.shares.toFixed(4)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-slate-500 text-sm text-center py-8">No hay datos de rendimiento disponibles.</p>
             )
           )}
 
