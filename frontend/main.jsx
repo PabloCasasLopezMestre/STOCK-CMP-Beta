@@ -207,7 +207,7 @@ function App() {
     try { localStorage.setItem('defaultTimeRange', v); } catch {}
   };
 
-  const ALL_TIME_RANGE_KEYS = ['1hour','6hours','1day','1week','1month','3months','6months','1year','2years','3years','5years','10years','15years','alltime'];
+  const ALL_TIME_RANGE_KEYS = ['30min','1hour','3hours','6hours','12hours','1day','3days','1week','2weeks','1month','6weeks','2months','3months','4months','6months','9months','1year','18months','2years','30months','3years','4years','5years','7years','10years','12years','15years','20years','25years','alltime'];
   const [visibleTimeRanges, setVisibleTimeRanges] = useState(() => {
     try {
       const saved = localStorage.getItem('visibleTimeRanges');
