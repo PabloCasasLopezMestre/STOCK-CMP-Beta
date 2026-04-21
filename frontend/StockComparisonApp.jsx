@@ -129,14 +129,12 @@ function StockSuggest({ value, onChange, placeholder, comparatorStocks, holdingS
               key={sym}
               type="button"
               onMouseDown={() => {
-                onChange(sym);
-                // No cerrar el menú automáticamente, solo si se seleccionaron todas
                 const currentValue = value || '';
                 const currentSymbols = currentValue.split(',').map(s => s.trim().toUpperCase()).filter(s => s);
-                const allSelected = suggestions.every(s => currentSymbols.includes(s));
-                if (!allSelected) {
-                  setFocused(true);
-                }
+                const newValue = currentSymbols.includes(sym) ? currentSymbols.filter(s => s !== sym).join(',') : [...currentSymbols, sym].join(',');
+                onChange(newValue);
+                // Mantener el menú abierto siempre que haya sugerencias
+                setTimeout(() => setFocused(true), 0);
               }}
               className="w-full text-left px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-700 font-mono"
             >
@@ -1816,6 +1814,138 @@ const StockComparisonApp = ({ currency, setCurrency, nextCurrency, currencyLabel
             </div>
             <p className="text-slate-500 text-xs mt-2">{t('label_rsi_legend', lang)}</p>
           </div>
+        )}
+
+        {/* Investment Simulator */}
+        {enabledFeatures.investmentSimulator !== false && (
+        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700 mb-4">
+          <h3 className="text-white font-semibold mb-1">{lang === 'es' ? 'Simulador de inversión histórico' : 'Historical Investment Simulator'}</h3>
+          <p className="text-slate-400 text-xs mb-3">{lang === 'es' ? 'Ingresa un activo, monto y rango de fechas para ver cuánto habría crecido.' : 'Enter an asset, amount and date range to see how much it would have grown.'}</p>
+          <div className="space-y-2 mb-3">
+            <StockSuggest
+                value={simSymbols}
+                onChange={setSimSymbols}
+                placeholder={lang === 'es' ? 'Símbolos (ej. AAPL, MSFT)' : 'Symbols (e.g. AAPL, MSFT)'}
+                comparatorStocks={selectedStocks}
+                holdingSymbols={[]}
+                lang={lang}
+              />
+            <input
+              type="number"
+              className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder={lang === 'es' ? `Monto (${currency})` : `Amount (${currency})`}
+              value={simAmount}
+              onChange={e => setSimAmount(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="block text-slate-500 text-xs mb-1">{lang === 'es' ? 'Fecha de compra' : 'Purchase date'}</label>
+                <input
+                  type="date"
+                  className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                  value={simDate}
+                  max={simEndDate || new Date().toISOString().slice(0, 10)}
+                  onChange={e => setSimDate(e.target.value)}
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-slate-500 text-xs mb-1">{lang === 'es' ? 'Fecha final (opcional)' : 'End date (optional)'}</label>
+                <input
+                  type="date"
+                  className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                  value={simEndDate}
+                  min={simDate || undefined}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={e => setSimEndDate(e.target.value)}
+                />
+              </div>
+            </div>
+            <button
+              onClick={addSimEntry}
+              disabled={!simSymbols.trim() || !simAmount || !simDate}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-1.5 rounded text-sm font-semibold"
+            >
+              + {lang === 'es' ? 'Agregar Todos' : 'Add All'}
+            </button>
+          </div>
+          {simEntries.length > 0 && (
+            <div className="space-y-1 mb-3">
+              {simEntries.map((e, i) => (
+                <div key={i} className="flex items-center justify-between bg-slate-700/50 rounded px-3 py-1.5 text-xs">
+                  <span className="text-white font-bold">{e.sym}</span>
+                  <span className="text-slate-300">{fmt(parseFloat(e.amount))} · {e.date}{e.endDate ? ` -> ${e.endDate}` : ''}</span>
+                  <button onClick={() => setSimEntries(prev => prev.filter((_, j) => j !== i))} className="text-slate-500 hover:text-red-400 ml-2">×</button>
+                </div>
+              ))}
+              <button
+                onClick={runSimulation}
+                disabled={simLoading}
+                className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white py-1.5 rounded text-sm font-semibold flex items-center justify-center gap-2"
+              >
+                {simLoading && <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="4" className="opacity-75"/></svg>}
+                {lang === 'es' ? 'Calcular' : 'Calculate'}
+              </button>
+            </div>
+          )}
+          {simChartData.length > 0 && (
+            <div className="mb-4">
+              <p className="text-slate-400 text-xs mb-2">{lang === 'es' ? 'Crecimiento (%)' : 'Growth (%)'}</p>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={simChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 9 }} tickLine={false} interval="preserveStartEnd" />
+                  <YAxis tick={{ fill: '#94a3b8', fontSize: 9 }} tickLine={false} tickFormatter={v => `${v > 0 ? '+' : ''}${v.toFixed(0)}%`} width={48} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: 8 }}
+                    labelStyle={{ color: '#94a3b8', fontSize: 11 }}
+                    formatter={(v, name) => [`${v > 0 ? '+' : ''}${v.toFixed(2)}%`, name]}
+                  />
+                  {simEntries.map((e, i) => (
+                    <Line key={e.sym} type="monotone" dataKey={e.sym} stroke={STOCK_COLORS[i % STOCK_COLORS.length]} dot={false} strokeWidth={2} connectNulls />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+              {simChartData.length > 0 && (
+                <div className="mt-2 text-center text-xs text-slate-300">
+                  {Object.entries(simChartData[simChartData.length - 1]).filter(([k]) => k !== 'date').map(([sym, pct]) => (
+                    <span key={sym} className="mx-2">
+                      <span className="font-bold text-white">{sym}:</span> {pct > 0 ? '+' : ''}{pct.toFixed(2)}%
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {Object.keys(simResults).length > 0 && (
+            <div className="space-y-2 mt-2">
+              {simEntries.map((e, i) => {
+                const key = `${e.sym}_${e.date}`;
+                const r = simResults[key];
+                if (!r) return null;
+                const isGain = r.profit >= 0;
+                return (
+                  <div key={i} className={`rounded-lg p-3 border ${isGain ? 'bg-green-900/20 border-green-700/40' : 'bg-red-900/20 border-red-700/40'}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-white font-bold text-sm">{e.sym}</span>
+                      <span className={`text-sm font-bold ${isGain ? 'text-green-400' : 'text-red-400'}`}>
+                        {isGain ? '+' : ''}{r.profitPct.toFixed(2)}%
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+                      <div><span className="text-slate-500">{lang === 'es' ? 'Invertido' : 'Invested'}: </span><span className="text-slate-200">{fmt(r.amountUSD)}</span></div>
+                      <div><span className="text-slate-500">{lang === 'es' ? 'Valor final' : 'Final value'}: </span><span className="text-white font-semibold">{fmt(r.currentValue)}</span></div>
+                      <div><span className="text-slate-500">{lang === 'es' ? 'Precio compra' : 'Buy price'}: </span><span className="text-slate-200">{fmt(r.startPrice)}</span></div>
+                      <div><span className="text-slate-500">{lang === 'es' ? 'Precio final' : 'End price'}: </span><span className="text-slate-200">{fmt(r.endPrice)}</span></div>
+                      <div><span className="text-slate-500">{lang === 'es' ? 'Ganancia' : 'Gain'}: </span><span className={isGain ? 'text-green-400' : 'text-red-400'}>{isGain ? '+' : ''}{fmt(r.profit)}</span></div>
+                      <div><span className="text-slate-500">{lang === 'es' ? 'Acciones' : 'Shares'}: </span><span className="text-slate-200">{r.shares.toFixed(4)}</span></div>
+                    </div>
+                    <p className="text-slate-600 text-xs mt-1">{r.startDate} &rarr; {r.endDate}</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
         )}
 
         {/* News panel */}
