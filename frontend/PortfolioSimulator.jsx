@@ -74,7 +74,7 @@ const DEFAULT_PORTFOLIO = {
   dividendsReceived: 0,
 };
 
-export default function PortfolioSimulator({ currency, setCurrency, nextCurrency, currencyLabel, rates, alerts, setAlerts, lang = 'es', onOpenCommunityIdea, initialPortfolio, onPortfolioChange, refreshTrigger, showAlertsPanel, setShowAlertsPanel, comparatorStocks = [], enabledFeatures = {}, visibleTimeRanges = [], defaultTimeRange = '1month' }) {
+export default function PortfolioSimulator({ currency, setCurrency, nextCurrency, currencyLabel, rates, alerts, setAlerts, lang = 'es', onOpenCommunityIdea, initialPortfolio, onPortfolioChange, refreshTrigger, showAlertsPanel, setShowAlertsPanel, comparatorStocks = [], enabledFeatures = {}, visibleTimeRanges = [], defaultTimeRange = '1month', accountCreated, dataResetAt }) {
   const [portfolio, setPortfolio] = useState(() => initialPortfolio || loadPortfolio() || DEFAULT_PORTFOLIO);
   const [prices, setPrices] = useState({});
   const [historicalPrices, setHistoricalPrices] = useState({});
@@ -173,6 +173,82 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     { label: lang === 'es' ? '7 días'   : '7 days',   hours: 168 },
     { label: lang === 'es' ? 'Todo'     : 'All',      hours: null },
   ];
+
+  // Calculate available time ranges based on account age
+  const getAvailableTimeRanges = () => {
+    if (!accountCreated && !dataResetAt) {
+      // If no account creation date, show all options
+      return [
+        { value: '3days', labelEs: '3 Días', labelEn: '3 Days' },
+        { value: '1week', labelEs: '1 Semana', labelEn: '1 Week' },
+        { value: '2weeks', labelEs: '2 Semanas', labelEn: '2 Weeks' },
+        { value: '1month', labelEs: '1 Mes', labelEn: '1 Month' },
+        { value: '6weeks', labelEs: '6 Semanas', labelEn: '6 Weeks' },
+        { value: '2months', labelEs: '2 Meses', labelEn: '2 Months' },
+        { value: '3months', labelEs: '3 Meses', labelEn: '3 Months' },
+        { value: '4months', labelEs: '4 Meses', labelEn: '4 Months' },
+        { value: '6months', labelEs: '6 Meses', labelEn: '6 Months' },
+        { value: '9months', labelEs: '9 Meses', labelEn: '9 Months' },
+        { value: '1year', labelEs: '1 Año', labelEn: '1 Year' },
+        { value: '18months', labelEs: '18 Meses', labelEn: '18 Months' },
+        { value: '2years', labelEs: '2 Años', labelEn: '2 Years' },
+        { value: '30months', labelEs: '30 Meses', labelEn: '30 Months' },
+        { value: '3years', labelEs: '3 Años', labelEn: '3 Years' },
+        { value: '4years', labelEs: '4 Años', labelEn: '4 Years' },
+        { value: '5years', labelEs: '5 Años', labelEn: '5 Years' },
+        { value: '7years', labelEs: '7 Años', labelEn: '7 Years' },
+        { value: '10years', labelEs: '10 Años', labelEn: '10 Years' },
+        { value: '12years', labelEs: '12 Años', labelEn: '12 Years' },
+        { value: '15years', labelEs: '15 Años', labelEn: '15 Years' },
+        { value: '20years', labelEs: '20 Años', labelEn: '20 Years' },
+        { value: '25years', labelEs: '25 Años', labelEn: '25 Years' },
+        { value: 'alltime', labelEs: 'Todo', labelEn: 'All Time' }
+      ];
+    }
+
+    // Use dataResetAt if available, otherwise accountCreated
+    const referenceDate = dataResetAt ? new Date(dataResetAt) : new Date(accountCreated);
+    const now = new Date();
+    const ageInMs = now - referenceDate;
+    const ageInDays = Math.floor(ageInMs / (1000 * 60 * 60 * 24));
+    const ageInWeeks = Math.floor(ageInDays / 7);
+    const ageInMonths = Math.floor(ageInDays / 30);
+    const ageInYears = Math.floor(ageInDays / 365);
+
+    const allRanges = [
+      { value: '3days', labelEs: '3 Días', labelEn: '3 Days', minDays: 3 },
+      { value: '1week', labelEs: '1 Semana', labelEn: '1 Week', minDays: 7 },
+      { value: '2weeks', labelEs: '2 Semanas', labelEn: '2 Weeks', minDays: 14 },
+      { value: '1month', labelEs: '1 Mes', labelEn: '1 Month', minDays: 30 },
+      { value: '6weeks', labelEs: '6 Semanas', labelEn: '6 Weeks', minDays: 42 },
+      { value: '2months', labelEs: '2 Meses', labelEn: '2 Months', minDays: 60 },
+      { value: '3months', labelEs: '3 Meses', labelEn: '3 Months', minDays: 90 },
+      { value: '4months', labelEs: '4 Meses', labelEn: '4 Months', minDays: 120 },
+      { value: '6months', labelEs: '6 Meses', labelEn: '6 Months', minDays: 180 },
+      { value: '9months', labelEs: '9 Meses', labelEn: '9 Months', minDays: 270 },
+      { value: '1year', labelEs: '1 Año', labelEn: '1 Year', minDays: 365 },
+      { value: '18months', labelEs: '18 Meses', labelEn: '18 Months', minDays: 540 },
+      { value: '2years', labelEs: '2 Años', labelEn: '2 Years', minDays: 730 },
+      { value: '30months', labelEs: '30 Meses', labelEn: '30 Months', minDays: 900 },
+      { value: '3years', labelEs: '3 Años', labelEn: '3 Years', minDays: 1095 },
+      { value: '4years', labelEs: '4 Años', labelEn: '4 Years', minDays: 1460 },
+      { value: '5years', labelEs: '5 Años', labelEn: '5 Years', minDays: 1825 },
+      { value: '7years', labelEs: '7 Años', labelEn: '7 Years', minDays: 2555 },
+      { value: '10years', labelEs: '10 Años', labelEn: '10 Years', minDays: 3650 },
+      { value: '12years', labelEs: '12 Años', labelEn: '12 Years', minDays: 4380 },
+      { value: '15years', labelEs: '15 Años', labelEn: '15 Years', minDays: 5475 },
+      { value: '20years', labelEs: '20 Años', labelEn: '20 Years', minDays: 7300 },
+      { value: '25years', labelEs: '25 Años', labelEn: '25 Years', minDays: 9125 }
+    ];
+
+    // Filter ranges based on account age, always include "alltime" as the maximum
+    const availableRanges = allRanges.filter(range => ageInDays >= range.minDays);
+    
+    // Always add "alltime" option at the end
+    availableRanges.push({ value: 'alltime', labelEs: 'Todo el tiempo', labelEn: 'All Time' });
+    
+    return availableRanges;
+  };
 
   const filteredNewsItems = newsAgeFilter == null
     ? newsItems
@@ -326,8 +402,85 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     }
   }, [portfolio.holdings]);
 
-  // Fetch performance data for portfolio
-  const fetchPerformanceData = useCallback(async () => {
+  // Fetch portfolio performance data (total portfolio including bank accounts)
+  const fetchPortfolioPerformanceData = useCallback(async () => {
+    if (portfolio.transactions.length === 0) {
+      setPerformanceData({
+        individual: [],
+        totalStartValue: 0,
+        totalEndValue: 0,
+        totalGain: 0,
+        totalChange: 0
+      });
+      setLoadingPerformance(false);
+      return;
+    }
+    
+    setLoadingPerformance(true);
+    
+    try {
+      // Use dataResetAt if available, otherwise accountCreated, otherwise first transaction
+      const referenceDate = dataResetAt ? new Date(dataResetAt) : 
+                           accountCreated ? new Date(accountCreated) : 
+                           new Date(portfolio.transactions[0].date);
+      
+      const rangeMap = {
+        '3days': 3, '1week': 7, '2weeks': 14, '1month': 30, '6weeks': 42,
+        '2months': 60, '3months': 90, '4months': 120, '6months': 180, '9months': 270,
+        '1year': 365, '18months': 540, '2years': 730, '30months': 900, '3years': 1095,
+        '4years': 1460, '5years': 1825, '7years': 2555, '10years': 3650, '12years': 4380,
+        '15years': 5475, '20years': 7300, '25years': 9125, 'alltime': null
+      };
+      
+      const daysBack = rangeMap[performanceRange];
+      const startDate = daysBack ? new Date(Date.now() - (daysBack * 24 * 60 * 60 * 1000)) : referenceDate;
+      
+      // Calculate portfolio value at start date and current value
+      let startValue = 0;
+      let currentValue = totalValue; // Current total value (holdings + bank accounts)
+      
+      // For start value, we need to calculate what the portfolio was worth at the start date
+      // This is complex because we need to track deposits, withdrawals, and asset values over time
+      
+      // Simple approach: use net deposits up to start date as start value
+      const depositsUpToStart = portfolio.transactions
+        .filter(tx => new Date(tx.date) <= startDate)
+        .reduce((sum, tx) => {
+          if (tx.type === 'deposit') return sum + tx.amount;
+          if (tx.type === 'withdraw') return sum - tx.amount;
+          return sum;
+        }, 0);
+      
+      startValue = Math.max(0, depositsUpToStart);
+      
+      const totalGain = currentValue - startValue;
+      const totalChange = startValue > 0 ? (totalGain / startValue) * 100 : 0;
+      
+      setPerformanceData({
+        individual: [], // Portfolio performance doesn't break down by individual assets
+        totalStartValue: startValue,
+        totalEndValue: currentValue,
+        totalGain,
+        totalChange,
+        isPortfolioPerformance: true // Flag to distinguish from stock performance
+      });
+    } catch (error) {
+      console.error('Error calculating portfolio performance:', error);
+      setPerformanceData({
+        individual: [],
+        totalStartValue: 0,
+        totalEndValue: 0,
+        totalGain: 0,
+        totalChange: 0,
+        isPortfolioPerformance: true
+      });
+    } finally {
+      setLoadingPerformance(false);
+    }
+  }, [portfolio.transactions, performanceRange, totalValue, dataResetAt, accountCreated]);
+
+  // Fetch stock performance data (individual stocks)
+  const fetchStockPerformanceData = useCallback(async () => {
     const symbols = Object.keys(portfolio.holdings);
     if (!symbols.length) {
       setPerformanceData(null);
@@ -942,8 +1095,12 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
   }, [lang]);
 
   useEffect(() => {
-    fetchPerformanceData();
-  }, [fetchPerformanceData]);
+    if (tab === 'portfolio-performance') {
+      fetchPortfolioPerformanceData();
+    } else if (tab === 'stock-performance') {
+      fetchStockPerformanceData();
+    }
+  }, [tab, fetchPortfolioPerformanceData, fetchStockPerformanceData]);
 
   useEffect(() => { fetchPrices(); }, [JSON.stringify(Object.keys(portfolio.holdings))]);
   useEffect(() => { fetchAllNewsCounts(); }, [JSON.stringify(Object.keys(portfolio.holdings))]);
@@ -1214,47 +1371,60 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
       <div className="bg-slate-800/50 rounded-xl border border-slate-700">
         {/* Tabs */}
         <div className="flex border-b border-slate-700">
-          {['portfolio-performance'].map((tabKey) => (
+          {['portfolio-performance', 'stock-performance'].map((tabKey) => (
             <button
               key={tabKey}
               onClick={() => setTab(tabKey)}
               className={`px-4 py-3 text-sm font-medium transition-colors ${tab === tabKey ? 'text-white border-b-2 border-blue-500' : 'text-slate-400 hover:text-white'}`}
             >
-              {tabKey === 'portfolio-performance' ? t('portfolio_performance_tab', lang) || (lang === 'es' ? 'Rendimiento' : 'Performance') : ''}
+              {tabKey === 'portfolio-performance' ? (lang === 'es' ? 'Rendimiento del Portafolio' : 'Portfolio Performance') : 
+               tabKey === 'stock-performance' ? (lang === 'es' ? 'Rendimiento de Acciones' : 'Stock Performance') : ''}
             </button>
           ))}
           <div className="flex-1" />
-          {(tab === 'portfolio-performance') && (
+          {(tab === 'portfolio-performance' || tab === 'stock-performance') && (
             <div className="flex items-center gap-2 m-2">
               <select
                 value={performanceRange}
                 onChange={(e) => setPerformanceRange(e.target.value)}
                 className="bg-slate-700 text-white px-3 py-1.5 rounded text-xs outline-none"
               >
-                <option value="3days">{lang === 'es' ? '3 Días' : '3 Days'}</option>
-                <option value="1week">{lang === 'es' ? '1 Semana' : '1 Week'}</option>
-                <option value="2weeks">{lang === 'es' ? '2 Semanas' : '2 Weeks'}</option>
-                <option value="1month">{lang === 'es' ? '1 Mes' : '1 Month'}</option>
-                <option value="6weeks">{lang === 'es' ? '6 Semanas' : '6 Weeks'}</option>
-                <option value="2months">{lang === 'es' ? '2 Meses' : '2 Months'}</option>
-                <option value="3months">{lang === 'es' ? '3 Meses' : '3 Months'}</option>
-                <option value="4months">{lang === 'es' ? '4 Meses' : '4 Months'}</option>
-                <option value="6months">{lang === 'es' ? '6 Meses' : '6 Months'}</option>
-                <option value="9months">{lang === 'es' ? '9 Meses' : '9 Months'}</option>
-                <option value="1year">{lang === 'es' ? '1 Año' : '1 Year'}</option>
-                <option value="18months">{lang === 'es' ? '18 Meses' : '18 Months'}</option>
-                <option value="2years">{lang === 'es' ? '2 Años' : '2 Years'}</option>
-                <option value="30months">{lang === 'es' ? '30 Meses' : '30 Months'}</option>
-                <option value="3years">{lang === 'es' ? '3 Años' : '3 Years'}</option>
-                <option value="4years">{lang === 'es' ? '4 Años' : '4 Years'}</option>
-                <option value="5years">{lang === 'es' ? '5 Años' : '5 Years'}</option>
-                <option value="7years">{lang === 'es' ? '7 Años' : '7 Years'}</option>
-                <option value="10years">{lang === 'es' ? '10 Años' : '10 Years'}</option>
-                <option value="12years">{lang === 'es' ? '12 Años' : '12 Years'}</option>
-                <option value="15years">{lang === 'es' ? '15 Años' : '15 Years'}</option>
-                <option value="20years">{lang === 'es' ? '20 Años' : '20 Years'}</option>
-                <option value="25years">{lang === 'es' ? '25 Años' : '25 Years'}</option>
-                <option value="alltime">{lang === 'es' ? 'Todo' : 'All Time'}</option>
+                {tab === 'portfolio-performance' ? (
+                  // Portfolio performance uses filtered time ranges based on account age
+                  getAvailableTimeRanges().map(range => (
+                    <option key={range.value} value={range.value}>
+                      {lang === 'es' ? range.labelEs : range.labelEn}
+                    </option>
+                  ))
+                ) : (
+                  // Stock performance uses all time ranges
+                  <>
+                    <option value="3days">{lang === 'es' ? '3 Días' : '3 Days'}</option>
+                    <option value="1week">{lang === 'es' ? '1 Semana' : '1 Week'}</option>
+                    <option value="2weeks">{lang === 'es' ? '2 Semanas' : '2 Weeks'}</option>
+                    <option value="1month">{lang === 'es' ? '1 Mes' : '1 Month'}</option>
+                    <option value="6weeks">{lang === 'es' ? '6 Semanas' : '6 Weeks'}</option>
+                    <option value="2months">{lang === 'es' ? '2 Meses' : '2 Months'}</option>
+                    <option value="3months">{lang === 'es' ? '3 Meses' : '3 Months'}</option>
+                    <option value="4months">{lang === 'es' ? '4 Meses' : '4 Months'}</option>
+                    <option value="6months">{lang === 'es' ? '6 Meses' : '6 Months'}</option>
+                    <option value="9months">{lang === 'es' ? '9 Meses' : '9 Months'}</option>
+                    <option value="1year">{lang === 'es' ? '1 Año' : '1 Year'}</option>
+                    <option value="18months">{lang === 'es' ? '18 Meses' : '18 Months'}</option>
+                    <option value="2years">{lang === 'es' ? '2 Años' : '2 Years'}</option>
+                    <option value="30months">{lang === 'es' ? '30 Meses' : '30 Months'}</option>
+                    <option value="3years">{lang === 'es' ? '3 Años' : '3 Years'}</option>
+                    <option value="4years">{lang === 'es' ? '4 Años' : '4 Years'}</option>
+                    <option value="5years">{lang === 'es' ? '5 Años' : '5 Years'}</option>
+                    <option value="7years">{lang === 'es' ? '7 Años' : '7 Years'}</option>
+                    <option value="10years">{lang === 'es' ? '10 Años' : '10 Years'}</option>
+                    <option value="12years">{lang === 'es' ? '12 Años' : '12 Years'}</option>
+                    <option value="15years">{lang === 'es' ? '15 Años' : '15 Years'}</option>
+                    <option value="20years">{lang === 'es' ? '20 Años' : '20 Years'}</option>
+                    <option value="25years">{lang === 'es' ? '25 Años' : '25 Years'}</option>
+                    <option value="alltime">{lang === 'es' ? 'Todo' : 'All Time'}</option>
+                  </>
+                )}
               </select>
               {Object.keys(portfolio.holdings).length === 0 && (
                 <button
@@ -1341,21 +1511,31 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
             {/* Resumen de rendimiento simple */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-slate-700/50 rounded-lg p-4">
-                <h3 className="text-white font-semibold mb-2">{lang === 'es' ? 'Crecimiento Total' : 'Total Growth'}</h3>
+                <h3 className="text-white font-semibold mb-2">
+                  {tab === 'portfolio-performance' 
+                    ? (lang === 'es' ? 'Crecimiento Total del Portafolio' : 'Total Portfolio Growth')
+                    : (lang === 'es' ? 'Crecimiento Total de Acciones' : 'Total Stock Growth')
+                  }
+                </h3>
                 <p className="text-2xl font-bold text-blue-400">
                   {fmt(performanceData.totalGain)}
                 </p>
                 <p className={`text-sm ${performanceData.totalChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {performanceData.totalChange >= 0 ? '+' : ''}{performanceData.totalChange.toFixed(2)}%
                 </p>
-                {performanceData.totalStartValue === 0 && (
+                {performanceData.totalStartValue === 0 && tab === 'stock-performance' && (
                   <p className="text-xs text-amber-400 mt-1">
                     {lang === 'es' ? 'Basado en precio de compra promedio' : 'Based on average purchase price'}
                   </p>
                 )}
               </div>
               <div className="bg-slate-700/50 rounded-lg p-4">
-                <h3 className="text-white font-semibold mb-2">{lang === 'es' ? 'Valor del Portafolio' : 'Portfolio Value'}</h3>
+                <h3 className="text-white font-semibold mb-2">
+                  {tab === 'portfolio-performance' 
+                    ? (lang === 'es' ? 'Valor Total del Portafolio' : 'Total Portfolio Value')
+                    : (lang === 'es' ? 'Valor de las Acciones' : 'Stock Value')
+                  }
+                </h3>
                 <p className="text-2xl font-bold text-white">
                   {fmt(performanceData.totalEndValue)}
                 </p>
@@ -1365,8 +1545,8 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
               </div>
             </div>
 
-            {/* Rendimiento por activo - solo números */}
-            {performanceData.individual.length > 0 ? (
+            {/* Rendimiento por activo - solo para stock performance */}
+            {tab === 'stock-performance' && performanceData.individual && performanceData.individual.length > 0 ? (
               <div>
                 <h3 className="text-white font-semibold mb-3">{lang === 'es' ? 'Rendimiento por Activo' : 'Performance by Asset'}</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1398,6 +1578,36 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                   ))}
                 </div>
               </div>
+            ) : tab === 'portfolio-performance' ? (
+              <div className="bg-slate-700/50 rounded-lg p-4">
+                <h3 className="text-white font-semibold mb-3">{lang === 'es' ? 'Información del Portafolio' : 'Portfolio Information'}</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">{lang === 'es' ? 'Período analizado:' : 'Period analyzed:'}</span>
+                    <span className="text-white">
+                      {getAvailableTimeRanges().find(r => r.value === performanceRange)?.[lang === 'es' ? 'labelEs' : 'labelEn'] || performanceRange}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">{lang === 'es' ? 'Incluye:' : 'Includes:'}</span>
+                    <span className="text-white">{lang === 'es' ? 'Acciones + Cuentas bancarias' : 'Stocks + Bank accounts'}</span>
+                  </div>
+                  {(accountCreated || dataResetAt) && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">{lang === 'es' ? 'Edad del portafolio:' : 'Portfolio age:'}</span>
+                      <span className="text-green-400">
+                        {(() => {
+                          const refDate = dataResetAt ? new Date(dataResetAt) : new Date(accountCreated);
+                          const ageMs = Date.now() - refDate.getTime();
+                          const days = Math.floor(ageMs / (1000 * 60 * 60 * 24));
+                          const hours = Math.floor((ageMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                          return days > 0 ? `${days}d ${hours}h` : `${hours}h`;
+                        })()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
             ) : (
               <div className="text-center py-8">
                 <p className="text-slate-400 text-sm mb-2">
@@ -1415,7 +1625,10 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
               {lang === 'es' ? 'No hay datos de rendimiento disponibles' : 'No performance data available'}
             </p>
             <p className="text-slate-500 text-xs">
-              {lang === 'es' ? 'Agrega algunas acciones a tu portafolio para comenzar' : 'Add some stocks to your portfolio to get started'}
+              {tab === 'portfolio-performance' 
+                ? (lang === 'es' ? 'Realiza algunas transacciones para comenzar' : 'Make some transactions to get started')
+                : (lang === 'es' ? 'Agrega algunas acciones a tu portafolio para comenzar' : 'Add some stocks to your portfolio to get started')
+              }
             </p>
           </div>
         )

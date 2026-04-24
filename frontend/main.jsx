@@ -442,7 +442,7 @@ function App() {
               </div>
             </div>
           </div>
-          <PortfolioSimulator {...sharedProps} onOpenCommunityIdea={openCommunityIdea} initialPortfolio={initialPortfolio} onPortfolioChange={onPortfolioChange} refreshTrigger={refreshTrigger} showAlertsPanel={showAlertsPanel} setShowAlertsPanel={setShowAlertsPanel} comparatorStocks={tickerSymbols} enabledFeatures={enabledFeatures} visibleTimeRanges={visibleTimeRanges} defaultTimeRange={defaultTimeRange} />
+          <PortfolioSimulator {...sharedProps} onOpenCommunityIdea={openCommunityIdea} initialPortfolio={initialPortfolio} onPortfolioChange={onPortfolioChange} refreshTrigger={refreshTrigger} showAlertsPanel={showAlertsPanel} setShowAlertsPanel={setShowAlertsPanel} comparatorStocks={tickerSymbols} enabledFeatures={enabledFeatures} visibleTimeRanges={visibleTimeRanges} defaultTimeRange={defaultTimeRange} accountCreated={accountCreated} dataResetAt={dataResetAt} />
         </div>
       )}
       {tab === 'community' && (
