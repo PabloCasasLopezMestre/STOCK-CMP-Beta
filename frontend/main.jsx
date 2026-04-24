@@ -156,33 +156,6 @@ function App() {
   const symbol = CURRENCY_SYMBOLS[currency] ?? currencyEntry?.symbol ?? '$';
   const currencyLabel = `${symbol} ${currency}`;
 
-  // Portfolio value state
-  const [portfolioValue, setPortfolioValue] = useState({
-    totalValue: 0,
-    cash: 0,
-    holdingsValue: 0,
-    totalReturn: 0,
-    totalReturnPct: 0
-  });
-
-  const handlePortfolioValueChange = useCallback((value) => {
-    if (value && typeof value === 'object') {
-      setPortfolioValue({
-        totalValue: value.totalValue || 0,
-        cash: value.cash || 0,
-        holdingsValue: value.holdingsValue || 0,
-        totalReturn: value.totalReturn || 0,
-        totalReturnPct: value.totalReturnPct || 0
-      });
-    }
-  }, []);
-
-  const fmtCurrency = (v) => {
-    if (v == null || isNaN(v)) return '—';
-    const rate = currency === 'USD' ? 1 : (rates?.[currency] ?? 1);
-    return new Intl.NumberFormat('es-MX', { style: 'currency', currency, minimumFractionDigits: 2 }).format(v * rate);
-  };
-
   const sharedProps = { currency, setCurrency: setCurrencySync, nextCurrency, currencyLabel, rates, alerts, setAlerts: setAlertsSync, lang };
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -452,24 +425,19 @@ function App() {
               </div>
               <div className="text-right">
                 <p className="text-slate-400 text-sm mb-1">{t('label_total_value', lang)}</p>
-                <p className="text-3xl font-bold text-green-400">{fmtCurrency(portfolioValue.totalValue)}</p>
+                <p className="text-3xl font-bold text-green-400">USD 0.00</p>
                 <div className="flex items-center gap-4 mt-2 text-xs">
                   <span className="text-slate-300">
-                    {t('label_cash', lang)}: <span className="text-green-400 font-semibold">{fmtCurrency(portfolioValue.cash)}</span>
+                    {t('label_cash', lang)}: <span className="text-green-400 font-semibold">USD 0.00</span>
                   </span>
                   <span className="text-slate-300">
-                    {t('label_investments', lang)}: <span className="text-blue-400 font-semibold">{fmtCurrency(portfolioValue.holdingsValue)}</span>
+                    {t('label_investments', lang)}: <span className="text-blue-400 font-semibold">USD 0.00</span>
                   </span>
                 </div>
-                {portfolioValue.totalReturn !== 0 && (
-                  <p className={`text-sm mt-1 font-semibold ${portfolioValue.totalReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {portfolioValue.totalReturn >= 0 ? '+' : ''}{fmtCurrency(portfolioValue.totalReturn)} ({portfolioValue.totalReturnPct.toFixed(2)}%)
-                  </p>
-                )}
               </div>
             </div>
           </div>
-          <PortfolioSimulator {...sharedProps} onOpenCommunityIdea={openCommunityIdea} initialPortfolio={initialPortfolio} onPortfolioChange={onPortfolioChange} refreshTrigger={refreshTrigger} showAlertsPanel={showAlertsPanel} setShowAlertsPanel={setShowAlertsPanel} comparatorStocks={tickerSymbols} enabledFeatures={enabledFeatures} visibleTimeRanges={visibleTimeRanges} defaultTimeRange={defaultTimeRange} onPortfolioValueChange={handlePortfolioValueChange} />
+          <PortfolioSimulator {...sharedProps} onOpenCommunityIdea={openCommunityIdea} initialPortfolio={initialPortfolio} onPortfolioChange={onPortfolioChange} refreshTrigger={refreshTrigger} showAlertsPanel={showAlertsPanel} setShowAlertsPanel={setShowAlertsPanel} comparatorStocks={tickerSymbols} enabledFeatures={enabledFeatures} visibleTimeRanges={visibleTimeRanges} defaultTimeRange={defaultTimeRange} />
         </div>
       )}
       {tab === 'community' && (
