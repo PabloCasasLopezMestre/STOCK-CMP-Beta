@@ -207,13 +207,43 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     }
 
     // Use dataResetAt if available, otherwise accountCreated
-    const referenceDate = dataResetAt ? new Date(dataResetAt) : new Date(accountCreated);
+    const referenceDate = dataResetAt ? new Date(dataResetAt) : 
+                          accountCreated ? new Date(accountCreated) : 
+                          new Date(); // fallback to current date
     const now = new Date();
     const ageInMs = now - referenceDate;
+    
+    // If the reference date is invalid or in the future, return all options
+    if (isNaN(referenceDate.getTime()) || ageInMs < 0) {
+      return [
+        { value: '3days', labelEs: '3 Días', labelEn: '3 Days' },
+        { value: '1week', labelEs: '1 Semana', labelEn: '1 Week' },
+        { value: '2weeks', labelEs: '2 Semanas', labelEn: '2 Weeks' },
+        { value: '1month', labelEs: '1 Mes', labelEn: '1 Month' },
+        { value: '6weeks', labelEs: '6 Semanas', labelEn: '6 Weeks' },
+        { value: '2months', labelEs: '2 Meses', labelEn: '2 Months' },
+        { value: '3months', labelEs: '3 Meses', labelEn: '3 Months' },
+        { value: '4months', labelEs: '4 Meses', labelEn: '4 Months' },
+        { value: '6months', labelEs: '6 Meses', labelEn: '6 Months' },
+        { value: '9months', labelEs: '9 Meses', labelEn: '9 Months' },
+        { value: '1year', labelEs: '1 Año', labelEn: '1 Year' },
+        { value: '18months', labelEs: '18 Meses', labelEn: '18 Months' },
+        { value: '2years', labelEs: '2 Años', labelEn: '2 Years' },
+        { value: '30months', labelEs: '30 Meses', labelEn: '30 Months' },
+        { value: '3years', labelEs: '3 Años', labelEn: '3 Years' },
+        { value: '4years', labelEs: '4 Años', labelEn: '4 Years' },
+        { value: '5years', labelEs: '5 Años', labelEn: '5 Years' },
+        { value: '7years', labelEs: '7 Años', labelEn: '7 Years' },
+        { value: '10years', labelEs: '10 Años', labelEn: '10 Years' },
+        { value: '12years', labelEs: '12 Años', labelEn: '12 Years' },
+        { value: '15years', labelEs: '15 Años', labelEn: '15 Years' },
+        { value: '20years', labelEs: '20 Años', labelEn: '20 Years' },
+        { value: '25years', labelEs: '25 Años', labelEn: '25 Years' },
+        { value: 'alltime', labelEs: 'Todo', labelEn: 'All Time' }
+      ];
+    }
+    
     const ageInDays = Math.floor(ageInMs / (1000 * 60 * 60 * 24));
-    const ageInWeeks = Math.floor(ageInDays / 7);
-    const ageInMonths = Math.floor(ageInDays / 30);
-    const ageInYears = Math.floor(ageInDays / 365);
 
     const allRanges = [
       { value: '3days', labelEs: '3 Días', labelEn: '3 Days', minDays: 3 },
@@ -1095,12 +1125,16 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
   }, [lang]);
 
   useEffect(() => {
-    if (tab === 'portfolio-performance') {
-      fetchPortfolioPerformanceData();
-    } else if (tab === 'stock-performance') {
-      fetchStockPerformanceData();
+    try {
+      if (tab === 'portfolio-performance') {
+        fetchPortfolioPerformanceData();
+      } else if (tab === 'stock-performance') {
+        fetchStockPerformanceData();
+      }
+    } catch (error) {
+      console.error('Error in performance useEffect:', error);
     }
-  }, [tab, fetchPortfolioPerformanceData, fetchStockPerformanceData]);
+  }, [tab, performanceRange]);
 
   useEffect(() => { fetchPrices(); }, [JSON.stringify(Object.keys(portfolio.holdings))]);
   useEffect(() => { fetchAllNewsCounts(); }, [JSON.stringify(Object.keys(portfolio.holdings))]);
