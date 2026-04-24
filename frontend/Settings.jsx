@@ -439,6 +439,7 @@ export default function Settings({
               { key: 'backtesting',         label: lang === 'es' ? 'Backtesting de estrategias' : 'Strategy backtesting' },
               { key: 'comparativeAnalysis', label: lang === 'es' ? 'Análisis comparativo' : 'Comparative analysis' },
               { key: 'comparatorNews',      label: lang === 'es' ? 'Noticias' : 'News' },
+              { key: 'investmentSimulator', label: lang === 'es' ? 'Simulador de inversión histórico' : 'Historical Investment Simulator' },
             ],
           },
           {
@@ -450,12 +451,6 @@ export default function Settings({
               { key: 'transactionHistory',  label: lang === 'es' ? 'Historial de transacciones' : 'Transaction history' },
               { key: 'bankAccounts',        label: lang === 'es' ? 'Cuentas de banco' : 'Bank accounts' },
               { key: 'portfolioNews',       label: lang === 'es' ? 'Noticias' : 'News' },
-            ],
-          },
-          {
-            group: lang === 'es' ? 'Comparador' : 'Comparator',
-            items: [
-              { key: 'investmentSimulator', label: lang === 'es' ? 'Simulador de inversión histórico' : 'Historical Investment Simulator' },
             ],
           },
         ].map(({ group, items }) => (
