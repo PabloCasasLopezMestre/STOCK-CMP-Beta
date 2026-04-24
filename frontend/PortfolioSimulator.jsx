@@ -874,10 +874,12 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
         </div>
       )}
 
-      {/* Tabs */}
+      {/* Performance Section - Single Container */}
+      {enabledFeatures.portfolioPerformance !== false && (
       <div className="bg-slate-800/50 rounded-xl border border-slate-700">
+        {/* Tabs */}
         <div className="flex border-b border-slate-700">
-          {enabledFeatures.portfolioPerformance !== false ? ['portfolio-performance'].map((t) => (
+          {['portfolio-performance'].map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -885,7 +887,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
             >
               {t === 'portfolio-performance' ? 'Rendimiento' : ''}
             </button>
-          )) : null}
+          ))}
           <div className="flex-1" />
           {(tab === 'portfolio-performance') && (
             <select
@@ -920,11 +922,9 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
             </select>
           )}
         </div>
-      </div>
 
-      {/* Tab Content */}
-      {tab === 'portfolio-performance' && (
-        <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
+        {/* Tab Content */}
+        <div className="p-4">
           {loadingPerformance ? (
             <p className="text-slate-500 text-sm text-center py-8">Cargando datos de rendimiento...</p>
           ) : performanceData ? (
@@ -988,6 +988,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
           <p className="text-slate-500 text-sm text-center py-8">No hay datos de rendimiento disponibles.</p>
         )
         }
+        </div>
         </div>
       )}
 
