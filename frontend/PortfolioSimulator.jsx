@@ -74,7 +74,34 @@ const DEFAULT_PORTFOLIO = {
   dividendsReceived: 0,
 };
 
-export default function PortfolioSimulator({ currency, setCurrency, nextCurrency, currencyLabel, rates, alerts, setAlerts, lang = 'es', onOpenCommunityIdea, initialPortfolio, onPortfolioChange, refreshTrigger, showAlertsPanel, setShowAlertsPanel, comparatorStocks = [], enabledFeatures = {}, visibleTimeRanges = [], defaultTimeRange = '1month', accountCreated, dataResetAt }) {
+export default function PortfolioSimulator({ 
+  currency = 'USD', 
+  setCurrency, 
+  nextCurrency, 
+  currencyLabel = 'USD', 
+  rates = {}, 
+  alerts = [], 
+  setAlerts, 
+  lang = 'es', 
+  onOpenCommunityIdea, 
+  initialPortfolio, 
+  onPortfolioChange, 
+  refreshTrigger = 0, 
+  showAlertsPanel = false, 
+  setShowAlertsPanel, 
+  comparatorStocks = [], 
+  enabledFeatures = {}, 
+  visibleTimeRanges = [], 
+  defaultTimeRange = '1month', 
+  accountCreated, 
+  dataResetAt 
+}) {
+  // Safety check to ensure all required props are available
+  if (!setCurrency || !setAlerts) {
+    console.error('PortfolioSimulator: Missing required props');
+    return <div className="text-red-400 p-4">Error: Missing required props</div>;
+  }
+
   const [portfolio, setPortfolio] = useState(() => initialPortfolio || loadPortfolio() || DEFAULT_PORTFOLIO);
   const [prices, setPrices] = useState({});
   const [historicalPrices, setHistoricalPrices] = useState({});
@@ -142,7 +169,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     return '1month';
   };
 
-  const [activeRange, setActiveRange] = useState(resolveInitialRange);
+  const [activeRange, setActiveRange] = useState(() => resolveInitialRange());
   const [chartData, setChartData] = useState([]);
   const [chartSymbols, setChartSymbols] = useState([]);
   const [showAverage, setShowAverage] = useState(false);
