@@ -746,7 +746,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
 
   // Notify parent component of portfolio value changes
   useEffect(() => {
-    if (onPortfolioValueChange) {
+    if (onPortfolioValueChange && typeof onPortfolioValueChange === 'function') {
       onPortfolioValueChange({
         totalValue,
         cash: portfolio.cash,

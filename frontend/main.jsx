@@ -166,8 +166,22 @@ function App() {
   });
 
   const handlePortfolioValueChange = useCallback((value) => {
-    setPortfolioValue(value);
+    if (value && typeof value === 'object') {
+      setPortfolioValue({
+        totalValue: value.totalValue || 0,
+        cash: value.cash || 0,
+        holdingsValue: value.holdingsValue || 0,
+        totalReturn: value.totalReturn || 0,
+        totalReturnPct: value.totalReturnPct || 0
+      });
+    }
   }, []);
+
+  const fmtCurrency = (v) => {
+    if (v == null || isNaN(v)) return '—';
+    const rate = currency === 'USD' ? 1 : (rates?.[currency] ?? 1);
+    return new Intl.NumberFormat('es-MX', { style: 'currency', currency, minimumFractionDigits: 2 }).format(v * rate);
+  };
 
   const sharedProps = { currency, setCurrency: setCurrencySync, nextCurrency, currencyLabel, rates, alerts, setAlerts: setAlertsSync, lang };
 
