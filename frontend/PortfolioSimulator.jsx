@@ -647,6 +647,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     annualRate: '', 
     accountType: 'debit', // 'debit' | 'credit'
     growthFrequency: 'monthly', // 'monthly' | 'annual'
+    interestFrequency: 'annual', // 'weekly' | 'monthly' | 'annual' - how often interest is applied
     fees: [] // Array of {name, amount, frequency}
   });
   
@@ -696,14 +697,15 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
   const addBankAccount = () => {
     const balance = parseFloat(newBank.balance);
     const rate = parseFloat(newBank.annualRate);
-    if (!newBank.name || isNaN(balance) || balance < 0) return;
+    if (!newBank.name || isNaN(balance)) return; // Remove balance >= 0 restriction to allow negative balances
     const account = {
       id: Date.now(),
       name: newBank.name,
-      balance: toUSD(balance),
+      balance: toUSD(balance), // Can be negative now
       annualRate: isNaN(rate) ? 0 : rate,
       accountType: newBank.accountType,
       growthFrequency: newBank.growthFrequency,
+      interestFrequency: newBank.interestFrequency,
       fees: newBank.fees || [] // Array of fee objects
     };
     saveBankAccounts([...bankAccounts, account]);
@@ -713,6 +715,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
       annualRate: '', 
       accountType: 'debit',
       growthFrequency: 'monthly',
+      interestFrequency: 'annual',
       fees: []
     });
   };
@@ -721,15 +724,26 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
 
   const applyBankGrowth = () => {
     const updated = bankAccounts.map(a => {
-      // Calculate growth based on frequency
-      let growthRate;
-      if (a.growthFrequency === 'annual') {
-        growthRate = a.annualRate / 100; // full annual rate
-      } else {
-        growthRate = a.annualRate / 100 / 12; // monthly rate (default)
+      // Calculate growth/interest based on frequency
+      let interestRate = 0;
+      
+      // Use interestFrequency if available, otherwise fall back to growthFrequency
+      const frequency = a.interestFrequency || a.growthFrequency || 'monthly';
+      
+      if (frequency === 'weekly') {
+        interestRate = a.annualRate / 100 / 52; // weekly rate
+      } else if (frequency === 'monthly') {
+        interestRate = a.annualRate / 100 / 12; // monthly rate
+      } else { // annual
+        interestRate = a.annualRate / 100; // full annual rate
       }
       
-      const interest = a.balance * growthRate;
+      // Calculate interest (positive for positive balances, negative for negative balances)
+      const interest = a.balance * interestRate;
+      
+      // For negative balances (debt), interest increases the debt
+      // For positive balances, interest increases the balance
+      const newBalanceAfterInterest = a.balance + interest;
       
       // Calculate total fees from all fee entries
       let totalFees = 0;
@@ -759,8 +773,10 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
         }
       }
       
-      const newBalance = Math.max(0, a.balance + interest - totalFees);
-      return { ...a, balance: newBalance };
+      // Apply fees (always subtract fees, making negative balances more negative)
+      const finalBalance = newBalanceAfterInterest - totalFees;
+      
+      return { ...a, balance: finalBalance };
     });
     saveBankAccounts(updated);
   };
@@ -771,8 +787,9 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
   const getTotalAvailableCash = () => {
     return bankAccounts.reduce((total, account) => {
       // Only count debit accounts as available cash
+      // For negative balances, they don't contribute to available cash
       if (account.accountType === 'debit') {
-        return total + account.balance;
+        return total + Math.max(0, account.balance); // Only positive balances count as available
       }
       return total;
     }, 0);
@@ -865,11 +882,13 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     if (accountIndex === -1) return;
     
     const account = bankAccounts[accountIndex];
-    if (depositMode === 'withdraw' && amountUSD > account.balance) return;
+    
+    // Remove the restriction for withdrawals - allow negative balances
+    // if (depositMode === 'withdraw' && amountUSD > account.balance) return;
     
     const delta = depositMode === 'deposit' ? amountUSD : -amountUSD;
     
-    // Update bank account balance
+    // Update bank account balance (can go negative)
     const updatedAccounts = [...bankAccounts];
     updatedAccounts[accountIndex] = {
       ...account,
@@ -1186,6 +1205,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                         annualRate: 2.5,
                         accountType: 'debit',
                         growthFrequency: 'monthly',
+                        interestFrequency: 'monthly',
                         fees: [
                           { id: Date.now() + 10, name: 'Mantenimiento', amount: 15, frequency: 'monthly' },
                           { id: Date.now() + 11, name: 'Transferencias', amount: 2, frequency: 'weekly' }
@@ -1198,8 +1218,22 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                         annualRate: 4.0,
                         accountType: 'debit',
                         growthFrequency: 'annual',
+                        interestFrequency: 'annual',
                         fees: [
                           { id: Date.now() + 12, name: 'Comisión anual', amount: 50, frequency: 'annual' }
+                        ]
+                      },
+                      {
+                        id: Date.now() + 2,
+                        name: 'Credit Card Debt',
+                        balance: -2500, // Negative balance (debt)
+                        annualRate: 18.0, // High interest rate for debt
+                        accountType: 'credit',
+                        growthFrequency: 'monthly',
+                        interestFrequency: 'weekly', // Weekly compounding for credit card
+                        fees: [
+                          { id: Date.now() + 13, name: 'Anualidad', amount: 120, frequency: 'annual' },
+                          { id: Date.now() + 14, name: 'Comisión por uso', amount: 5, frequency: 'monthly' }
                         ]
                       }
                     ];
@@ -1377,7 +1411,9 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
             <option value="">{lang === 'es' ? 'Seleccionar cuenta' : 'Select account'}</option>
             {bankAccounts.map(account => (
               <option key={account.id} value={account.id}>
-                {account.name} - {fmt(account.balance)} ({account.accountType === 'debit' ? (lang === 'es' ? 'Débito' : 'Debit') : (lang === 'es' ? 'Crédito' : 'Credit')})
+                {account.name} - {fmt(account.balance)} 
+                {account.balance < 0 && ` (${lang === 'es' ? 'DEUDA' : 'DEBT'})`}
+                ({account.accountType === 'debit' ? (lang === 'es' ? 'Débito' : 'Debit') : (lang === 'es' ? 'Crédito' : 'Credit')})
               </option>
             ))}
           </select>
@@ -1836,12 +1872,21 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                   </div>
                   
                   <p className="text-slate-400 text-xs mb-1">
-                    {fmt(a.balance)} · {a.annualRate}% {lang === 'es' ? 'anual' : 'annual'}
+                    <span className={a.balance >= 0 ? 'text-white' : 'text-red-400 font-semibold'}>
+                      {fmt(a.balance)}
+                    </span>
+                    {a.balance < 0 && <span className="text-red-300 ml-1">({lang === 'es' ? 'DEUDA' : 'DEBT'})</span>}
+                     · {a.annualRate}% {lang === 'es' ? 'anual' : 'annual'}
                     {feesDisplay}
                   </p>
                   
                   <p className="text-green-400 text-xs mb-2">
                     {lang === 'es' ? 'Crece' : 'Grows'}: {(a.growthFrequency || 'monthly') === 'annual' ? (lang === 'es' ? 'anual' : 'annual') : (lang === 'es' ? 'mensual' : 'monthly')} · 
+                    {lang === 'es' ? 'Interés' : 'Interest'}: {
+                      (a.interestFrequency || a.growthFrequency || 'annual') === 'weekly' ? (lang === 'es' ? 'semanal' : 'weekly') :
+                      (a.interestFrequency || a.growthFrequency || 'annual') === 'monthly' ? (lang === 'es' ? 'mensual' : 'monthly') :
+                      (lang === 'es' ? 'anual' : 'annual')
+                    } · 
                     {lang === 'es' ? 'Interés anual' : 'Annual interest'}: {fmt(annualInterest)}
                   </p>
                   
@@ -1905,7 +1950,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
               />
             </div>
             
-            {/* Interest rate and growth frequency */}
+            {/* Interest rate and frequencies */}
             <div className="flex gap-2">
               <input
                 className="flex-1 bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
@@ -1921,6 +1966,22 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
               >
                 <option value="monthly">{lang === 'es' ? 'Crece mensual' : 'Monthly growth'}</option>
                 <option value="annual">{lang === 'es' ? 'Crece anual' : 'Annual growth'}</option>
+              </select>
+            </div>
+            
+            {/* Interest frequency */}
+            <div className="flex gap-2">
+              <label className="text-slate-400 text-sm self-center">
+                {lang === 'es' ? 'Frecuencia de interés:' : 'Interest frequency:'}
+              </label>
+              <select
+                className="flex-1 bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none"
+                value={newBank.interestFrequency}
+                onChange={e => setNewBank(p => ({ ...p, interestFrequency: e.target.value }))}
+              >
+                <option value="weekly">{lang === 'es' ? 'Semanal' : 'Weekly'}</option>
+                <option value="monthly">{lang === 'es' ? 'Mensual' : 'Monthly'}</option>
+                <option value="annual">{lang === 'es' ? 'Anual' : 'Annual'}</option>
               </select>
             </div>
             
