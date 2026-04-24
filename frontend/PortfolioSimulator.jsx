@@ -648,7 +648,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     fee: '', 
     feeType: 'monthly',
     accountType: 'debit', // 'debit' | 'credit'
-    growthFrequency: 'monthly', // 'weekly' | 'monthly'
+    growthFrequency: 'monthly', // 'monthly' | 'annual'
     feeFrequency: 'monthly' // 'weekly' | 'monthly' | 'annual'
   });
 
@@ -692,8 +692,8 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     const updated = bankAccounts.map(a => {
       // Calculate growth based on frequency
       let growthRate;
-      if (a.growthFrequency === 'weekly') {
-        growthRate = a.annualRate / 100 / 52; // weekly rate
+      if (a.growthFrequency === 'annual') {
+        growthRate = a.annualRate / 100; // full annual rate
       } else {
         growthRate = a.annualRate / 100 / 12; // monthly rate (default)
       }
@@ -1149,7 +1149,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                         fee: 0,
                         feeType: 'monthly',
                         accountType: 'debit',
-                        growthFrequency: 'monthly',
+                        growthFrequency: 'annual',
                         feeFrequency: 'monthly'
                       }
                     ];
@@ -1778,7 +1778,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                       {feeDisplay}
                     </p>
                     <p className="text-green-400 text-xs">
-                      {lang === 'es' ? 'Crece' : 'Grows'}: {(a.growthFrequency || 'monthly') === 'weekly' ? (lang === 'es' ? 'semanal' : 'weekly') : (lang === 'es' ? 'mensual' : 'monthly')} · 
+                      {lang === 'es' ? 'Crece' : 'Grows'}: {(a.growthFrequency || 'monthly') === 'annual' ? (lang === 'es' ? 'anual' : 'annual') : (lang === 'es' ? 'mensual' : 'monthly')} · 
                       {lang === 'es' ? 'Interés anual' : 'Annual interest'}: {fmt(annualInterest)}
                     </p>
                   </div>
@@ -1839,8 +1839,8 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                 value={newBank.growthFrequency}
                 onChange={e => setNewBank(p => ({ ...p, growthFrequency: e.target.value }))}
               >
-                <option value="weekly">{lang === 'es' ? 'Crece semanal' : 'Weekly growth'}</option>
                 <option value="monthly">{lang === 'es' ? 'Crece mensual' : 'Monthly growth'}</option>
+                <option value="annual">{lang === 'es' ? 'Crece anual' : 'Annual growth'}</option>
               </select>
             </div>
             
