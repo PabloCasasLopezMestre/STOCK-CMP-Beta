@@ -330,7 +330,11 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
   // Fetch performance data for portfolio
   const fetchPerformanceData = useCallback(async () => {
     const symbols = Object.keys(portfolio.holdings);
-    if (!symbols.length) return;
+    if (!symbols.length) {
+      setPerformanceData(null);
+      setLoadingPerformance(false);
+      return;
+    }
     
     setLoadingPerformance(true);
     try {
@@ -920,10 +924,11 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
 
       {/* Tab Content */}
       {tab === 'portfolio-performance' && (
-        loadingPerformance ? (
-          <p className="text-slate-500 text-sm text-center py-8">Cargando datos de rendimiento...</p>
-        ) : performanceData ? (
-          <div className="space-y-4">
+        <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
+          {loadingPerformance ? (
+            <p className="text-slate-500 text-sm text-center py-8">Cargando datos de rendimiento...</p>
+          ) : performanceData ? (
+            <div className="space-y-4">
             {/* Resumen de rendimiento simple */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-slate-700/50 rounded-lg p-4">
@@ -982,6 +987,8 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
         ) : (
           <p className="text-slate-500 text-sm text-center py-8">No hay datos de rendimiento disponibles.</p>
         )
+        }
+        </div>
       )}
 
       {/* Summary - only show when not on performance tab */}
