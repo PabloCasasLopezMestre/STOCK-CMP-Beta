@@ -361,30 +361,48 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
       else startDate.setFullYear(startDate.getFullYear() - parseInt(range));
       
       const promises = symbols.map(async (sym) => {
-        const url = `${WORKER_BASE}/api/historical/${sym}?period=${range}&interval=1d`;
-        const res = await fetch(url);
-        const data = await res.json();
-        
-        if (!data.results || !data.results.length) return null;
-        
-        const startPrice = data.results[0].close;
-        const endPrice = data.results[data.results.length - 1].close;
-        const shares = portfolio.holdings[sym].shares;
-        const startValue = startPrice * shares;
-        const endValue = endPrice * shares;
-        const gain = endValue - startValue;
-        const change = startValue > 0 ? (gain / startValue) * 100 : 0;
-        
-        return {
-          symbol: sym,
-          shares,
-          startPrice,
-          endPrice,
-          gain,
-          change,
-          startValue,
-          endValue
-        };
+        try {
+          const url = `${WORKER_BASE}/api/historical/${sym}?period=${range}&interval=1d`;
+          console.log(`Fetching performance data for ${sym}:`, url);
+          const res = await fetch(url);
+          
+          if (!res.ok) {
+            console.error(`Failed to fetch data for ${sym}:`, res.status, res.statusText);
+            return null;
+          }
+          
+          const data = await res.json();
+          console.log(`Data received for ${sym}:`, data);
+          
+          if (!data.results || !data.results.length) {
+            console.warn(`No results for ${sym}`);
+            return null;
+          }
+          
+          const startPrice = data.results[0].close;
+          const endPrice = data.results[data.results.length - 1].close;
+          const shares = portfolio.holdings[sym].shares;
+          const startValue = startPrice * shares;
+          const endValue = endPrice * shares;
+          const gain = endValue - startValue;
+          const change = startValue > 0 ? (gain / startValue) * 100 : 0;
+          
+          console.log(`Calculated for ${sym}:`, { startPrice, endPrice, shares, startValue, endValue, gain, change });
+          
+          return {
+            symbol: sym,
+            shares,
+            startPrice,
+            endPrice,
+            gain,
+            change,
+            startValue,
+            endValue
+          };
+        } catch (error) {
+          console.error(`Error fetching performance data for ${sym}:`, error);
+          return null;
+        }
       });
       
       const results = await Promise.all(promises);
