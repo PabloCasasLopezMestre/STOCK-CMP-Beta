@@ -1159,14 +1159,10 @@ export default function PortfolioSimulator({
   }, [lang]);
 
   useEffect(() => {
-    try {
-      if (tab === 'portfolio-performance') {
-        fetchPortfolioPerformanceData();
-      } else if (tab === 'stock-performance') {
-        fetchStockPerformanceData();
-      }
-    } catch (error) {
-      console.error('Error in performance useEffect:', error);
+    if (tab === 'portfolio-performance') {
+      fetchPortfolioPerformanceData();
+    } else if (tab === 'stock-performance') {
+      fetchStockPerformanceData();
     }
   }, [tab, performanceRange, fetchPortfolioPerformanceData, fetchStockPerformanceData]);
 
