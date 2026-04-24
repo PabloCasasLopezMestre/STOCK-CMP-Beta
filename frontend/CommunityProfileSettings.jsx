@@ -6,7 +6,7 @@ import { ensureProfileRow } from './supabaseProfile';
 
 const HANDLE_RE = /^[a-z0-9_]{3,30}$/;
 
-export default function CommunityProfileSettings({ lang }) {
+export default function CommunityProfileSettings({ lang, accountCreated }) {
   const supabase = useMemo(() => getSupabase(), []);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -16,6 +16,47 @@ export default function CommunityProfileSettings({ lang }) {
   const [bio, setBio] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [country, setCountry] = useState('');
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update current time every second for live timer
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Calculate account age
+  const getAccountAge = () => {
+    if (!accountCreated) return null;
+    
+    const created = new Date(accountCreated);
+    const now = currentTime;
+    const diffMs = now - created;
+    
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+    
+    if (days > 0) {
+      return lang === 'es' 
+        ? `${days}d ${hours}h`
+        : `${days}d ${hours}h`;
+    } else if (hours > 0) {
+      return lang === 'es'
+        ? `${hours}h ${minutes}m`
+        : `${hours}h ${minutes}m`;
+    } else if (minutes > 0) {
+      return lang === 'es'
+        ? `${minutes}m ${seconds}s`
+        : `${minutes}m ${seconds}s`;
+    } else {
+      return lang === 'es'
+        ? `${seconds}s`
+        : `${seconds}s`;
+    }
+  };
 
   useEffect(() => {
     if (!supabase) {
@@ -104,7 +145,19 @@ export default function CommunityProfileSettings({ lang }) {
 
   return (
     <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
-      <h2 className="text-white font-semibold mb-1">{t('settings_profile_community', lang)}</h2>
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="text-white font-semibold">{t('settings_profile_community', lang)}</h2>
+        {accountCreated && (
+          <div className="text-right">
+            <p className="text-slate-500 text-xs">
+              {lang === 'es' ? 'Cuenta creada hace' : 'Account created'}
+            </p>
+            <p className="text-slate-400 text-xs font-mono">
+              {getAccountAge()}
+            </p>
+          </div>
+        )}
+      </div>
       <p className="text-slate-400 text-sm mb-4">{t('settings_profile_community_hint', lang)}</p>
 
       {loading ? (
