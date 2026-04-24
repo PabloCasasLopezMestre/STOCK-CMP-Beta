@@ -449,6 +449,13 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     setLoadingPerformance(true);
     
     try {
+      // Calculate current total value inside the function to avoid circular dependency
+      const currentHoldingsValue = Object.entries(portfolio.holdings).reduce((sum, [sym, h]) => {
+        return sum + h.shares * (prices[sym] ?? h.avgCost);
+      }, 0);
+      const currentBankBalance = bankAccounts.reduce((s, a) => s + a.balance, 0);
+      const currentTotalValue = currentBankBalance + currentHoldingsValue;
+      
       // Use dataResetAt if available, otherwise accountCreated, otherwise first transaction
       const referenceDate = dataResetAt ? new Date(dataResetAt) : 
                            accountCreated ? new Date(accountCreated) : 
@@ -467,7 +474,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
       
       // Calculate portfolio value at start date and current value
       let startValue = 0;
-      let currentValue = totalValue; // Current total value (holdings + bank accounts)
+      let currentValue = currentTotalValue; // Current total value (holdings + bank accounts)
       
       // For start value, we need to calculate what the portfolio was worth at the start date
       // This is complex because we need to track deposits, withdrawals, and asset values over time
@@ -507,7 +514,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     } finally {
       setLoadingPerformance(false);
     }
-  }, [portfolio.transactions, performanceRange, totalValue, dataResetAt, accountCreated]);
+  }, [portfolio.transactions, portfolio.holdings, performanceRange, prices, bankAccounts, dataResetAt, accountCreated]);
 
   // Fetch stock performance data (individual stocks)
   const fetchStockPerformanceData = useCallback(async () => {
@@ -1134,7 +1141,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     } catch (error) {
       console.error('Error in performance useEffect:', error);
     }
-  }, [tab, performanceRange]);
+  }, [tab, performanceRange, fetchPortfolioPerformanceData, fetchStockPerformanceData]);
 
   useEffect(() => { fetchPrices(); }, [JSON.stringify(Object.keys(portfolio.holdings))]);
   useEffect(() => { fetchAllNewsCounts(); }, [JSON.stringify(Object.keys(portfolio.holdings))]);
