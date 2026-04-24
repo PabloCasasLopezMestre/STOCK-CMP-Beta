@@ -83,7 +83,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
   const [loadingHistorical, setLoadingHistorical] = useState(false);
 
   // Performance state
-  const [tab, setTab] = useState('holdings');
+  const [tab, setTab] = useState('portfolio-performance');
   const [performanceRange, setPerformanceRange] = useState('1month');
   const [performanceData, setPerformanceData] = useState(null);
   const [loadingPerformance, setLoadingPerformance] = useState(false);
@@ -873,7 +873,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
       {/* Tabs */}
       <div className="bg-slate-800/50 rounded-xl border border-slate-700">
         <div className="flex border-b border-slate-700">
-          {(enabledFeatures.portfolioPerformance !== false ? ['portfolio-performance'] : []).map((t) => (
+          {enabledFeatures.portfolioPerformance !== false ? ['portfolio-performance'].map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -881,7 +881,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
             >
               {t === 'portfolio-performance' ? 'Rendimiento' : ''}
             </button>
-          ))}
+          )) : null}
           <div className="flex-1" />
           {(tab === 'portfolio-performance') && (
             <select
