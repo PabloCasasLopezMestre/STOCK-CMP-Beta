@@ -75,7 +75,7 @@ const DEFAULT_PORTFOLIO = {
   dividendsReceived: 0,
 };
 
-export default function PortfolioSimulator({ currency, setCurrency, nextCurrency, currencyLabel, rates, alerts, setAlerts, lang = 'es', onOpenCommunityIdea, initialPortfolio, onPortfolioChange, refreshTrigger, showAlertsPanel, setShowAlertsPanel, comparatorStocks = [], enabledFeatures = {}, visibleTimeRanges = [], defaultTimeRange = '1month' }) {
+export default function PortfolioSimulator({ currency, setCurrency, nextCurrency, currencyLabel, rates, alerts, setAlerts, lang = 'es', onOpenCommunityIdea, initialPortfolio, onPortfolioChange, refreshTrigger, showAlertsPanel, setShowAlertsPanel, comparatorStocks = [], enabledFeatures = {}, visibleTimeRanges = [], defaultTimeRange = '1month', onPortfolioValueChange }) {
   const [portfolio, setPortfolio] = useState(() => initialPortfolio || loadPortfolio() || DEFAULT_PORTFOLIO);
   const [prices, setPrices] = useState({});
   const [historicalPrices, setHistoricalPrices] = useState({});
@@ -743,6 +743,19 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     // This effect will trigger a re-render when lang changes
     console.log('Language changed to:', lang);
   }, [lang]);
+
+  // Notify parent component of portfolio value changes
+  useEffect(() => {
+    if (onPortfolioValueChange) {
+      onPortfolioValueChange({
+        totalValue,
+        cash: portfolio.cash,
+        holdingsValue,
+        totalReturn,
+        totalReturnPct
+      });
+    }
+  }, [totalValue, portfolio.cash, holdingsValue, totalReturn, totalReturnPct, onPortfolioValueChange]);
 
   useEffect(() => {
     fetchPerformanceData();
