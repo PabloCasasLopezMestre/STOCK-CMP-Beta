@@ -446,7 +446,6 @@ export default function Settings({
             group: lang === 'es' ? 'Portafolio' : 'Portfolio',
             items: [
               { key: 'portfolioChart',      label: lang === 'es' ? 'Gráfica de valor total' : 'Total value chart' },
-              { key: 'portfolioPerformance', label: lang === 'es' ? 'Rendimiento' : 'Performance' },
               { key: 'positions',           label: lang === 'es' ? 'Posiciones' : 'Positions' },
               { key: 'transactionHistory',  label: lang === 'es' ? 'Historial de transacciones' : 'Transaction history' },
               { key: 'bankAccounts',        label: lang === 'es' ? 'Cuentas de banco' : 'Bank accounts' },
