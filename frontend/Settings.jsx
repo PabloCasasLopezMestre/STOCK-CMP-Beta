@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { LANGUAGES, t } from './i18n';
 import CommunityProfileSettings from './CommunityProfileSettings';
 import AuthEmailPanel from './AuthEmailPanel';
+import { clearAllData } from './syncService';
 
 export const ALL_CURRENCIES = [
   { code: 'USD', label: 'Dólar estadounidense', symbol: '$',   flag: '🇺🇸' },
@@ -493,47 +494,21 @@ export default function Settings({
         </p>
         <button
           type="button"
-          onClick={() => {
+          onClick={async () => {
             const confirmText = lang === 'es' 
               ? '¿Estás seguro de que quieres eliminar TODOS los datos del portafolio y comparador? Esta acción no se puede deshacer.'
               : 'Are you sure you want to delete ALL portfolio and comparator data? This action cannot be undone.';
             
             if (confirm(confirmText)) {
               try {
-                // Clear all localStorage data related to portfolio and comparator
-                const keysToRemove = [
-                  'portfolio',
-                  'priceAlerts', 
-                  'bankAccounts',
-                  'selectedStocks',
-                  'comparatorData',
-                  'stockData',
-                  'chartData',
-                  'fundamentalsData',
-                  'newsData',
-                  'technicalIndicators',
-                  'patterns',
-                  'backtestResults',
-                  'investmentSimulation'
-                ];
+                // Show loading state
+                const button = document.activeElement;
+                const originalText = button.textContent;
+                button.textContent = lang === 'es' ? 'Eliminando datos...' : 'Clearing data...';
+                button.disabled = true;
                 
-                // Remove each key
-                keysToRemove.forEach(key => {
-                  localStorage.removeItem(key);
-                });
-                
-                // Set empty portfolio
-                const defaultPortfolio = {
-                  cash: 0,
-                  deposits: [],
-                  holdings: {},
-                  transactions: [],
-                  dividendsReceived: 0,
-                };
-                localStorage.setItem('portfolio', JSON.stringify(defaultPortfolio));
-                
-                // Set empty alerts
-                localStorage.setItem('priceAlerts', JSON.stringify([]));
+                // Clear all data (localStorage + Supabase)
+                await clearAllData();
                 
                 // Show success message
                 alert(lang === 'es' 
@@ -544,11 +519,20 @@ export default function Settings({
                 window.location.reload();
               } catch (error) {
                 console.error('Error clearing data:', error);
-                alert(lang === 'es' ? 'Error al limpiar los datos' : 'Error clearing data');
+                alert(lang === 'es' 
+                  ? 'Error al limpiar los datos. Inténtalo de nuevo.' 
+                  : 'Error clearing data. Please try again.');
+                
+                // Restore button state
+                const button = document.activeElement;
+                button.disabled = false;
+                button.textContent = lang === 'es' 
+                  ? 'Limpiar todos los datos del portafolio y comparador' 
+                  : 'Clear all portfolio and comparator data';
               }
             }
           }}
-          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+          className="bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
         >
           {lang === 'es' ? 'Limpiar todos los datos del portafolio y comparador' : 'Clear all portfolio and comparator data'}
         </button>

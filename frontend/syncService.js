@@ -237,6 +237,60 @@ async function syncPreferences(preferences) {
   }
 }
 
+// ── Clear all data function ──────────────────────────────────────────────────
+
+async function clearAllData() {
+  const supabase = getSupabase();
+  
+  // Clear localStorage
+  const keysToRemove = [
+    'portfolio',
+    'priceAlerts', 
+    'bankAccounts',
+    'selectedStocks',
+    'comparatorData',
+    'stockData',
+    'chartData',
+    'fundamentalsData',
+    'newsData',
+    'technicalIndicators',
+    'patterns',
+    'backtestResults',
+    'investmentSimulation',
+    '_sync_pending'
+  ];
+  
+  keysToRemove.forEach(key => {
+    lsRemove(key);
+  });
+  
+  // Set default values in localStorage
+  lsSet('portfolio', DEFAULT_PORTFOLIO);
+  lsSet('priceAlerts', DEFAULT_ALERTS);
+  
+  // Clear Supabase data if user is logged in
+  if (supabase && _userId) {
+    try {
+      const { error } = await supabase.from('user_data').upsert({
+        user_id: _userId,
+        portfolio: DEFAULT_PORTFOLIO,
+        price_alerts: DEFAULT_ALERTS,
+        preferences: DEFAULT_PREFERENCES,
+      });
+      
+      if (error) {
+        console.error('[syncService] clearAllData error:', error);
+        throw error;
+      }
+    } catch (err) {
+      console.error('[syncService] Failed to clear Supabase data:', err);
+      throw err;
+    }
+  }
+  
+  return true;
+}
+
 // ── Exports ───────────────────────────────────────────────────────────────────
 
-export { initSync, loadUserData, syncPortfolio, syncAlerts, syncPreferences };
+export { initSync, loadUserData, syncPortfolio, syncAlerts, syncPreferences, clearAllData };
