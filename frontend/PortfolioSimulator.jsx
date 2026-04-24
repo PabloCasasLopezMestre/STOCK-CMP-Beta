@@ -82,6 +82,12 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
   const [loadingPrices, setLoadingPrices] = useState(false);
   const [loadingHistorical, setLoadingHistorical] = useState(false);
 
+  // Performance state
+  const [tab, setTab] = useState('holdings');
+  const [performanceRange, setPerformanceRange] = useState('1month');
+  const [performanceData, setPerformanceData] = useState(null);
+  const [loadingPerformance, setLoadingPerformance] = useState(false);
+
   // Alerts panel
   const [newAlert, setNewAlert] = useState({ symbol: '', condition: 'above', price: '' });
   const [triggeredAlerts, setTriggeredAlerts] = useState([]);
@@ -320,6 +326,85 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
       setLoadingHistorical(false);
     }
   }, [portfolio.holdings]);
+
+  // Fetch performance data for portfolio
+  const fetchPerformanceData = useCallback(async () => {
+    const symbols = Object.keys(portfolio.holdings);
+    if (!symbols.length) return;
+    
+    setLoadingPerformance(true);
+    try {
+      const rangeMap = {
+        '3days': '3d', '1week': '5d', '2weeks': '14d', '1month': '1mo', '6weeks': '6w',
+        '2months': '2mo', '3months': '3mo', '4months': '4mo', '6months': '6mo', '9months': '9mo',
+        '1year': '1y', '18months': '18mo', '2years': '2y', '30months': '30mo', '3years': '3y',
+        '4years': '4y', '5years': '5y', '7years': '7y', '10years': '10y', '12years': '12y',
+        '15years': '15y', '20years': '20y', '25years': '25y', 'alltime': 'max'
+      };
+      
+      const range = rangeMap[performanceRange] || '1mo';
+      const endDate = new Date().toISOString().split('T')[0];
+      const startDate = new Date();
+      
+      if (range === '3d') startDate.setDate(startDate.getDate() - 3);
+      else if (range === '5d') startDate.setDate(startDate.getDate() - 5);
+      else if (range === '14d') startDate.setDate(startDate.getDate() - 14);
+      else if (range === '6w') startDate.setDate(startDate.getDate() - 42);
+      else if (range === '18mo') startDate.setFullYear(startDate.getFullYear() - 1.5);
+      else if (range === '30mo') startDate.setFullYear(startDate.getFullYear() - 2.5);
+      else if (range === 'max') startDate.setFullYear(startDate.getFullYear() - 30);
+      else if (range.includes('mo')) startDate.setMonth(startDate.getMonth() - parseInt(range));
+      else startDate.setFullYear(startDate.getFullYear() - parseInt(range));
+      
+      const promises = symbols.map(async (sym) => {
+        const url = `${WORKER_BASE}/api/historical/${sym}?period=${range}&interval=1d`;
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        if (!data.results || !data.results.length) return null;
+        
+        const startPrice = data.results[0].close;
+        const endPrice = data.results[data.results.length - 1].close;
+        const shares = portfolio.holdings[sym].shares;
+        const startValue = startPrice * shares;
+        const endValue = endPrice * shares;
+        const gain = endValue - startValue;
+        const change = startValue > 0 ? (gain / startValue) * 100 : 0;
+        
+        return {
+          symbol: sym,
+          shares,
+          startPrice,
+          endPrice,
+          gain,
+          change,
+          startValue,
+          endValue
+        };
+      });
+      
+      const results = await Promise.all(promises);
+      const validResults = results.filter(r => r !== null);
+      
+      const totalStartValue = validResults.reduce((sum, r) => sum + r.startValue, 0);
+      const totalEndValue = validResults.reduce((sum, r) => sum + r.endValue, 0);
+      const totalGain = totalEndValue - totalStartValue;
+      const totalChange = totalStartValue > 0 ? (totalGain / totalStartValue) * 100 : 0;
+      
+      setPerformanceData({
+        individual: validResults,
+        totalStartValue,
+        totalEndValue,
+        totalGain,
+        totalChange
+      });
+    } catch (error) {
+      console.error('Error fetching performance data:', error);
+      setPerformanceData(null);
+    } finally {
+      setLoadingPerformance(false);
+    }
+  }, [portfolio.holdings, performanceRange]);
 
   useEffect(() => {
     const next = visibleTimeRanges?.includes(defaultTimeRange) ? defaultTimeRange : visibleChartRanges?.[0]?.key ?? '1month';
@@ -586,6 +671,10 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     }
   }, [portfolio.holdings]);
 
+  useEffect(() => {
+    fetchPerformanceData();
+  }, [fetchPerformanceData]);
+
   useEffect(() => { fetchPrices(); }, [JSON.stringify(Object.keys(portfolio.holdings))]);
   useEffect(() => { fetchAllNewsCounts(); }, [JSON.stringify(Object.keys(portfolio.holdings))]);
 
@@ -781,7 +870,122 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
         </div>
       )}
 
-      {/* Summary */}
+      {/* Tabs */}
+      <div className="bg-slate-800/50 rounded-xl border border-slate-700">
+        <div className="flex border-b border-slate-700">
+          {(enabledFeatures.portfolioPerformance !== false ? ['holdings', 'portfolio-performance', 'transactions'] : ['holdings', 'transactions']).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-4 py-3 text-sm font-medium transition-colors ${tab === t ? 'text-white border-b-2 border-blue-500' : 'text-slate-400 hover:text-white'}`}
+            >
+              {t === 'holdings' ? '📊 Posiciones' : t === 'portfolio-performance' ? '📈 Rendimiento' : '📋 Historial'}
+            </button>
+          ))}
+          <div className="flex-1" />
+          {(tab === 'portfolio-performance') && (
+            <select
+              value={performanceRange}
+              onChange={(e) => setPerformanceRange(e.target.value)}
+              className="m-2 bg-slate-700 text-white px-3 py-1.5 rounded text-xs outline-none"
+            >
+              <option value="3days">3 Días</option>
+              <option value="1week">1 Semana</option>
+              <option value="2weeks">2 Semanas</option>
+              <option value="1month">1 Mes</option>
+              <option value="6weeks">6 Semanas</option>
+              <option value="2months">2 Meses</option>
+              <option value="3months">3 Meses</option>
+              <option value="4months">4 Meses</option>
+              <option value="6months">6 Meses</option>
+              <option value="9months">9 Meses</option>
+              <option value="1year">1 Año</option>
+              <option value="18months">18 Meses</option>
+              <option value="2years">2 Años</option>
+              <option value="30months">30 Meses</option>
+              <option value="3years">3 Años</option>
+              <option value="4years">4 Años</option>
+              <option value="5years">5 Años</option>
+              <option value="7years">7 Años</option>
+              <option value="10years">10 Años</option>
+              <option value="12years">12 Años</option>
+              <option value="15years">15 Años</option>
+              <option value="20years">20 Años</option>
+              <option value="25years">25 Años</option>
+              <option value="alltime">Todo</option>
+            </select>
+          )}
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      {tab === 'portfolio-performance' && (
+        loadingPerformance ? (
+          <p className="text-slate-500 text-sm text-center py-8">Cargando datos de rendimiento...</p>
+        ) : performanceData ? (
+          <div className="space-y-4">
+            {/* Resumen de rendimiento simple */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-slate-700/50 rounded-lg p-4">
+                <h3 className="text-white font-semibold mb-2">Crecimiento Total</h3>
+                <p className="text-2xl font-bold text-blue-400">
+                  {fmt(performanceData.totalEndValue - performanceData.totalStartValue)}
+                </p>
+                <p className={`text-sm ${performanceData.totalChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {performanceData.totalChange >= 0 ? '+' : ''}{performanceData.totalChange.toFixed(2)}%
+                </p>
+              </div>
+              <div className="bg-slate-700/50 rounded-lg p-4">
+                <h3 className="text-white font-semibold mb-2">Valor del Portafolio</h3>
+                <p className="text-2xl font-bold text-white">
+                  {fmt(performanceData.totalEndValue)}
+                </p>
+                <p className="text-sm text-slate-400">
+                  Desde: {fmt(performanceData.totalStartValue)}
+                </p>
+              </div>
+            </div>
+
+            {/* Rendimiento por activo - solo números */}
+            <div>
+              <h3 className="text-white font-semibold mb-3">Rendimiento por Activo</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {performanceData.individual.map((item) => (
+                  <div key={item.symbol} className="bg-slate-700/50 rounded-lg p-3">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-white font-bold">{item.symbol}</span>
+                      <span className={`text-sm font-semibold ${item.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {item.change >= 0 ? '+' : ''}{item.change.toFixed(2)}%
+                      </span>
+                    </div>
+                    <div className="space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Ganancia:</span>
+                        <span className={item.gain >= 0 ? 'text-green-400' : 'text-red-400'}>
+                          {item.gain >= 0 ? '+' : ''}{fmt(item.gain)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Valor:</span>
+                        <span className="text-white">{fmt(item.endPrice * item.shares)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Acciones:</span>
+                        <span className="text-slate-200">{item.shares.toFixed(4)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="text-slate-500 text-sm text-center py-8">No hay datos de rendimiento disponibles.</p>
+        )
+      )}
+
+      {/* Summary - only show when not on performance tab */}
+      {tab !== 'portfolio-performance' && (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: t('label_total_value', lang), value: fmt(totalValue), color: 'text-white' },
@@ -795,6 +999,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
           </div>
         ))}
       </div>
+      )}
 
       {/* Gains breakdown */}
       <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
