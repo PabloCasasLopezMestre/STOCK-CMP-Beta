@@ -10,6 +10,35 @@ import * as syncService from './syncService';
 import TickerBar from './TickerBar';
 import { getSupabase } from './supabaseClient';
 
+// Error boundary component
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '20px', background: '#1e293b', color: 'white' }}>
+          <h2>Something went wrong</h2>
+          <pre>{this.state.error?.toString()}</pre>
+          <button onClick={() => window.location.reload()}>Reload</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const WORKER_BASE = 'https://proxy.stockcmp-proxy.workers.dev';
 
 // Mapa completo de símbolos para el botón de moneda
@@ -541,4 +570,8 @@ function App() {
   );
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById('root')).render(
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>
+);

@@ -9,5 +9,32 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/main.jsx"></script>
+    
+    <!-- Debug script to check React loading -->
+    <script>
+      setTimeout(() => {
+        const data = {
+          windowKeys: Object.keys(window).filter(key => key.toLowerCase().includes('react') || key.toLowerCase().includes('__')),
+          rootExists: !!document.getElementById('root'),
+          rootHasChildren: document.getElementById('root').children.length > 0,
+          headScripts: Array.from(document.querySelectorAll('head script')).map(s => ({ src: s.src, type: s.type })),
+          bodyScripts: Array.from(document.querySelectorAll('body script')).map(s => ({ src: s.src, type: s.type })),
+          errors: window.onerror ? 'Error handler exists' : 'No error handler',
+          reactVersion: window.React ? window.React.version : 'React not found'
+        };
+        console.log('Debug info:', data);
+        
+        // If root is empty after 3 seconds, show debug info on page
+        if (!data.rootHasChildren) {
+          document.getElementById('root').innerHTML = `
+            <div style="padding: 20px; background: #1e293b; color: white; font-family: monospace;">
+              <h2>Debug Information</h2>
+              <pre>${JSON.stringify(data, null, 2)}</pre>
+              <p>Check console for more details</p>
+            </div>
+          `;
+        }
+      }, 3000);
+    </script>
   </body>
 </html>
