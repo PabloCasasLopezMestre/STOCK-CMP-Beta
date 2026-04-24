@@ -70,6 +70,7 @@ export default function Settings({
   customTickerSymbols = [], addCustomTickerSymbol, removeCustomTickerSymbol,
   tickerInput = '', setTickerInput,
   accountCreated = null,
+  dataResetAt = null,
 }) {
   const [tzSearch, setTzSearch] = useState('');
 
@@ -250,7 +251,7 @@ export default function Settings({
         </p>
       </div>
 
-      <CommunityProfileSettings lang={lang} accountCreated={accountCreated} />
+      <CommunityProfileSettings lang={lang} accountCreated={accountCreated} dataResetAt={dataResetAt} />
 
       {/* Max stocks */}
       <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">

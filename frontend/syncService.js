@@ -96,13 +96,14 @@ async function loadUserData() {
       alerts: lsGet('priceAlerts', DEFAULT_ALERTS),
       preferences: lsGet('preferences', DEFAULT_PREFERENCES),
       accountCreated: null,
+      dataResetAt: null,
     };
   }
 
   try {
     const { data, error } = await supabase
       .from('user_data')
-      .select('*, created_at')
+      .select('*, created_at, data_reset_at')
       .eq('user_id', _userId)
       .maybeSingle();
 
@@ -114,6 +115,7 @@ async function loadUserData() {
         alerts: DEFAULT_ALERTS,
         preferences: DEFAULT_PREFERENCES,
         accountCreated: null,
+        dataResetAt: null,
       };
     }
 
@@ -122,6 +124,7 @@ async function loadUserData() {
       alerts: data.price_alerts ?? DEFAULT_ALERTS,
       preferences: { ...DEFAULT_PREFERENCES, ...(data.preferences ?? {}) },
       accountCreated: data.created_at,
+      dataResetAt: data.data_reset_at,
     };
   } catch (err) {
     console.error('[syncService] loadUserData error:', err);
@@ -130,6 +133,7 @@ async function loadUserData() {
       alerts: lsGet('priceAlerts', DEFAULT_ALERTS),
       preferences: lsGet('preferences', DEFAULT_PREFERENCES),
       accountCreated: null,
+      dataResetAt: null,
     };
   }
 }
@@ -147,6 +151,7 @@ async function initSync() {
       alerts: lsGet('priceAlerts', DEFAULT_ALERTS),
       preferences: lsGet('preferences', DEFAULT_PREFERENCES),
       accountCreated: null,
+      dataResetAt: null,
     };
   }
 
@@ -168,6 +173,7 @@ async function initSync() {
       alerts: lsGet('priceAlerts', DEFAULT_ALERTS),
       preferences: lsGet('preferences', DEFAULT_PREFERENCES),
       accountCreated: null,
+      dataResetAt: null,
     };
   }
 }
@@ -282,6 +288,7 @@ async function clearAllData() {
         portfolio: DEFAULT_PORTFOLIO,
         price_alerts: DEFAULT_ALERTS,
         preferences: DEFAULT_PREFERENCES,
+        data_reset_at: new Date().toISOString(),
       });
       
       if (error) {
