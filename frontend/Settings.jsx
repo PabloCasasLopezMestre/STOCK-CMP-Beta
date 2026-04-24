@@ -455,7 +455,7 @@ export default function Settings({
           {
             group: lang === 'es' ? 'Comparador' : 'Comparator',
             items: [
-              { key: 'investmentSimulator', label: lang === 'es' ? 'Simulador de inversión' : 'Investment simulator' },
+              { key: 'investmentSimulator', label: lang === 'es' ? 'Simulador de inversión histórico' : 'Historical Investment Simulator' },
             ],
           },
         ].map(({ group, items }) => (
