@@ -347,60 +347,82 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
       };
       
       const range = rangeMap[performanceRange] || '1mo';
-      const endDate = new Date().toISOString().split('T')[0];
-      const startDate = new Date();
-      
-      if (range === '3d') startDate.setDate(startDate.getDate() - 3);
-      else if (range === '5d') startDate.setDate(startDate.getDate() - 5);
-      else if (range === '14d') startDate.setDate(startDate.getDate() - 14);
-      else if (range === '6w') startDate.setDate(startDate.getDate() - 42);
-      else if (range === '18mo') startDate.setFullYear(startDate.getFullYear() - 1.5);
-      else if (range === '30mo') startDate.setFullYear(startDate.getFullYear() - 2.5);
-      else if (range === 'max') startDate.setFullYear(startDate.getFullYear() - 30);
-      else if (range.includes('mo')) startDate.setMonth(startDate.getMonth() - parseInt(range));
-      else startDate.setFullYear(startDate.getFullYear() - parseInt(range));
       
       const promises = symbols.map(async (sym) => {
         try {
-          const url = `${WORKER_BASE}/api/historical/${sym}?period=${range}&interval=1d`;
-          console.log(`Fetching performance data for ${sym}:`, url);
-          const res = await fetch(url);
+          // Use current price and average cost for a simple calculation if historical data fails
+          const currentPrice = prices[sym];
+          const holding = portfolio.holdings[sym];
           
-          if (!res.ok) {
-            console.error(`Failed to fetch data for ${sym}:`, res.status, res.statusText);
+          if (!currentPrice || !holding) {
+            console.warn(`Missing data for ${sym}: price=${currentPrice}, holding=`, holding);
             return null;
           }
           
-          const data = await res.json();
-          console.log(`Data received for ${sym}:`, data);
+          // Try to get historical data first
+          let startPrice = null;
           
-          if (!data.results || !data.results.length) {
-            console.warn(`No results for ${sym}`);
-            return null;
+          try {
+            const intervalMap = {
+              '3d': '1h', '5d': '1h', '14d': '1d', '1mo': '1d', '6w': '1d',
+              '2mo': '1d', '3mo': '1d', '4mo': '1d', '6mo': '1d', '9mo': '1d',
+              '1y': '1wk', '18mo': '1wk', '2y': '1wk', '30mo': '1mo', '3y': '1mo',
+              '4y': '1mo', '5y': '1mo', '7y': '1mo', '10y': '3mo', '12y': '3mo',
+              '15y': '3mo', '20y': '3mo', '25y': '3mo', 'max': '3mo'
+            };
+            const interval = intervalMap[range] || '1d';
+            const url = `${WORKER_BASE}/api/stock/${encodeURIComponent(sym)}?interval=${interval}&range=${range}`;
+            
+            const res = await fetch(url);
+            if (res.ok) {
+              const data = await res.json();
+              const result = data?.chart?.result?.[0];
+              if (result) {
+                const closes = result.indicators?.quote?.[0]?.close || [];
+                const validPrices = closes.filter(p => p != null);
+                if (validPrices.length > 0) {
+                  startPrice = validPrices[0];
+                }
+              }
+            }
+          } catch (error) {
+            console.warn(`Failed to fetch historical data for ${sym}:`, error.message);
           }
           
-          const startPrice = data.results[0].close;
-          const endPrice = data.results[data.results.length - 1].close;
-          const shares = portfolio.holdings[sym].shares;
+          // If no historical data, use average cost as start price for basic calculation
+          if (!startPrice) {
+            startPrice = holding.avgCost;
+            console.log(`Using avgCost as startPrice for ${sym}: ${startPrice}`);
+          }
+          
+          const shares = holding.shares;
           const startValue = startPrice * shares;
-          const endValue = endPrice * shares;
+          const endValue = currentPrice * shares;
           const gain = endValue - startValue;
           const change = startValue > 0 ? (gain / startValue) * 100 : 0;
           
-          console.log(`Calculated for ${sym}:`, { startPrice, endPrice, shares, startValue, endValue, gain, change });
+          console.log(`Performance calculated for ${sym}:`, { 
+            startPrice, 
+            currentPrice, 
+            shares, 
+            startValue, 
+            endValue, 
+            gain, 
+            change 
+          });
           
           return {
             symbol: sym,
             shares,
             startPrice,
-            endPrice,
+            endPrice: currentPrice,
             gain,
             change,
             startValue,
             endValue
           };
         } catch (error) {
-          console.error(`Error fetching performance data for ${sym}:`, error);
+          console.error(`Error calculating performance for ${sym}:`, error);
           return null;
         }
       });
@@ -408,10 +430,26 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
       const results = await Promise.all(promises);
       const validResults = results.filter(r => r !== null);
       
+      if (validResults.length === 0) {
+        console.warn('No valid performance data found');
+        // Create a basic performance data structure with zeros
+        setPerformanceData({
+          individual: [],
+          totalStartValue: 0,
+          totalEndValue: 0,
+          totalGain: 0,
+          totalChange: 0
+        });
+        setLoadingPerformance(false);
+        return;
+      }
+      
       const totalStartValue = validResults.reduce((sum, r) => sum + r.startValue, 0);
       const totalEndValue = validResults.reduce((sum, r) => sum + r.endValue, 0);
       const totalGain = totalEndValue - totalStartValue;
       const totalChange = totalStartValue > 0 ? (totalGain / totalStartValue) * 100 : 0;
+      
+      console.log('Performance summary:', { totalStartValue, totalEndValue, totalGain, totalChange, validResults });
       
       setPerformanceData({
         individual: validResults,
@@ -422,11 +460,18 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
       });
     } catch (error) {
       console.error('Error fetching performance data:', error);
-      setPerformanceData(null);
+      // Set empty performance data instead of null to show the UI
+      setPerformanceData({
+        individual: [],
+        totalStartValue: 0,
+        totalEndValue: 0,
+        totalGain: 0,
+        totalChange: 0
+      });
     } finally {
       setLoadingPerformance(false);
     }
-  }, [portfolio.holdings, performanceRange]);
+  }, [portfolio.holdings, performanceRange, prices]);
 
   useEffect(() => {
     const next = visibleTimeRanges?.includes(defaultTimeRange) ? defaultTimeRange : visibleChartRanges?.[0]?.key ?? '1month';
@@ -693,6 +738,12 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     }
   }, [portfolio.holdings]);
 
+  // Force re-render when language changes
+  useEffect(() => {
+    // This effect will trigger a re-render when lang changes
+    console.log('Language changed to:', lang);
+  }, [lang]);
+
   useEffect(() => {
     fetchPerformanceData();
   }, [fetchPerformanceData]);
@@ -897,113 +948,165 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
       <div className="bg-slate-800/50 rounded-xl border border-slate-700">
         {/* Tabs */}
         <div className="flex border-b border-slate-700">
-          {['portfolio-performance'].map((t) => (
+          {['portfolio-performance'].map((tabKey) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-4 py-3 text-sm font-medium transition-colors ${tab === t ? 'text-white border-b-2 border-blue-500' : 'text-slate-400 hover:text-white'}`}
+              key={tabKey}
+              onClick={() => setTab(tabKey)}
+              className={`px-4 py-3 text-sm font-medium transition-colors ${tab === tabKey ? 'text-white border-b-2 border-blue-500' : 'text-slate-400 hover:text-white'}`}
             >
-              {t === 'portfolio-performance' ? 'Rendimiento' : ''}
+              {tabKey === 'portfolio-performance' ? t('portfolio_performance_tab', lang) || (lang === 'es' ? 'Rendimiento' : 'Performance') : ''}
             </button>
           ))}
           <div className="flex-1" />
           {(tab === 'portfolio-performance') && (
-            <select
-              value={performanceRange}
-              onChange={(e) => setPerformanceRange(e.target.value)}
-              className="m-2 bg-slate-700 text-white px-3 py-1.5 rounded text-xs outline-none"
-            >
-              <option value="3days">3 Días</option>
-              <option value="1week">1 Semana</option>
-              <option value="2weeks">2 Semanas</option>
-              <option value="1month">1 Mes</option>
-              <option value="6weeks">6 Semanas</option>
-              <option value="2months">2 Meses</option>
-              <option value="3months">3 Meses</option>
-              <option value="4months">4 Meses</option>
-              <option value="6months">6 Meses</option>
-              <option value="9months">9 Meses</option>
-              <option value="1year">1 Año</option>
-              <option value="18months">18 Meses</option>
-              <option value="2years">2 Años</option>
-              <option value="30months">30 Meses</option>
-              <option value="3years">3 Años</option>
-              <option value="4years">4 Años</option>
-              <option value="5years">5 Años</option>
-              <option value="7years">7 Años</option>
-              <option value="10years">10 Años</option>
-              <option value="12years">12 Años</option>
-              <option value="15years">15 Años</option>
-              <option value="20years">20 Años</option>
-              <option value="25years">25 Años</option>
-              <option value="alltime">Todo</option>
-            </select>
+            <div className="flex items-center gap-2 m-2">
+              <select
+                value={performanceRange}
+                onChange={(e) => setPerformanceRange(e.target.value)}
+                className="bg-slate-700 text-white px-3 py-1.5 rounded text-xs outline-none"
+              >
+                <option value="3days">{lang === 'es' ? '3 Días' : '3 Days'}</option>
+                <option value="1week">{lang === 'es' ? '1 Semana' : '1 Week'}</option>
+                <option value="2weeks">{lang === 'es' ? '2 Semanas' : '2 Weeks'}</option>
+                <option value="1month">{lang === 'es' ? '1 Mes' : '1 Month'}</option>
+                <option value="6weeks">{lang === 'es' ? '6 Semanas' : '6 Weeks'}</option>
+                <option value="2months">{lang === 'es' ? '2 Meses' : '2 Months'}</option>
+                <option value="3months">{lang === 'es' ? '3 Meses' : '3 Months'}</option>
+                <option value="4months">{lang === 'es' ? '4 Meses' : '4 Months'}</option>
+                <option value="6months">{lang === 'es' ? '6 Meses' : '6 Months'}</option>
+                <option value="9months">{lang === 'es' ? '9 Meses' : '9 Months'}</option>
+                <option value="1year">{lang === 'es' ? '1 Año' : '1 Year'}</option>
+                <option value="18months">{lang === 'es' ? '18 Meses' : '18 Months'}</option>
+                <option value="2years">{lang === 'es' ? '2 Años' : '2 Years'}</option>
+                <option value="30months">{lang === 'es' ? '30 Meses' : '30 Months'}</option>
+                <option value="3years">{lang === 'es' ? '3 Años' : '3 Years'}</option>
+                <option value="4years">{lang === 'es' ? '4 Años' : '4 Years'}</option>
+                <option value="5years">{lang === 'es' ? '5 Años' : '5 Years'}</option>
+                <option value="7years">{lang === 'es' ? '7 Años' : '7 Years'}</option>
+                <option value="10years">{lang === 'es' ? '10 Años' : '10 Years'}</option>
+                <option value="12years">{lang === 'es' ? '12 Años' : '12 Years'}</option>
+                <option value="15years">{lang === 'es' ? '15 Años' : '15 Years'}</option>
+                <option value="20years">{lang === 'es' ? '20 Años' : '20 Years'}</option>
+                <option value="25years">{lang === 'es' ? '25 Años' : '25 Years'}</option>
+                <option value="alltime">{lang === 'es' ? 'Todo' : 'All Time'}</option>
+              </select>
+              {Object.keys(portfolio.holdings).length === 0 && (
+                <button
+                  onClick={() => {
+                    // Add sample portfolio data for testing
+                    const samplePortfolio = {
+                      ...portfolio,
+                      cash: 1000,
+                      holdings: {
+                        'AAPL': { shares: 10, avgCost: 150 },
+                        'MSFT': { shares: 5, avgCost: 300 },
+                        'GOOGL': { shares: 2, avgCost: 2500 }
+                      },
+                      deposits: [{ type: 'deposit', amount: 10000, date: new Date().toISOString() }],
+                      transactions: [
+                        { type: 'deposit', amount: 10000, date: new Date().toLocaleString('es-MX') },
+                        { type: 'buy', symbol: 'AAPL', shares: 10, price: 150, total: 1500, date: new Date().toLocaleString('es-MX') },
+                        { type: 'buy', symbol: 'MSFT', shares: 5, price: 300, total: 1500, date: new Date().toLocaleString('es-MX') },
+                        { type: 'buy', symbol: 'GOOGL', shares: 2, price: 2500, total: 5000, date: new Date().toLocaleString('es-MX') }
+                      ]
+                    };
+                    updatePortfolio(samplePortfolio);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-semibold"
+                >
+                  {lang === 'es' ? 'Datos de prueba' : 'Sample data'}
+                </button>
+              )}
+            </div>
           )}
         </div>
 
         {/* Tab Content */}
         <div className="p-4">
           {loadingPerformance ? (
-            <p className="text-slate-500 text-sm text-center py-8">Cargando datos de rendimiento...</p>
+            <p className="text-slate-500 text-sm text-center py-8">{lang === 'es' ? 'Cargando datos de rendimiento...' : 'Loading performance data...'}</p>
           ) : performanceData ? (
             <div className="space-y-4">
             {/* Resumen de rendimiento simple */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-slate-700/50 rounded-lg p-4">
-                <h3 className="text-white font-semibold mb-2">Crecimiento Total</h3>
+                <h3 className="text-white font-semibold mb-2">{lang === 'es' ? 'Crecimiento Total' : 'Total Growth'}</h3>
                 <p className="text-2xl font-bold text-blue-400">
-                  {fmt(performanceData.totalEndValue - performanceData.totalStartValue)}
+                  {fmt(performanceData.totalGain)}
                 </p>
                 <p className={`text-sm ${performanceData.totalChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {performanceData.totalChange >= 0 ? '+' : ''}{performanceData.totalChange.toFixed(2)}%
                 </p>
+                {performanceData.totalStartValue === 0 && (
+                  <p className="text-xs text-amber-400 mt-1">
+                    {lang === 'es' ? 'Basado en precio de compra promedio' : 'Based on average purchase price'}
+                  </p>
+                )}
               </div>
               <div className="bg-slate-700/50 rounded-lg p-4">
-                <h3 className="text-white font-semibold mb-2">Valor del Portafolio</h3>
+                <h3 className="text-white font-semibold mb-2">{lang === 'es' ? 'Valor del Portafolio' : 'Portfolio Value'}</h3>
                 <p className="text-2xl font-bold text-white">
                   {fmt(performanceData.totalEndValue)}
                 </p>
                 <p className="text-sm text-slate-400">
-                  Desde: {fmt(performanceData.totalStartValue)}
+                  {lang === 'es' ? 'Desde' : 'From'}: {fmt(performanceData.totalStartValue)}
                 </p>
               </div>
             </div>
 
             {/* Rendimiento por activo - solo números */}
-            <div>
-              <h3 className="text-white font-semibold mb-3">Rendimiento por Activo</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {performanceData.individual.map((item) => (
-                  <div key={item.symbol} className="bg-slate-700/50 rounded-lg p-3">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-white font-bold">{item.symbol}</span>
-                      <span className={`text-sm font-semibold ${item.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {item.change >= 0 ? '+' : ''}{item.change.toFixed(2)}%
-                      </span>
-                    </div>
-                    <div className="space-y-1 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Ganancia:</span>
-                        <span className={item.gain >= 0 ? 'text-green-400' : 'text-red-400'}>
-                          {item.gain >= 0 ? '+' : ''}{fmt(item.gain)}
+            {performanceData.individual.length > 0 ? (
+              <div>
+                <h3 className="text-white font-semibold mb-3">{lang === 'es' ? 'Rendimiento por Activo' : 'Performance by Asset'}</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {performanceData.individual.map((item) => (
+                    <div key={item.symbol} className="bg-slate-700/50 rounded-lg p-3">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-white font-bold">{item.symbol}</span>
+                        <span className={`text-sm font-semibold ${item.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {item.change >= 0 ? '+' : ''}{item.change.toFixed(2)}%
                         </span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Valor:</span>
-                        <span className="text-white">{fmt(item.endPrice * item.shares)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Acciones:</span>
-                        <span className="text-slate-200">{item.shares.toFixed(4)}</span>
+                      <div className="space-y-1 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">{lang === 'es' ? 'Ganancia' : 'Gain'}:</span>
+                          <span className={item.gain >= 0 ? 'text-green-400' : 'text-red-400'}>
+                            {item.gain >= 0 ? '+' : ''}{fmt(item.gain)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">{lang === 'es' ? 'Valor' : 'Value'}:</span>
+                          <span className="text-white">{fmt(item.endPrice * item.shares)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">{lang === 'es' ? 'Acciones' : 'Shares'}:</span>
+                          <span className="text-slate-200">{item.shares.toFixed(4)}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-slate-400 text-sm mb-2">
+                  {lang === 'es' ? 'No hay posiciones en el portafolio' : 'No positions in portfolio'}
+                </p>
+                <p className="text-slate-500 text-xs">
+                  {lang === 'es' ? 'Compra algunas acciones para ver el rendimiento' : 'Buy some stocks to see performance'}
+                </p>
+              </div>
+            )}
           </div>
         ) : (
-          <p className="text-slate-500 text-sm text-center py-8">No hay datos de rendimiento disponibles.</p>
+          <div className="text-center py-8">
+            <p className="text-slate-400 text-sm mb-2">
+              {lang === 'es' ? 'No hay datos de rendimiento disponibles' : 'No performance data available'}
+            </p>
+            <p className="text-slate-500 text-xs">
+              {lang === 'es' ? 'Agrega algunas acciones a tu portafolio para comenzar' : 'Add some stocks to your portfolio to get started'}
+            </p>
+          </div>
         )
         }
         </div>

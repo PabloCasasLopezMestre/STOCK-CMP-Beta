@@ -481,6 +481,58 @@ export default function Settings({
         ))}
       </div>
 
+      {/* Clear all data section */}
+      <div className="bg-red-900/20 rounded-xl p-6 border border-red-700/50">
+        <h2 className="text-red-400 font-semibold mb-1">
+          {lang === 'es' ? 'Limpiar datos' : 'Clear data'}
+        </h2>
+        <p className="text-slate-400 text-sm mb-4">
+          {lang === 'es' 
+            ? 'Elimina todos los datos del portafolio y del comparador. Esta acción no se puede deshacer.'
+            : 'Remove all portfolio and comparator data. This action cannot be undone.'}
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            const confirmText = lang === 'es' 
+              ? '¿Estás seguro de que quieres eliminar TODOS los datos del portafolio y comparador? Esta acción no se puede deshacer.'
+              : 'Are you sure you want to delete ALL portfolio and comparator data? This action cannot be undone.';
+            
+            if (confirm(confirmText)) {
+              // Clear portfolio data
+              const defaultPortfolio = {
+                cash: 0,
+                deposits: [],
+                holdings: {},
+                transactions: [],
+                dividendsReceived: 0,
+              };
+              
+              try {
+                // Clear localStorage data
+                localStorage.removeItem('portfolio');
+                localStorage.removeItem('priceAlerts');
+                localStorage.removeItem('bankAccounts');
+                localStorage.removeItem('selectedStocks');
+                localStorage.removeItem('comparatorData');
+                
+                // Save empty portfolio
+                localStorage.setItem('portfolio', JSON.stringify(defaultPortfolio));
+                
+                // Reload the page to reset all state
+                window.location.reload();
+              } catch (error) {
+                console.error('Error clearing data:', error);
+                alert(lang === 'es' ? 'Error al limpiar los datos' : 'Error clearing data');
+              }
+            }
+          }}
+          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+        >
+          {lang === 'es' ? 'Limpiar todos los datos del portafolio y comparador' : 'Clear all portfolio and comparator data'}
+        </button>
+      </div>
+
       {/* Credits */}
       <div className="bg-slate-800/30 rounded-xl p-4 border border-slate-700/50">
         <h2 className="text-white font-semibold mb-3 text-sm">{lang === 'es' ? 'Fuentes de tipos de cambio' : 'Exchange rate sources'}</h2>
