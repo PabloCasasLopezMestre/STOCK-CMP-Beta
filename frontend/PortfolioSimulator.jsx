@@ -645,11 +645,16 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     name: '', 
     balance: '', 
     annualRate: '', 
-    fee: '', 
-    feeType: 'monthly',
     accountType: 'debit', // 'debit' | 'credit'
     growthFrequency: 'monthly', // 'monthly' | 'annual'
-    feeFrequency: 'monthly' // 'weekly' | 'monthly' | 'annual'
+    fees: [] // Array of {name, amount, frequency}
+  });
+  
+  // State for adding individual fees
+  const [newFee, setNewFee] = useState({
+    name: '',
+    amount: '',
+    frequency: 'monthly'
   });
 
   const saveBankAccounts = (accounts) => {
@@ -657,32 +662,58 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     try { localStorage.setItem('bankAccounts', JSON.stringify(accounts)); } catch {}
   };
 
+  // Functions to manage fees
+  const addFeeToNewBank = () => {
+    const amount = parseFloat(newFee.amount);
+    if (!newFee.name || isNaN(amount) || amount <= 0) return;
+    
+    const fee = {
+      id: Date.now(),
+      name: newFee.name,
+      amount: toUSD(amount),
+      frequency: newFee.frequency
+    };
+    
+    setNewBank(prev => ({
+      ...prev,
+      fees: [...prev.fees, fee]
+    }));
+    
+    setNewFee({
+      name: '',
+      amount: '',
+      frequency: 'monthly'
+    });
+  };
+
+  const removeFeeFromNewBank = (feeId) => {
+    setNewBank(prev => ({
+      ...prev,
+      fees: prev.fees.filter(fee => fee.id !== feeId)
+    }));
+  };
+
   const addBankAccount = () => {
     const balance = parseFloat(newBank.balance);
     const rate = parseFloat(newBank.annualRate);
-    const fee = parseFloat(newBank.fee) || 0;
     if (!newBank.name || isNaN(balance) || balance < 0) return;
     const account = {
       id: Date.now(),
       name: newBank.name,
       balance: toUSD(balance),
       annualRate: isNaN(rate) ? 0 : rate,
-      fee: toUSD(fee),
-      feeType: newBank.feeType,
       accountType: newBank.accountType,
       growthFrequency: newBank.growthFrequency,
-      feeFrequency: newBank.feeFrequency,
+      fees: newBank.fees || [] // Array of fee objects
     };
     saveBankAccounts([...bankAccounts, account]);
     setNewBank({ 
       name: '', 
       balance: '', 
       annualRate: '', 
-      fee: '', 
-      feeType: 'monthly',
       accountType: 'debit',
       growthFrequency: 'monthly',
-      feeFrequency: 'monthly'
+      fees: []
     });
   };
 
@@ -700,17 +731,35 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
       
       const interest = a.balance * growthRate;
       
-      // Calculate fee based on frequency
-      let feeAmount;
-      if (a.feeFrequency === 'weekly') {
-        feeAmount = a.fee / 52;
-      } else if (a.feeFrequency === 'annual') {
-        feeAmount = a.fee / 12; // Apply 1/12 of annual fee monthly
-      } else {
-        feeAmount = a.fee; // monthly (default)
+      // Calculate total fees from all fee entries
+      let totalFees = 0;
+      
+      // Handle new fee system (array of fees)
+      if (a.fees && Array.isArray(a.fees)) {
+        totalFees = a.fees.reduce((sum, fee) => {
+          let feeAmount = 0;
+          if (fee.frequency === 'weekly') {
+            feeAmount = fee.amount / 52; // Apply 1/52 of annual fee
+          } else if (fee.frequency === 'annual') {
+            feeAmount = fee.amount / 12; // Apply 1/12 of annual fee monthly
+          } else {
+            feeAmount = fee.amount; // monthly (default)
+          }
+          return sum + feeAmount;
+        }, 0);
+      }
+      // Handle legacy fee system for backward compatibility
+      else if (a.fee) {
+        if (a.feeFrequency === 'weekly') {
+          totalFees = a.fee / 52;
+        } else if (a.feeFrequency === 'annual') {
+          totalFees = a.fee / 12;
+        } else {
+          totalFees = a.fee;
+        }
       }
       
-      const newBalance = Math.max(0, a.balance + interest - feeAmount);
+      const newBalance = Math.max(0, a.balance + interest - totalFees);
       return { ...a, balance: newBalance };
     });
     saveBankAccounts(updated);
@@ -1135,22 +1184,23 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                         name: 'BBVA Checking',
                         balance: 1000,
                         annualRate: 2.5,
-                        fee: 10,
-                        feeType: 'monthly',
                         accountType: 'debit',
                         growthFrequency: 'monthly',
-                        feeFrequency: 'monthly'
+                        fees: [
+                          { id: Date.now() + 10, name: 'Mantenimiento', amount: 15, frequency: 'monthly' },
+                          { id: Date.now() + 11, name: 'Transferencias', amount: 2, frequency: 'weekly' }
+                        ]
                       },
                       {
                         id: Date.now() + 1,
                         name: 'Nu Savings',
                         balance: 5000,
                         annualRate: 4.0,
-                        fee: 0,
-                        feeType: 'monthly',
                         accountType: 'debit',
                         growthFrequency: 'annual',
-                        feeFrequency: 'monthly'
+                        fees: [
+                          { id: Date.now() + 12, name: 'Comisión anual', amount: 50, frequency: 'annual' }
+                        ]
                       }
                     ];
                     saveBankAccounts(sampleBankAccounts);
@@ -1750,20 +1800,29 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
             {bankAccounts.map(a => {
               const annualInterest = a.balance * (a.annualRate / 100);
               
-              // Calculate fee display based on frequency
-              let feeDisplay = '';
-              if (a.fee > 0) {
+              // Calculate total fees display
+              let feesDisplay = '';
+              if (a.fees && Array.isArray(a.fees) && a.fees.length > 0) {
+                const totalMonthlyFees = a.fees.reduce((sum, fee) => {
+                  if (fee.frequency === 'weekly') return sum + (fee.amount / 52) * 4.33; // weekly to monthly
+                  if (fee.frequency === 'annual') return sum + (fee.amount / 12); // annual to monthly
+                  return sum + fee.amount; // monthly
+                }, 0);
+                feesDisplay = ` · ${lang === 'es' ? 'Gastos' : 'Fees'}: ${fmt(totalMonthlyFees)}/${lang === 'es' ? 'mes' : 'mo'}`;
+              }
+              // Legacy fee system for backward compatibility
+              else if (a.fee && a.fee > 0) {
                 const feeFreq = a.feeFrequency || a.feeType || 'monthly';
                 const freqLabel = feeFreq === 'weekly' ? (lang === 'es' ? 'sem' : 'wk') :
                                  feeFreq === 'annual' ? (lang === 'es' ? 'año' : 'yr') :
                                  (lang === 'es' ? 'mes' : 'mo');
-                feeDisplay = ` · ${lang === 'es' ? 'Cobro' : 'Fee'}: ${fmt(a.fee)}/${freqLabel}`;
+                feesDisplay = ` · ${lang === 'es' ? 'Cobro' : 'Fee'}: ${fmt(a.fee)}/${freqLabel}`;
               }
               
               return (
-                <div key={a.id} className="bg-slate-700/50 rounded-lg px-3 py-2 flex items-center justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                <div key={a.id} className="bg-slate-700/50 rounded-lg px-3 py-2">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
                       <p className="text-white text-sm font-semibold truncate">{a.name}</p>
                       <span className={`text-xs px-2 py-0.5 rounded-full ${
                         (a.accountType || 'debit') === 'debit' 
@@ -1773,16 +1832,37 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                         {(a.accountType || 'debit') === 'debit' ? (lang === 'es' ? 'Débito' : 'Debit') : (lang === 'es' ? 'Crédito' : 'Credit')}
                       </span>
                     </div>
-                    <p className="text-slate-400 text-xs">
-                      {fmt(a.balance)} · {a.annualRate}% {lang === 'es' ? 'anual' : 'annual'}
-                      {feeDisplay}
-                    </p>
-                    <p className="text-green-400 text-xs">
-                      {lang === 'es' ? 'Crece' : 'Grows'}: {(a.growthFrequency || 'monthly') === 'annual' ? (lang === 'es' ? 'anual' : 'annual') : (lang === 'es' ? 'mensual' : 'monthly')} · 
-                      {lang === 'es' ? 'Interés anual' : 'Annual interest'}: {fmt(annualInterest)}
-                    </p>
+                    <button onClick={() => removeBankAccount(a.id)} className="text-slate-500 hover:text-red-400 text-xs shrink-0">✕</button>
                   </div>
-                  <button onClick={() => removeBankAccount(a.id)} className="text-slate-500 hover:text-red-400 text-xs shrink-0">✕</button>
+                  
+                  <p className="text-slate-400 text-xs mb-1">
+                    {fmt(a.balance)} · {a.annualRate}% {lang === 'es' ? 'anual' : 'annual'}
+                    {feesDisplay}
+                  </p>
+                  
+                  <p className="text-green-400 text-xs mb-2">
+                    {lang === 'es' ? 'Crece' : 'Grows'}: {(a.growthFrequency || 'monthly') === 'annual' ? (lang === 'es' ? 'anual' : 'annual') : (lang === 'es' ? 'mensual' : 'monthly')} · 
+                    {lang === 'es' ? 'Interés anual' : 'Annual interest'}: {fmt(annualInterest)}
+                  </p>
+                  
+                  {/* Show individual fees if using new system */}
+                  {a.fees && Array.isArray(a.fees) && a.fees.length > 0 && (
+                    <div className="border-t border-slate-600 pt-2 mt-2">
+                      <p className="text-slate-500 text-xs mb-1">{lang === 'es' ? 'Gastos detallados:' : 'Detailed fees:'}</p>
+                      <div className="space-y-1">
+                        {a.fees.map(fee => (
+                          <div key={fee.id} className="flex justify-between text-xs">
+                            <span className="text-slate-300">{fee.name}</span>
+                            <span className="text-slate-400">
+                              {fmt(fee.amount)}/{fee.frequency === 'weekly' ? (lang === 'es' ? 'sem' : 'wk') : 
+                                                fee.frequency === 'annual' ? (lang === 'es' ? 'año' : 'yr') : 
+                                                (lang === 'es' ? 'mes' : 'mo')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -1844,24 +1924,65 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
               </select>
             </div>
             
-            {/* Fee and fee frequency */}
-            <div className="flex gap-2">
-              <input
-                className="flex-1 bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder={`${lang === 'es' ? 'Cobro' : 'Fee'} (${currency})`}
-                type="number"
-                value={newBank.fee}
-                onChange={e => setNewBank(p => ({ ...p, fee: e.target.value }))}
-              />
-              <select
-                className="bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none"
-                value={newBank.feeFrequency}
-                onChange={e => setNewBank(p => ({ ...p, feeFrequency: e.target.value }))}
-              >
-                <option value="weekly">{lang === 'es' ? 'Semanal' : 'Weekly'}</option>
-                <option value="monthly">{lang === 'es' ? 'Mensual' : 'Monthly'}</option>
-                <option value="annual">{lang === 'es' ? 'Anual' : 'Annual'}</option>
-              </select>
+            {/* Fees section */}
+            <div className="border-t border-slate-600 pt-3">
+              <p className="text-white text-sm font-medium mb-2">{lang === 'es' ? 'Gastos/Comisiones' : 'Fees/Expenses'}</p>
+              
+              {/* Show existing fees */}
+              {newBank.fees.length > 0 && (
+                <div className="space-y-1 mb-3">
+                  {newBank.fees.map(fee => (
+                    <div key={fee.id} className="flex items-center justify-between bg-slate-600/50 rounded px-2 py-1">
+                      <span className="text-slate-200 text-xs">
+                        {fee.name}: {fmt(fee.amount)}/{fee.frequency === 'weekly' ? (lang === 'es' ? 'sem' : 'wk') : 
+                                                      fee.frequency === 'annual' ? (lang === 'es' ? 'año' : 'yr') : 
+                                                      (lang === 'es' ? 'mes' : 'mo')}
+                      </span>
+                      <button
+                        onClick={() => removeFeeFromNewBank(fee.id)}
+                        className="text-slate-400 hover:text-red-400 text-xs"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Add new fee */}
+              <div className="space-y-2">
+                <input
+                  className="w-full bg-slate-600 text-white rounded px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder={lang === 'es' ? 'Nombre del gasto (ej. Mantenimiento, Transferencias)' : 'Fee name (e.g. Maintenance, Transfers)'}
+                  value={newFee.name}
+                  onChange={e => setNewFee(p => ({ ...p, name: e.target.value }))}
+                />
+                <div className="flex gap-2">
+                  <input
+                    className="flex-1 bg-slate-600 text-white rounded px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder={`${lang === 'es' ? 'Monto' : 'Amount'} (${currency})`}
+                    type="number"
+                    value={newFee.amount}
+                    onChange={e => setNewFee(p => ({ ...p, amount: e.target.value }))}
+                  />
+                  <select
+                    className="bg-slate-600 text-white rounded px-3 py-1.5 text-xs outline-none"
+                    value={newFee.frequency}
+                    onChange={e => setNewFee(p => ({ ...p, frequency: e.target.value }))}
+                  >
+                    <option value="weekly">{lang === 'es' ? 'Semanal' : 'Weekly'}</option>
+                    <option value="monthly">{lang === 'es' ? 'Mensual' : 'Monthly'}</option>
+                    <option value="annual">{lang === 'es' ? 'Anual' : 'Annual'}</option>
+                  </select>
+                  <button
+                    onClick={addFeeToNewBank}
+                    disabled={!newFee.name || !newFee.amount}
+                    className="bg-slate-500 hover:bg-slate-400 disabled:opacity-50 text-white px-3 py-1.5 rounded text-xs font-semibold"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
             </div>
             
             <button
