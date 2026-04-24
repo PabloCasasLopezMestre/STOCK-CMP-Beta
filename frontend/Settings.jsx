@@ -499,25 +499,46 @@ export default function Settings({
               : 'Are you sure you want to delete ALL portfolio and comparator data? This action cannot be undone.';
             
             if (confirm(confirmText)) {
-              // Clear portfolio data
-              const defaultPortfolio = {
-                cash: 0,
-                deposits: [],
-                holdings: {},
-                transactions: [],
-                dividendsReceived: 0,
-              };
-              
               try {
-                // Clear localStorage data
-                localStorage.removeItem('portfolio');
-                localStorage.removeItem('priceAlerts');
-                localStorage.removeItem('bankAccounts');
-                localStorage.removeItem('selectedStocks');
-                localStorage.removeItem('comparatorData');
+                // Clear all localStorage data related to portfolio and comparator
+                const keysToRemove = [
+                  'portfolio',
+                  'priceAlerts', 
+                  'bankAccounts',
+                  'selectedStocks',
+                  'comparatorData',
+                  'stockData',
+                  'chartData',
+                  'fundamentalsData',
+                  'newsData',
+                  'technicalIndicators',
+                  'patterns',
+                  'backtestResults',
+                  'investmentSimulation'
+                ];
                 
-                // Save empty portfolio
+                // Remove each key
+                keysToRemove.forEach(key => {
+                  localStorage.removeItem(key);
+                });
+                
+                // Set empty portfolio
+                const defaultPortfolio = {
+                  cash: 0,
+                  deposits: [],
+                  holdings: {},
+                  transactions: [],
+                  dividendsReceived: 0,
+                };
                 localStorage.setItem('portfolio', JSON.stringify(defaultPortfolio));
+                
+                // Set empty alerts
+                localStorage.setItem('priceAlerts', JSON.stringify([]));
+                
+                // Show success message
+                alert(lang === 'es' 
+                  ? 'Datos eliminados correctamente. La página se recargará.'
+                  : 'Data cleared successfully. The page will reload.');
                 
                 // Reload the page to reset all state
                 window.location.reload();
