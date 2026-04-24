@@ -95,13 +95,14 @@ async function loadUserData() {
       portfolio: lsGet('portfolio', DEFAULT_PORTFOLIO),
       alerts: lsGet('priceAlerts', DEFAULT_ALERTS),
       preferences: lsGet('preferences', DEFAULT_PREFERENCES),
+      accountCreated: null,
     };
   }
 
   try {
     const { data, error } = await supabase
       .from('user_data')
-      .select()
+      .select('*, created_at')
       .eq('user_id', _userId)
       .maybeSingle();
 
@@ -112,6 +113,7 @@ async function loadUserData() {
         portfolio: DEFAULT_PORTFOLIO,
         alerts: DEFAULT_ALERTS,
         preferences: DEFAULT_PREFERENCES,
+        accountCreated: null,
       };
     }
 
@@ -119,6 +121,7 @@ async function loadUserData() {
       portfolio: { ...DEFAULT_PORTFOLIO, ...(data.portfolio ?? {}) },
       alerts: data.price_alerts ?? DEFAULT_ALERTS,
       preferences: { ...DEFAULT_PREFERENCES, ...(data.preferences ?? {}) },
+      accountCreated: data.created_at,
     };
   } catch (err) {
     console.error('[syncService] loadUserData error:', err);
@@ -126,6 +129,7 @@ async function loadUserData() {
       portfolio: lsGet('portfolio', DEFAULT_PORTFOLIO),
       alerts: lsGet('priceAlerts', DEFAULT_ALERTS),
       preferences: lsGet('preferences', DEFAULT_PREFERENCES),
+      accountCreated: null,
     };
   }
 }
@@ -142,6 +146,7 @@ async function initSync() {
       portfolio: lsGet('portfolio', DEFAULT_PORTFOLIO),
       alerts: lsGet('priceAlerts', DEFAULT_ALERTS),
       preferences: lsGet('preferences', DEFAULT_PREFERENCES),
+      accountCreated: null,
     };
   }
 
@@ -162,6 +167,7 @@ async function initSync() {
       portfolio: lsGet('portfolio', DEFAULT_PORTFOLIO),
       alerts: lsGet('priceAlerts', DEFAULT_ALERTS),
       preferences: lsGet('preferences', DEFAULT_PREFERENCES),
+      accountCreated: null,
     };
   }
 }

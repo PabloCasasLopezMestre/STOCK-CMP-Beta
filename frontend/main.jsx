@@ -64,11 +64,14 @@ function App() {
   const [initialPortfolio, setInitialPortfolio] = useState(null);
 
   // Task 6.1 — initSync on mount, apply data to React state
+  const [accountCreated, setAccountCreated] = useState(null);
+  
   useEffect(() => {
     syncService.initSync().then((data) => {
       if (!data) return;
       if (data.portfolio) setInitialPortfolio(data.portfolio);
       if (data.alerts) setAlerts(data.alerts);
+      if (data.accountCreated) setAccountCreated(data.accountCreated);
       if (data.preferences) {
         const { currency: c, lang: l, timezone, enabledCurrencies: ec } = data.preferences;
         if (c) setCurrency(c);
@@ -471,6 +474,7 @@ function App() {
           removeCustomTickerSymbol={removeCustomTickerSymbol}
           tickerInput={tickerInput}
           setTickerInput={setTickerInput}
+          accountCreated={accountCreated}
         />
       )}
 

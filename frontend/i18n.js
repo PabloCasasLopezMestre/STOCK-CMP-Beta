@@ -921,6 +921,12 @@ const T = {
     de:'Nachrichten laden...', pt:'Carregando notícias...', zh:'加载新闻中...', ru:'Загрузка новостей...', ar:'جارٍ تحميل الأخبار...', ja:'ニュース読み込み中...', ko:'뉴스 로딩 중...',
   },
 
+  // ── Performance tab ──
+  portfolio_performance_tab: {
+    es:'Rendimiento', en:'Performance', fr:'Performance', it:'Performance',
+    de:'Performance', pt:'Desempenho', zh:'表现', ru:'Производительность', ar:'الأداء', ja:'パフォーマンス', ko:'성과',
+  },
+
   // ── Table headers ──
   label_symbol: {
     es:'Símbolo', en:'Symbol', fr:'Symbole', it:'Simbolo',

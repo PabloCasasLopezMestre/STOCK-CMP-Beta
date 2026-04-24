@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LANGUAGES, t } from './i18n';
 import CommunityProfileSettings from './CommunityProfileSettings';
 import AuthEmailPanel from './AuthEmailPanel';
@@ -69,8 +69,50 @@ export default function Settings({
   useCustomTicker = false, toggleUseCustomTicker,
   customTickerSymbols = [], addCustomTickerSymbol, removeCustomTickerSymbol,
   tickerInput = '', setTickerInput,
+  accountCreated = null,
 }) {
   const [tzSearch, setTzSearch] = useState('');
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update current time every second for live timer
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Calculate account age
+  const getAccountAge = () => {
+    if (!accountCreated) return null;
+    
+    const created = new Date(accountCreated);
+    const now = currentTime;
+    const diffMs = now - created;
+    
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+    
+    if (days > 0) {
+      return lang === 'es' 
+        ? `${days} día${days !== 1 ? 's' : ''}, ${hours} hora${hours !== 1 ? 's' : ''}`
+        : `${days} day${days !== 1 ? 's' : ''}, ${hours} hour${hours !== 1 ? 's' : ''}`;
+    } else if (hours > 0) {
+      return lang === 'es'
+        ? `${hours} hora${hours !== 1 ? 's' : ''}, ${minutes} minuto${minutes !== 1 ? 's' : ''}`
+        : `${hours} hour${hours !== 1 ? 's' : ''}, ${minutes} minute${minutes !== 1 ? 's' : ''}`;
+    } else if (minutes > 0) {
+      return lang === 'es'
+        ? `${minutes} minuto${minutes !== 1 ? 's' : ''}, ${seconds} segundo${seconds !== 1 ? 's' : ''}`
+        : `${minutes} minute${minutes !== 1 ? 's' : ''}, ${seconds} second${seconds !== 1 ? 's' : ''}`;
+    } else {
+      return lang === 'es'
+        ? `${seconds} segundo${seconds !== 1 ? 's' : ''}`
+        : `${seconds} second${seconds !== 1 ? 's' : ''}`;
+    }
+  };
 
   // Calculate NYSE open/close in a given timezone
   const nyseHours = (tz) => {
@@ -146,6 +188,40 @@ export default function Settings({
           Reset to default
         </button>
       </div>
+
+      {/* Account Timer */}
+      {accountCreated && (
+        <div className="bg-blue-900/20 rounded-xl p-6 border border-blue-700/50">
+          <h2 className="text-blue-400 font-semibold mb-1">
+            {lang === 'es' ? 'Tiempo con cuenta' : 'Account age'}
+          </h2>
+          <p className="text-slate-400 text-sm mb-3">
+            {lang === 'es' 
+              ? 'Tiempo transcurrido desde que creaste tu cuenta en STOCK-CMP'
+              : 'Time elapsed since you created your STOCK-CMP account'}
+          </p>
+          <div className="bg-slate-800/50 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+              <div>
+                <p className="text-2xl font-bold text-white font-mono">
+                  {getAccountAge() || (lang === 'es' ? 'Calculando...' : 'Calculating...')}
+                </p>
+                <p className="text-slate-400 text-xs mt-1">
+                  {lang === 'es' ? 'Cuenta creada el' : 'Account created on'}: {' '}
+                  {new Date(accountCreated).toLocaleDateString(lang === 'es' ? 'es-MX' : 'en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Language */}
       <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
