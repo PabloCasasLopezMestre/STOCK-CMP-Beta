@@ -1284,7 +1284,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                         name: 'BBVA Checking',
                         balance: 1000,
                         annualRate: 0.5, // Low growth rate for checking account
-                        interestRate: 0, // No additional interest
+                        interestRate: 0, // No interest for debit accounts
                         accountType: 'debit',
                         growthFrequency: 'monthly',
                         interestFrequency: 'annual',
@@ -1298,10 +1298,10 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                         name: 'Nu Savings',
                         balance: 5000,
                         annualRate: 4.0, // Higher growth rate for savings
-                        interestRate: 10.0, // Additional 10% interest (your example)
+                        interestRate: 0, // No interest for debit accounts
                         accountType: 'debit',
                         growthFrequency: 'annual',
-                        interestFrequency: 'monthly',
+                        interestFrequency: 'annual',
                         fees: [
                           { id: Date.now() + 12, name: 'Comisión anual', amount: 50, frequency: 'annual' }
                         ]
@@ -1311,7 +1311,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                         name: 'Credit Card Debt',
                         balance: -2500, // Negative balance (debt)
                         annualRate: 0, // No growth for debt
-                        interestRate: 50.0, // High 50% interest rate (your example)
+                        interestRate: 50.0, // High 50% interest rate for credit accounts only
                         accountType: 'credit',
                         growthFrequency: 'monthly',
                         interestFrequency: 'weekly', // Weekly compounding for credit card
@@ -1970,7 +1970,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                     </span>
                     {a.balance < 0 && <span className="text-red-300 ml-1">({lang === 'es' ? 'DEUDA' : 'DEBT'})</span>}
                      · {lang === 'es' ? 'Crecimiento' : 'Growth'}: {a.annualRate || 0}%
-                    {a.interestRate && a.interestRate > 0 && (
+                    {(a.accountType === 'credit') && a.interestRate && a.interestRate > 0 && (
                       <span> · {lang === 'es' ? 'Interés' : 'Interest'}: {a.interestRate}%</span>
                     )}
                     {feesDisplay}
@@ -2002,15 +2002,6 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                           <span> · {lang === 'es' ? 'Rendimiento' : 'Yield'}: {a.annualRate}%</span>
                         )}
                       </p>
-                      {a.interestRate && a.interestRate > 0 && (
-                        <p className="text-blue-400">
-                          {lang === 'es' ? 'Interés adicional' : 'Additional interest'}: {
-                            (a.interestFrequency || 'annual') === 'weekly' ? (lang === 'es' ? 'semanal' : 'weekly') :
-                            (a.interestFrequency || 'annual') === 'monthly' ? (lang === 'es' ? 'mensual' : 'monthly') :
-                            (lang === 'es' ? 'anual' : 'annual')
-                          } · {a.interestRate}%
-                        </p>
-                      )}
                     </div>
                   )}
                   
@@ -2066,7 +2057,15 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
               <select
                 className="bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none"
                 value={newBank.accountType}
-                onChange={e => setNewBank(p => ({ ...p, accountType: e.target.value }))}
+                onChange={e => {
+                  const newType = e.target.value;
+                  setNewBank(p => ({ 
+                    ...p, 
+                    accountType: newType,
+                    // Clear interest rate if switching to debit
+                    interestRate: newType === 'debit' ? '' : p.interestRate
+                  }));
+                }}
               >
                 <option value="debit">{lang === 'es' ? 'Débito' : 'Debit'}</option>
                 <option value="credit">{lang === 'es' ? 'Crédito' : 'Credit'}</option>
@@ -2099,25 +2098,27 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
               </select>
             </div>
             
-            {/* Interest rate - separate field */}
-            <div className="flex gap-2">
-              <input
-                className="flex-1 bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder={lang === 'es' ? 'Tasa de interés adicional %' : 'Additional interest rate %'}
-                type="number"
-                value={newBank.interestRate}
-                onChange={e => setNewBank(p => ({ ...p, interestRate: e.target.value }))}
-              />
-              <select
-                className="bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none"
-                value={newBank.interestFrequency}
-                onChange={e => setNewBank(p => ({ ...p, interestFrequency: e.target.value }))}
-              >
-                <option value="weekly">{lang === 'es' ? 'Semanal' : 'Weekly'}</option>
-                <option value="monthly">{lang === 'es' ? 'Mensual' : 'Monthly'}</option>
-                <option value="annual">{lang === 'es' ? 'Anual' : 'Annual'}</option>
-              </select>
-            </div>
+            {/* Interest rate - only show for credit accounts */}
+            {newBank.accountType === 'credit' && (
+              <div className="flex gap-2">
+                <input
+                  className="flex-1 bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder={lang === 'es' ? 'Tasa de interés %' : 'Interest rate %'}
+                  type="number"
+                  value={newBank.interestRate}
+                  onChange={e => setNewBank(p => ({ ...p, interestRate: e.target.value }))}
+                />
+                <select
+                  className="bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none"
+                  value={newBank.interestFrequency}
+                  onChange={e => setNewBank(p => ({ ...p, interestFrequency: e.target.value }))}
+                >
+                  <option value="weekly">{lang === 'es' ? 'Semanal' : 'Weekly'}</option>
+                  <option value="monthly">{lang === 'es' ? 'Mensual' : 'Monthly'}</option>
+                  <option value="annual">{lang === 'es' ? 'Anual' : 'Annual'}</option>
+                </select>
+              </div>
+            )}
             
             {/* Fees section */}
             <div className="border-t border-slate-600 pt-3">
