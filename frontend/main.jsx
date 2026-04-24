@@ -433,7 +433,7 @@ function App() {
                 <p className="text-3xl font-bold text-green-400">USD 0.00</p>
                 <div className="flex items-center gap-4 mt-2 text-xs">
                   <span className="text-slate-300">
-                    {t('label_cash', lang)}: <span className="text-green-400 font-semibold">USD 0.00</span>
+                    {lang === 'es' ? 'Cuentas bancarias' : 'Bank accounts'}: <span className="text-green-400 font-semibold">USD 0.00</span>
                   </span>
                   <span className="text-slate-300">
                     {t('label_investments', lang)}: <span className="text-blue-400 font-semibold">USD 0.00</span>

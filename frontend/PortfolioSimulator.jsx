@@ -68,7 +68,6 @@ function savePortfolio(p) {
 }
 
 const DEFAULT_PORTFOLIO = {
-  cash: 0,
   deposits: [],
   holdings: {},   // { AAPL: { shares, avgCost } }
   transactions: [],
@@ -153,7 +152,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
   // Total value chart Y axis
   const [yMin, setYMin] = useState('');
   const [yMax, setYMax] = useState('');
-  const [includeCash, setIncludeCash] = useState(true);
+  const [includeBankAccounts, setIncludeBankAccounts] = useState(true);
   const [totalChartRange, setTotalChartRange] = useState('Todo');
   const [totalChartFilter, setTotalChartFilter] = useState('todo');
 
@@ -530,9 +529,10 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     return amount * rate;
   };
 
-  // Deposit / withdraw
+  // Deposit / withdraw to specific bank account
   const [depositAmount, setDepositAmount] = useState('');
   const [depositMode, setDepositMode] = useState('deposit'); // 'deposit' | 'withdraw'
+  const [selectedBankAccount, setSelectedBankAccount] = useState(''); // bank account ID
 
   // Buy / sell
   const [tradeSymbol, setTradeSymbol] = useState('');
@@ -641,7 +641,16 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     try { return JSON.parse(localStorage.getItem('bankAccounts') || '[]'); } catch { return []; }
   });
   const [showBankSection, setShowBankSection] = useState(false);
-  const [newBank, setNewBank] = useState({ name: '', balance: '', annualRate: '', fee: '', feeType: 'monthly' });
+  const [newBank, setNewBank] = useState({ 
+    name: '', 
+    balance: '', 
+    annualRate: '', 
+    fee: '', 
+    feeType: 'monthly',
+    accountType: 'debit', // 'debit' | 'credit'
+    growthFrequency: 'monthly', // 'weekly' | 'monthly'
+    feeFrequency: 'monthly' // 'weekly' | 'monthly' | 'annual'
+  });
 
   const saveBankAccounts = (accounts) => {
     setBankAccounts(accounts);
@@ -660,24 +669,65 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
       annualRate: isNaN(rate) ? 0 : rate,
       fee: toUSD(fee),
       feeType: newBank.feeType,
+      accountType: newBank.accountType,
+      growthFrequency: newBank.growthFrequency,
+      feeFrequency: newBank.feeFrequency,
     };
     saveBankAccounts([...bankAccounts, account]);
-    setNewBank({ name: '', balance: '', annualRate: '', fee: '', feeType: 'monthly' });
+    setNewBank({ 
+      name: '', 
+      balance: '', 
+      annualRate: '', 
+      fee: '', 
+      feeType: 'monthly',
+      accountType: 'debit',
+      growthFrequency: 'monthly',
+      feeFrequency: 'monthly'
+    });
   };
 
   const removeBankAccount = (id) => saveBankAccounts(bankAccounts.filter(a => a.id !== id));
 
   const applyBankGrowth = () => {
     const updated = bankAccounts.map(a => {
-      const monthlyRate = a.annualRate / 100 / 12;
-      const interest = a.balance * monthlyRate;
-      const feeUSD = a.feeType === 'monthly' ? a.fee : a.fee / 12;
-      return { ...a, balance: Math.max(0, a.balance + interest - feeUSD) };
+      // Calculate growth based on frequency
+      let growthRate;
+      if (a.growthFrequency === 'weekly') {
+        growthRate = a.annualRate / 100 / 52; // weekly rate
+      } else {
+        growthRate = a.annualRate / 100 / 12; // monthly rate (default)
+      }
+      
+      const interest = a.balance * growthRate;
+      
+      // Calculate fee based on frequency
+      let feeAmount;
+      if (a.feeFrequency === 'weekly') {
+        feeAmount = a.fee / 52;
+      } else if (a.feeFrequency === 'annual') {
+        feeAmount = a.fee / 12; // Apply 1/12 of annual fee monthly
+      } else {
+        feeAmount = a.fee; // monthly (default)
+      }
+      
+      const newBalance = Math.max(0, a.balance + interest - feeAmount);
+      return { ...a, balance: newBalance };
     });
     saveBankAccounts(updated);
   };
 
   const totalBankBalance = bankAccounts.reduce((s, a) => s + a.balance, 0);
+  
+  // Get total available cash from all bank accounts
+  const getTotalAvailableCash = () => {
+    return bankAccounts.reduce((total, account) => {
+      // Only count debit accounts as available cash
+      if (account.accountType === 'debit') {
+        return total + account.balance;
+      }
+      return total;
+    }, 0);
+  };
   const [divAmount, setDivAmount] = useState('');
   const [divLoading, setDivLoading] = useState(false);
   const [divInfo, setDivInfo] = useState(null); // { annual, quarterly, yield }
@@ -755,26 +805,51 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
   useEffect(() => { fetchHistoricalPrices(compareRange); }, [JSON.stringify(Object.keys(portfolio.holdings)), compareRange]);
   useEffect(() => { if (refreshTrigger > 0) { fetchPrices(); fetchHistoricalPrices(compareRange); } }, [refreshTrigger]);
 
-  // Deposit / withdraw
+  // Deposit / withdraw to/from specific bank account
   const handleDeposit = () => {
     const amount = parseFloat(depositAmount);
-    if (isNaN(amount) || amount <= 0) return;
+    const accountId = parseInt(selectedBankAccount);
+    if (isNaN(amount) || amount <= 0 || !accountId) return;
+    
     const amountUSD = toUSD(amount);
-    if (depositMode === 'withdraw' && amountUSD > portfolio.cash) return;
+    const accountIndex = bankAccounts.findIndex(acc => acc.id === accountId);
+    if (accountIndex === -1) return;
+    
+    const account = bankAccounts[accountIndex];
+    if (depositMode === 'withdraw' && amountUSD > account.balance) return;
+    
     const delta = depositMode === 'deposit' ? amountUSD : -amountUSD;
+    
+    // Update bank account balance
+    const updatedAccounts = [...bankAccounts];
+    updatedAccounts[accountIndex] = {
+      ...account,
+      balance: account.balance + delta
+    };
+    saveBankAccounts(updatedAccounts);
+    
+    // Record transaction
     const next = {
       ...portfolio,
-      cash: portfolio.cash + delta,
-      deposits: [...portfolio.deposits, { type: depositMode, amount: amountUSD, date: new Date().toISOString() }],
+      deposits: [...portfolio.deposits, { 
+        type: depositMode, 
+        amount: amountUSD, 
+        date: new Date().toISOString(),
+        bankAccount: account.name,
+        bankAccountId: accountId
+      }],
       transactions: [...portfolio.transactions, {
-        type: depositMode, amount: amountUSD, date: new Date().toLocaleString('es-MX'),
+        type: depositMode, 
+        amount: amountUSD, 
+        date: new Date().toLocaleString('es-MX'),
+        bankAccount: account.name
       }],
     };
     updatePortfolio(next);
     setDepositAmount('');
   };
 
-  // Buy
+  // Buy - deduct from bank accounts
   const handleBuy = async () => {
     setTradeError('');
     const sym = tradeSymbol.trim().toUpperCase();
@@ -794,7 +869,23 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     if (!price) { setTradeError(t('portfolio_could_not_get_price', lang)); return; }
 
     const total = price * shares;
-    if (total > portfolio.cash) { setTradeError(`${t('portfolio_insufficient_funds', lang)} ${fmt(total)}`); return; }
+    const availableCash = getTotalAvailableCash();
+    if (total > availableCash) { setTradeError(`${t('portfolio_insufficient_funds', lang)} ${fmt(total)}`); return; }
+
+    // Deduct from bank accounts (prioritize debit accounts)
+    let remainingAmount = total;
+    const updatedAccounts = [...bankAccounts];
+    
+    for (let i = 0; i < updatedAccounts.length && remainingAmount > 0; i++) {
+      const account = updatedAccounts[i];
+      if (account.accountType === 'debit' && account.balance > 0) {
+        const deductAmount = Math.min(account.balance, remainingAmount);
+        updatedAccounts[i] = { ...account, balance: account.balance - deductAmount };
+        remainingAmount -= deductAmount;
+      }
+    }
+    
+    saveBankAccounts(updatedAccounts);
 
     const existing = portfolio.holdings[sym] ?? { shares: 0, avgCost: 0 };
     const newShares = existing.shares + shares;
@@ -802,7 +893,6 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
 
     const next = {
       ...portfolio,
-      cash: portfolio.cash - total,
       holdings: { ...portfolio.holdings, [sym]: { shares: newShares, avgCost: newAvgCost } },
       transactions: [...portfolio.transactions, {
         type: 'buy', symbol: sym, shares, price, total, date: new Date().toLocaleString('es-MX'),
@@ -813,7 +903,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     setTradeShares('');
   };
 
-  // Sell
+  // Sell - deposit to first available debit account
   const handleSell = () => {
     setTradeError('');
     const sym = tradeSymbol.trim().toUpperCase();
@@ -832,9 +922,20 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     if (newShares <= 0) delete newHoldings[sym];
     else newHoldings[sym] = { ...holding, shares: newShares };
 
+    // Deposit proceeds to first available debit account
+    const updatedAccounts = [...bankAccounts];
+    const debitAccount = updatedAccounts.find(acc => acc.accountType === 'debit');
+    if (debitAccount) {
+      const accountIndex = updatedAccounts.findIndex(acc => acc.id === debitAccount.id);
+      updatedAccounts[accountIndex] = { 
+        ...debitAccount, 
+        balance: debitAccount.balance + total 
+      };
+      saveBankAccounts(updatedAccounts);
+    }
+
     const next = {
       ...portfolio,
-      cash: portfolio.cash + total,
       holdings: newHoldings,
       transactions: [...portfolio.transactions, {
         type: 'sell', symbol: sym, shares, price, total, date: new Date().toLocaleString('es-MX'),
@@ -845,7 +946,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     setTradeShares('');
   };
 
-  // Dividend
+  // Dividend - deposit to first available debit account
   const handleDividend = () => {
     const sym = divSymbol.trim().toUpperCase();
     const amountInput = parseFloat(divAmount);
@@ -854,9 +955,21 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     const holding = portfolio.holdings[sym];
     const shares = holding?.shares ?? 0;
     const total = amount * shares;
+    
+    // Deposit dividend to first available debit account
+    const updatedAccounts = [...bankAccounts];
+    const debitAccount = updatedAccounts.find(acc => acc.accountType === 'debit');
+    if (debitAccount) {
+      const accountIndex = updatedAccounts.findIndex(acc => acc.id === debitAccount.id);
+      updatedAccounts[accountIndex] = { 
+        ...debitAccount, 
+        balance: debitAccount.balance + total 
+      };
+      saveBankAccounts(updatedAccounts);
+    }
+    
     const next = {
       ...portfolio,
-      cash: portfolio.cash + total,
       dividendsReceived: portfolio.dividendsReceived + total,
       transactions: [...portfolio.transactions, {
         type: 'dividend', symbol: sym, amount, shares, total, date: new Date().toLocaleString('es-MX'),
@@ -867,18 +980,18 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     setDivAmount('');
   };
 
-  // Portfolio value
+  // Portfolio value - now includes bank accounts
   const holdingsValue = Object.entries(portfolio.holdings).reduce((sum, [sym, h]) => {
     return sum + h.shares * (prices[sym] ?? h.avgCost);
   }, 0);
-  const totalValue = portfolio.cash + holdingsValue;
+  const totalValue = totalBankBalance + holdingsValue;
   const totalDeposited = portfolio.deposits.filter((d) => d.type === 'deposit').reduce((s, d) => s + d.amount, 0);
   const totalWithdrawn = portfolio.deposits.filter((d) => d.type === 'withdraw').reduce((s, d) => s + d.amount, 0);
   const netDeposited = totalDeposited - totalWithdrawn;
   const totalReturn = totalValue - netDeposited;
   const totalReturnPct = netDeposited > 0 ? (totalReturn / netDeposited) * 100 : 0;
 
-  // Gains breakdown
+  // Gains breakdown - now includes bank account gains
   const unrealizedProfit = Object.entries(portfolio.holdings).reduce((sum, [sym, h]) => {
     const currentPrice = prices[sym] ?? h.avgCost;
     return sum + h.shares * (currentPrice - h.avgCost);
@@ -891,7 +1004,11 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     .filter((tx) => tx.type === 'sell')
     .reduce((sum, tx) => sum + tx.shares * (portfolio.holdings[tx.symbol]?.avgCost ?? tx.price), 0);
   const dividendProfit = portfolio.dividendsReceived;
-  const totalProfit = unrealizedProfit + dividendProfit;
+  
+  // Bank account gains (interest earned minus fees paid)
+  const bankGains = totalBankBalance - netDeposited;
+  
+  const totalProfit = unrealizedProfit + dividendProfit + bankGains;
 
   const fmt = fmtCurrency;
 
@@ -996,7 +1113,6 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                     // Add sample portfolio data for testing
                     const samplePortfolio = {
                       ...portfolio,
-                      cash: 1000,
                       holdings: {
                         'AAPL': { shares: 10, avgCost: 150 },
                         'MSFT': { shares: 5, avgCost: 300 },
@@ -1011,6 +1127,33 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                       ]
                     };
                     updatePortfolio(samplePortfolio);
+                    
+                    // Add sample bank accounts
+                    const sampleBankAccounts = [
+                      {
+                        id: Date.now(),
+                        name: 'BBVA Checking',
+                        balance: 1000,
+                        annualRate: 2.5,
+                        fee: 10,
+                        feeType: 'monthly',
+                        accountType: 'debit',
+                        growthFrequency: 'monthly',
+                        feeFrequency: 'monthly'
+                      },
+                      {
+                        id: Date.now() + 1,
+                        name: 'Nu Savings',
+                        balance: 5000,
+                        annualRate: 4.0,
+                        fee: 0,
+                        feeType: 'monthly',
+                        accountType: 'debit',
+                        growthFrequency: 'monthly',
+                        feeFrequency: 'monthly'
+                      }
+                    ];
+                    saveBankAccounts(sampleBankAccounts);
                   }}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-semibold"
                 >
@@ -1118,7 +1261,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: t('label_total_value', lang), value: fmt(totalValue), color: 'text-white' },
-          { label: t('label_cash', lang), value: fmt(portfolio.cash), color: 'text-green-400' },
+          { label: lang === 'es' ? 'Cuentas bancarias' : 'Bank accounts', value: fmt(totalBankBalance), color: 'text-green-400' },
           { label: t('label_investments', lang), value: fmt(holdingsValue), color: 'text-blue-400' },
           { label: t('label_total_return', lang), value: `${totalReturn >= 0 ? '+' : ''}${fmt(totalReturn)} (${totalReturnPct.toFixed(2)}%)`, color: totalReturn >= 0 ? 'text-green-400' : 'text-red-400' },
         ].map(({ label, value, color }) => (
@@ -1133,13 +1276,20 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
       {/* Gains breakdown */}
       <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
         <h3 className="text-white font-semibold mb-3">{t('portfolio_gains_summary', lang)}</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="bg-slate-700/50 rounded-lg p-4 border border-purple-500/30">
             <p className="text-slate-400 text-xs mb-1">{t('portfolio_dividend_gains', lang)}</p>
             <p className={`text-2xl font-bold ${dividendProfit >= 0 ? 'text-purple-400' : 'text-red-400'}`}>
               {dividendProfit >= 0 ? '+' : ''}{fmt(dividendProfit)}
             </p>
             <p className="text-slate-500 text-xs mt-1">{t('portfolio_dividends_accumulated', lang)}</p>
+          </div>
+          <div className="bg-slate-700/50 rounded-lg p-4 border border-orange-500/30">
+            <p className="text-slate-400 text-xs mb-1">{lang === 'es' ? 'Ganancias bancarias' : 'Bank gains'}</p>
+            <p className={`text-2xl font-bold ${bankGains >= 0 ? 'text-orange-400' : 'text-red-400'}`}>
+              {bankGains >= 0 ? '+' : ''}{fmt(bankGains)}
+            </p>
+            <p className="text-slate-500 text-xs mt-1">{lang === 'es' ? 'Intereses menos comisiones' : 'Interest minus fees'}</p>
           </div>
           <div className="bg-slate-700/50 rounded-lg p-4 border border-blue-500/30">
             <p className="text-slate-400 text-xs mb-1">{t('portfolio_stock_value_gain', lang)}</p>
@@ -1153,20 +1303,35 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
             <p className={`text-2xl font-bold ${totalProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
               {totalProfit >= 0 ? '+' : ''}{fmt(totalProfit)}
             </p>
-            <p className="text-slate-500 text-xs mt-1">{t('portfolio_dividends_plus_stocks', lang)}</p>
+            <p className="text-slate-500 text-xs mt-1">{lang === 'es' ? 'Dividendos + bancos + acciones' : 'Dividends + banks + stocks'}</p>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-        {/* Deposit / Withdraw */}
+        {/* Deposit / Withdraw to specific bank account */}
         <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-          <h3 className="text-white font-semibold mb-3">{t('portfolio_bank_account', lang)}</h3>
+          <h3 className="text-white font-semibold mb-3">{lang === 'es' ? 'Depositar/Retirar' : 'Deposit/Withdraw'}</h3>
           <div className="flex gap-2 mb-3">
             <button onClick={() => setDepositMode('deposit')} className={`flex-1 py-1.5 rounded text-sm font-medium ${depositMode === 'deposit' ? 'bg-green-600 text-white' : 'bg-slate-700 text-slate-300'}`}>{t('label_deposit', lang)}</button>
             <button onClick={() => setDepositMode('withdraw')} className={`flex-1 py-1.5 rounded text-sm font-medium ${depositMode === 'withdraw' ? 'bg-red-600 text-white' : 'bg-slate-700 text-slate-300'}`}>{t('label_withdraw', lang)}</button>
           </div>
+          
+          {/* Bank account selector */}
+          <select
+            className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 mb-2"
+            value={selectedBankAccount}
+            onChange={(e) => setSelectedBankAccount(e.target.value)}
+          >
+            <option value="">{lang === 'es' ? 'Seleccionar cuenta' : 'Select account'}</option>
+            {bankAccounts.map(account => (
+              <option key={account.id} value={account.id}>
+                {account.name} - {fmt(account.balance)} ({account.accountType === 'debit' ? (lang === 'es' ? 'Débito' : 'Debit') : (lang === 'es' ? 'Crédito' : 'Credit')})
+              </option>
+            ))}
+          </select>
+          
           <input
             className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 mb-2"
             placeholder={`${lang === 'es' ? 'Cantidad en' : 'Amount in'} ${currency}`}
@@ -1174,7 +1339,11 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
             value={depositAmount}
             onChange={(e) => setDepositAmount(e.target.value)}
           />
-          <button onClick={handleDeposit} className={`w-full py-2 rounded text-sm font-medium text-white ${depositMode === 'deposit' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}>
+          <button 
+            onClick={handleDeposit} 
+            disabled={!selectedBankAccount}
+            className={`w-full py-2 rounded text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed ${depositMode === 'deposit' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
+          >
             {depositMode === 'deposit' ? `+ ${t('label_deposit', lang)}` : `- ${t('label_withdraw', lang)}`}
           </button>
           <p className="text-slate-500 text-xs mt-2">{t('portfolio_deposited', lang)}: {fmt(totalDeposited)} · {t('portfolio_withdrawn', lang)}: {fmt(totalWithdrawn)}</p>
@@ -1465,27 +1634,29 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
 
       {/* Portfolio Total Value Chart */}
       {enabledFeatures.portfolioChart !== false && portfolio.transactions.length > 0 && (() => {
-        let cash = 0;
+        let bankBalance = 0; // Track bank balance through transactions
         let costBasis = {};
         const allPoints = [];
 
         portfolio.transactions.forEach((tx) => {
-          if (tx.type === 'deposit') cash += tx.amount;
-          else if (tx.type === 'withdraw') cash -= tx.amount;
+          if (tx.type === 'deposit') bankBalance += tx.amount;
+          else if (tx.type === 'withdraw') bankBalance -= tx.amount;
           else if (tx.type === 'buy') {
-            cash -= tx.total;
+            bankBalance -= tx.total;
             costBasis[tx.symbol] = (costBasis[tx.symbol] ?? 0) + tx.total;
           } else if (tx.type === 'sell') {
-            cash += tx.total;
+            bankBalance += tx.total;
             const prev = costBasis[tx.symbol] ?? 0;
             const sharesLeft = (portfolio.holdings[tx.symbol]?.shares ?? 0);
             const totalShares = sharesLeft + tx.shares;
             costBasis[tx.symbol] = Math.max(0, prev * (sharesLeft / Math.max(totalShares, 0.0001)));
           } else if (tx.type === 'dividend') {
-            cash += tx.total;
+            bankBalance += tx.total;
           }
           const investedValue = Object.values(costBasis).reduce((s, v) => s + v, 0);
-          const total = includeCash ? cash + investedValue : investedValue;
+          // Use current bank balance for the most recent point, historical bank balance for older points
+          const currentBankBalance = totalBankBalance;
+          const total = includeBankAccounts ? currentBankBalance + investedValue : investedValue;
           const ts = tx.isoDate
             ? new Date(tx.isoDate).getTime()
             : (() => {
@@ -1511,13 +1682,13 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                 <h3 className="text-white font-semibold">{t('portfolio_total_value_chart', lang)}</h3>
                 <div className="bg-green-900/50 border border-green-500/40 rounded-lg px-3 py-1.5 text-center">
                   <p className="text-green-400 text-xs">{t('portfolio_current_value', lang)}</p>
-                  <p className="text-white font-bold text-sm">{fmt(includeCash ? totalValue : holdingsValue)}</p>
+                  <p className="text-white font-bold text-sm">{fmt(includeBankAccounts ? totalValue : holdingsValue)}</p>
                 </div>
                 <button
-                  onClick={() => setIncludeCash(!includeCash)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${includeCash ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'}`}
+                  onClick={() => setIncludeBankAccounts(!includeBankAccounts)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${includeBankAccounts ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'}`}
                 >
-                  {includeCash ? t('portfolio_with_cash', lang) : t('portfolio_without_cash', lang)}
+                  {includeBankAccounts ? (lang === 'es' ? 'Con cuentas de banco' : 'With bank accounts') : (lang === 'es' ? 'Sin cuentas de banco' : 'Without bank accounts')}
                 </button>
               </div>
               <div className="flex gap-1 flex-wrap items-center">
@@ -1578,16 +1749,38 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
           <div className="space-y-2 mb-3">
             {bankAccounts.map(a => {
               const annualInterest = a.balance * (a.annualRate / 100);
-              const monthlyFee = a.feeType === 'monthly' ? a.fee : a.fee / 12;
+              
+              // Calculate fee display based on frequency
+              let feeDisplay = '';
+              if (a.fee > 0) {
+                const feeFreq = a.feeFrequency || a.feeType || 'monthly';
+                const freqLabel = feeFreq === 'weekly' ? (lang === 'es' ? 'sem' : 'wk') :
+                                 feeFreq === 'annual' ? (lang === 'es' ? 'año' : 'yr') :
+                                 (lang === 'es' ? 'mes' : 'mo');
+                feeDisplay = ` · ${lang === 'es' ? 'Cobro' : 'Fee'}: ${fmt(a.fee)}/${freqLabel}`;
+              }
+              
               return (
                 <div key={a.id} className="bg-slate-700/50 rounded-lg px-3 py-2 flex items-center justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm font-semibold truncate">{a.name}</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-white text-sm font-semibold truncate">{a.name}</p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        (a.accountType || 'debit') === 'debit' 
+                          ? 'bg-green-600/20 text-green-400' 
+                          : 'bg-orange-600/20 text-orange-400'
+                      }`}>
+                        {(a.accountType || 'debit') === 'debit' ? (lang === 'es' ? 'Débito' : 'Debit') : (lang === 'es' ? 'Crédito' : 'Credit')}
+                      </span>
+                    </div>
                     <p className="text-slate-400 text-xs">
                       {fmt(a.balance)} · {a.annualRate}% {lang === 'es' ? 'anual' : 'annual'}
-                      {a.fee > 0 && ` · ${lang === 'es' ? 'Cobro' : 'Fee'}: ${fmt(a.fee)}/${a.feeType === 'monthly' ? (lang === 'es' ? 'mes' : 'mo') : (lang === 'es' ? 'año' : 'yr')}`}
+                      {feeDisplay}
                     </p>
-                    <p className="text-green-400 text-xs">{lang === 'es' ? 'Interés anual' : 'Annual interest'}: {fmt(annualInterest)} · {lang === 'es' ? 'Cobro mensual' : 'Monthly fee'}: {fmt(monthlyFee)}</p>
+                    <p className="text-green-400 text-xs">
+                      {lang === 'es' ? 'Crece' : 'Grows'}: {(a.growthFrequency || 'monthly') === 'weekly' ? (lang === 'es' ? 'semanal' : 'weekly') : (lang === 'es' ? 'mensual' : 'monthly')} · 
+                      {lang === 'es' ? 'Interés anual' : 'Annual interest'}: {fmt(annualInterest)}
+                    </p>
                   </div>
                   <button onClick={() => removeBankAccount(a.id)} className="text-slate-500 hover:text-red-400 text-xs shrink-0">✕</button>
                 </div>
@@ -1598,21 +1791,31 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
               onClick={applyBankGrowth}
               className="w-full py-1.5 rounded text-xs font-semibold bg-blue-700 hover:bg-blue-600 text-white"
             >
-              {lang === 'es' ? 'Aplicar crecimiento mensual' : 'Apply monthly growth'}
+              {lang === 'es' ? 'Aplicar crecimiento' : 'Apply growth'}
             </button>
           </div>
         )}
 
         {/* Add new account form */}
         {showBankSection && (
-          <div className="space-y-2 border-t border-slate-700 pt-3">
+          <div className="space-y-3 border-t border-slate-700 pt-3">
             <input
               className="w-full bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
               placeholder={lang === 'es' ? 'Nombre de la cuenta (ej. BBVA, Nu)' : 'Account name (e.g. Chase, Nu)'}
               value={newBank.name}
               onChange={e => setNewBank(p => ({ ...p, name: e.target.value }))}
             />
+            
+            {/* Account type and balance */}
             <div className="flex gap-2">
+              <select
+                className="bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none"
+                value={newBank.accountType}
+                onChange={e => setNewBank(p => ({ ...p, accountType: e.target.value }))}
+              >
+                <option value="debit">{lang === 'es' ? 'Débito' : 'Debit'}</option>
+                <option value="credit">{lang === 'es' ? 'Crédito' : 'Credit'}</option>
+              </select>
               <input
                 className="flex-1 bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
                 placeholder={`${lang === 'es' ? 'Saldo' : 'Balance'} (${currency})`}
@@ -1620,14 +1823,28 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                 value={newBank.balance}
                 onChange={e => setNewBank(p => ({ ...p, balance: e.target.value }))}
               />
+            </div>
+            
+            {/* Interest rate and growth frequency */}
+            <div className="flex gap-2">
               <input
-                className="w-24 bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder={lang === 'es' ? 'Tasa %' : 'Rate %'}
+                className="flex-1 bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder={lang === 'es' ? 'Tasa anual %' : 'Annual rate %'}
                 type="number"
                 value={newBank.annualRate}
                 onChange={e => setNewBank(p => ({ ...p, annualRate: e.target.value }))}
               />
+              <select
+                className="bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none"
+                value={newBank.growthFrequency}
+                onChange={e => setNewBank(p => ({ ...p, growthFrequency: e.target.value }))}
+              >
+                <option value="weekly">{lang === 'es' ? 'Crece semanal' : 'Weekly growth'}</option>
+                <option value="monthly">{lang === 'es' ? 'Crece mensual' : 'Monthly growth'}</option>
+              </select>
             </div>
+            
+            {/* Fee and fee frequency */}
             <div className="flex gap-2">
               <input
                 className="flex-1 bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
@@ -1638,13 +1855,15 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
               />
               <select
                 className="bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none"
-                value={newBank.feeType}
-                onChange={e => setNewBank(p => ({ ...p, feeType: e.target.value }))}
+                value={newBank.feeFrequency}
+                onChange={e => setNewBank(p => ({ ...p, feeFrequency: e.target.value }))}
               >
+                <option value="weekly">{lang === 'es' ? 'Semanal' : 'Weekly'}</option>
                 <option value="monthly">{lang === 'es' ? 'Mensual' : 'Monthly'}</option>
                 <option value="annual">{lang === 'es' ? 'Anual' : 'Annual'}</option>
               </select>
             </div>
+            
             <button
               type="button"
               onClick={addBankAccount}
