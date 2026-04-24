@@ -1202,7 +1202,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                         id: Date.now(),
                         name: 'BBVA Checking',
                         balance: 1000,
-                        annualRate: 2.5,
+                        annualRate: 0.5, // Low rate for checking account
                         accountType: 'debit',
                         growthFrequency: 'monthly',
                         interestFrequency: 'monthly',
@@ -1215,7 +1215,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                         id: Date.now() + 1,
                         name: 'Nu Savings',
                         balance: 5000,
-                        annualRate: 4.0,
+                        annualRate: 4.0, // Higher rate for savings
                         accountType: 'debit',
                         growthFrequency: 'annual',
                         interestFrequency: 'annual',
@@ -1880,15 +1880,23 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                     {feesDisplay}
                   </p>
                   
-                  <p className="text-green-400 text-xs mb-2">
-                    {lang === 'es' ? 'Crece' : 'Grows'}: {(a.growthFrequency || 'monthly') === 'annual' ? (lang === 'es' ? 'anual' : 'annual') : (lang === 'es' ? 'mensual' : 'monthly')} · 
-                    {lang === 'es' ? 'Interés' : 'Interest'}: {
-                      (a.interestFrequency || a.growthFrequency || 'annual') === 'weekly' ? (lang === 'es' ? 'semanal' : 'weekly') :
-                      (a.interestFrequency || a.growthFrequency || 'annual') === 'monthly' ? (lang === 'es' ? 'mensual' : 'monthly') :
-                      (lang === 'es' ? 'anual' : 'annual')
-                    } · 
-                    {lang === 'es' ? 'Interés anual' : 'Annual interest'}: {fmt(annualInterest)}
-                  </p>
+                  {(a.accountType || 'debit') === 'credit' ? (
+                    <p className="text-red-400 text-xs mb-2">
+                      {lang === 'es' ? 'Interés' : 'Interest'}: {
+                        (a.interestFrequency || a.growthFrequency || 'annual') === 'weekly' ? (lang === 'es' ? 'semanal' : 'weekly') :
+                        (a.interestFrequency || a.growthFrequency || 'annual') === 'monthly' ? (lang === 'es' ? 'mensual' : 'monthly') :
+                        (lang === 'es' ? 'anual' : 'annual')
+                      } · 
+                      {lang === 'es' ? 'Interés anual' : 'Annual interest'}: {fmt(Math.abs(annualInterest))}
+                    </p>
+                  ) : (
+                    <p className="text-green-400 text-xs mb-2">
+                      {lang === 'es' ? 'Crece' : 'Grows'}: {(a.growthFrequency || 'monthly') === 'annual' ? (lang === 'es' ? 'anual' : 'annual') : (lang === 'es' ? 'mensual' : 'monthly')}
+                      {a.annualRate > 0 && (
+                        <span> · {lang === 'es' ? 'Rendimiento anual' : 'Annual yield'}: {fmt(annualInterest)}</span>
+                      )}
+                    </p>
+                  )}
                   
                   {/* Show individual fees if using new system */}
                   {a.fees && Array.isArray(a.fees) && a.fees.length > 0 && (
@@ -1969,21 +1977,23 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
               </select>
             </div>
             
-            {/* Interest frequency */}
-            <div className="flex gap-2">
-              <label className="text-slate-400 text-sm self-center">
-                {lang === 'es' ? 'Frecuencia de interés:' : 'Interest frequency:'}
-              </label>
-              <select
-                className="flex-1 bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none"
-                value={newBank.interestFrequency}
-                onChange={e => setNewBank(p => ({ ...p, interestFrequency: e.target.value }))}
-              >
-                <option value="weekly">{lang === 'es' ? 'Semanal' : 'Weekly'}</option>
-                <option value="monthly">{lang === 'es' ? 'Mensual' : 'Monthly'}</option>
-                <option value="annual">{lang === 'es' ? 'Anual' : 'Annual'}</option>
-              </select>
-            </div>
+            {/* Interest frequency - only show for credit accounts */}
+            {newBank.accountType === 'credit' && (
+              <div className="flex gap-2">
+                <label className="text-slate-400 text-sm self-center">
+                  {lang === 'es' ? 'Frecuencia de interés:' : 'Interest frequency:'}
+                </label>
+                <select
+                  className="flex-1 bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none"
+                  value={newBank.interestFrequency}
+                  onChange={e => setNewBank(p => ({ ...p, interestFrequency: e.target.value }))}
+                >
+                  <option value="weekly">{lang === 'es' ? 'Semanal' : 'Weekly'}</option>
+                  <option value="monthly">{lang === 'es' ? 'Mensual' : 'Monthly'}</option>
+                  <option value="annual">{lang === 'es' ? 'Anual' : 'Annual'}</option>
+                </select>
+              </div>
+            )}
             
             {/* Fees section */}
             <div className="border-t border-slate-600 pt-3">
