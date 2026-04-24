@@ -641,6 +641,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     try { return JSON.parse(localStorage.getItem('bankAccounts') || '[]'); } catch { return []; }
   });
   const [showBankSection, setShowBankSection] = useState(false);
+  const [editingAccount, setEditingAccount] = useState(null); // For editing existing accounts
   const [newBank, setNewBank] = useState({ 
     name: '', 
     balance: '', 
@@ -698,17 +699,41 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
     const balance = parseFloat(newBank.balance);
     const rate = parseFloat(newBank.annualRate);
     if (!newBank.name || isNaN(balance)) return; // Remove balance >= 0 restriction to allow negative balances
-    const account = {
-      id: Date.now(),
-      name: newBank.name,
-      balance: toUSD(balance), // Can be negative now
-      annualRate: isNaN(rate) ? 0 : rate,
-      accountType: newBank.accountType,
-      growthFrequency: newBank.growthFrequency,
-      interestFrequency: newBank.interestFrequency,
-      fees: newBank.fees || [] // Array of fee objects
-    };
-    saveBankAccounts([...bankAccounts, account]);
+    
+    if (editingAccount) {
+      // Update existing account
+      const updatedAccounts = bankAccounts.map(account => 
+        account.id === editingAccount.id 
+          ? {
+              ...account,
+              name: newBank.name,
+              balance: toUSD(balance),
+              annualRate: isNaN(rate) ? 0 : rate,
+              accountType: newBank.accountType,
+              growthFrequency: newBank.growthFrequency,
+              interestFrequency: newBank.interestFrequency,
+              fees: newBank.fees || []
+            }
+          : account
+      );
+      saveBankAccounts(updatedAccounts);
+      setEditingAccount(null);
+    } else {
+      // Add new account
+      const account = {
+        id: Date.now(),
+        name: newBank.name,
+        balance: toUSD(balance), // Can be negative now
+        annualRate: isNaN(rate) ? 0 : rate,
+        accountType: newBank.accountType,
+        growthFrequency: newBank.growthFrequency,
+        interestFrequency: newBank.interestFrequency,
+        fees: newBank.fees || [] // Array of fee objects
+      };
+      saveBankAccounts([...bankAccounts, account]);
+    }
+    
+    // Reset form
     setNewBank({ 
       name: '', 
       balance: '', 
@@ -718,6 +743,39 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
       interestFrequency: 'annual',
       fees: []
     });
+    
+    // Close form if we were editing
+    if (editingAccount) {
+      setShowBankSection(false);
+    }
+  };
+
+  const startEditingAccount = (account) => {
+    setEditingAccount(account);
+    setNewBank({
+      name: account.name,
+      balance: String(fromUSD(account.balance)),
+      annualRate: String(account.annualRate || ''),
+      accountType: account.accountType || 'debit',
+      growthFrequency: account.growthFrequency || 'monthly',
+      interestFrequency: account.interestFrequency || 'annual',
+      fees: account.fees || []
+    });
+    setShowBankSection(true);
+  };
+
+  const cancelEditing = () => {
+    setEditingAccount(null);
+    setNewBank({ 
+      name: '', 
+      balance: '', 
+      annualRate: '', 
+      accountType: 'debit',
+      growthFrequency: 'monthly',
+      interestFrequency: 'annual',
+      fees: []
+    });
+    setShowBankSection(false); // Close the form when canceling
   };
 
   const removeBankAccount = (id) => saveBankAccounts(bankAccounts.filter(a => a.id !== id));
@@ -1868,7 +1926,16 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                         {(a.accountType || 'debit') === 'debit' ? (lang === 'es' ? 'Débito' : 'Debit') : (lang === 'es' ? 'Crédito' : 'Credit')}
                       </span>
                     </div>
-                    <button onClick={() => removeBankAccount(a.id)} className="text-slate-500 hover:text-red-400 text-xs shrink-0">✕</button>
+                    <div className="flex items-center gap-1">
+                      <button 
+                        onClick={() => startEditingAccount(a)} 
+                        className="text-slate-400 hover:text-blue-400 text-xs px-2 py-1 rounded bg-slate-600/50 hover:bg-slate-600"
+                        title={lang === 'es' ? 'Editar cuenta' : 'Edit account'}
+                      >
+                        ✏️
+                      </button>
+                      <button onClick={() => removeBankAccount(a.id)} className="text-slate-500 hover:text-red-400 text-xs shrink-0">✕</button>
+                    </div>
                   </div>
                   
                   <p className="text-slate-400 text-xs mb-1">
@@ -1929,9 +1996,15 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
           </div>
         )}
 
-        {/* Add new account form */}
+        {/* Add/Edit account form */}
         {showBankSection && (
           <div className="space-y-3 border-t border-slate-700 pt-3">
+            <h4 className="text-white text-sm font-semibold">
+              {editingAccount 
+                ? (lang === 'es' ? `Editar: ${editingAccount.name}` : `Edit: ${editingAccount.name}`)
+                : (lang === 'es' ? 'Agregar nueva cuenta' : 'Add new account')
+              }
+            </h4>
             <input
               className="w-full bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
               placeholder={lang === 'es' ? 'Nombre de la cuenta (ej. BBVA, Nu)' : 'Account name (e.g. Chase, Nu)'}
@@ -2056,14 +2129,28 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
               </div>
             </div>
             
-            <button
-              type="button"
-              onClick={addBankAccount}
-              disabled={!newBank.name || !newBank.balance}
-              className="w-full py-1.5 rounded text-sm font-semibold bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white"
-            >
-              {lang === 'es' ? '+ Agregar cuenta' : '+ Add account'}
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={addBankAccount}
+                disabled={!newBank.name || !newBank.balance}
+                className="flex-1 py-1.5 rounded text-sm font-semibold bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white"
+              >
+                {editingAccount 
+                  ? (lang === 'es' ? '💾 Guardar cambios' : '💾 Save changes')
+                  : (lang === 'es' ? '+ Agregar cuenta' : '+ Add account')
+                }
+              </button>
+              {editingAccount && (
+                <button
+                  type="button"
+                  onClick={cancelEditing}
+                  className="px-4 py-1.5 rounded text-sm font-semibold bg-slate-600 hover:bg-slate-500 text-white"
+                >
+                  {lang === 'es' ? 'Cancelar' : 'Cancel'}
+                </button>
+              )}
+            </div>
           </div>
         )}
 
