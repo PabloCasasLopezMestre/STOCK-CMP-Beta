@@ -645,7 +645,8 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
   const [newBank, setNewBank] = useState({ 
     name: '', 
     balance: '', 
-    annualRate: '', 
+    annualRate: '', // Growth rate (rendimiento/crecimiento)
+    interestRate: '', // Interest rate (interés adicional)
     accountType: 'debit', // 'debit' | 'credit'
     growthFrequency: 'monthly', // 'monthly' | 'annual'
     interestFrequency: 'annual', // 'weekly' | 'monthly' | 'annual' - how often interest is applied
@@ -698,6 +699,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
   const addBankAccount = () => {
     const balance = parseFloat(newBank.balance);
     const rate = parseFloat(newBank.annualRate);
+    const interestRate = parseFloat(newBank.interestRate);
     if (!newBank.name || isNaN(balance)) return; // Remove balance >= 0 restriction to allow negative balances
     
     if (editingAccount) {
@@ -709,6 +711,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
               name: newBank.name,
               balance: toUSD(balance),
               annualRate: isNaN(rate) ? 0 : rate,
+              interestRate: isNaN(interestRate) ? 0 : interestRate,
               accountType: newBank.accountType,
               growthFrequency: newBank.growthFrequency,
               interestFrequency: newBank.interestFrequency,
@@ -725,6 +728,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
         name: newBank.name,
         balance: toUSD(balance), // Can be negative now
         annualRate: isNaN(rate) ? 0 : rate,
+        interestRate: isNaN(interestRate) ? 0 : interestRate,
         accountType: newBank.accountType,
         growthFrequency: newBank.growthFrequency,
         interestFrequency: newBank.interestFrequency,
@@ -738,6 +742,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
       name: '', 
       balance: '', 
       annualRate: '', 
+      interestRate: '',
       accountType: 'debit',
       growthFrequency: 'monthly',
       interestFrequency: 'annual',
@@ -756,6 +761,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
       name: account.name,
       balance: String(fromUSD(account.balance)),
       annualRate: String(account.annualRate || ''),
+      interestRate: String(account.interestRate || ''),
       accountType: account.accountType || 'debit',
       growthFrequency: account.growthFrequency || 'monthly',
       interestFrequency: account.interestFrequency || 'annual',
@@ -770,6 +776,7 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
       name: '', 
       balance: '', 
       annualRate: '', 
+      interestRate: '',
       accountType: 'debit',
       growthFrequency: 'monthly',
       interestFrequency: 'annual',
@@ -782,28 +789,44 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
 
   const applyBankGrowth = () => {
     const updated = bankAccounts.map(a => {
-      // Calculate growth/interest based on frequency
-      let interestRate = 0;
+      let newBalance = a.balance;
       
-      // Use interestFrequency if available, otherwise fall back to growthFrequency
-      const frequency = a.interestFrequency || a.growthFrequency || 'monthly';
-      
-      if (frequency === 'weekly') {
-        interestRate = a.annualRate / 100 / 52; // weekly rate
-      } else if (frequency === 'monthly') {
-        interestRate = a.annualRate / 100 / 12; // monthly rate
-      } else { // annual
-        interestRate = a.annualRate / 100; // full annual rate
+      // 1. Apply growth rate (rendimiento/crecimiento)
+      if (a.annualRate && a.annualRate > 0) {
+        let growthRate = 0;
+        if (a.growthFrequency === 'annual') {
+          growthRate = a.annualRate / 100; // full annual rate
+        } else { // monthly
+          growthRate = a.annualRate / 100 / 12; // monthly rate
+        }
+        const growthAmount = newBalance * growthRate;
+        newBalance += growthAmount;
       }
       
-      // Calculate interest (positive for positive balances, negative for negative balances)
-      const interest = a.balance * interestRate;
+      // 2. Apply interest rate (interés adicional) - separate from growth
+      if (a.interestRate && a.interestRate > 0) {
+        let interestRate = 0;
+        
+        // Use interestFrequency for interest calculations
+        const frequency = a.interestFrequency || 'annual';
+        
+        if (frequency === 'weekly') {
+          interestRate = a.interestRate / 100 / 52; // weekly rate
+        } else if (frequency === 'monthly') {
+          interestRate = a.interestRate / 100 / 12; // monthly rate
+        } else { // annual
+          interestRate = a.interestRate / 100; // full annual rate
+        }
+        
+        // Calculate interest (positive for positive balances, negative for negative balances)
+        const interest = newBalance * interestRate;
+        
+        // For negative balances (debt), interest increases the debt
+        // For positive balances, interest increases the balance
+        newBalance += interest;
+      }
       
-      // For negative balances (debt), interest increases the debt
-      // For positive balances, interest increases the balance
-      const newBalanceAfterInterest = a.balance + interest;
-      
-      // Calculate total fees from all fee entries
+      // 3. Calculate total fees from all fee entries
       let totalFees = 0;
       
       // Handle new fee system (array of fees)
@@ -831,8 +854,8 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
         }
       }
       
-      // Apply fees (always subtract fees, making negative balances more negative)
-      const finalBalance = newBalanceAfterInterest - totalFees;
+      // 4. Apply fees (always subtract fees, making negative balances more negative)
+      const finalBalance = newBalance - totalFees;
       
       return { ...a, balance: finalBalance };
     });
@@ -1260,10 +1283,11 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                         id: Date.now(),
                         name: 'BBVA Checking',
                         balance: 1000,
-                        annualRate: 0.5, // Low rate for checking account
+                        annualRate: 0.5, // Low growth rate for checking account
+                        interestRate: 0, // No additional interest
                         accountType: 'debit',
                         growthFrequency: 'monthly',
-                        interestFrequency: 'monthly',
+                        interestFrequency: 'annual',
                         fees: [
                           { id: Date.now() + 10, name: 'Mantenimiento', amount: 15, frequency: 'monthly' },
                           { id: Date.now() + 11, name: 'Transferencias', amount: 2, frequency: 'weekly' }
@@ -1273,10 +1297,11 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                         id: Date.now() + 1,
                         name: 'Nu Savings',
                         balance: 5000,
-                        annualRate: 4.0, // Higher rate for savings
+                        annualRate: 4.0, // Higher growth rate for savings
+                        interestRate: 10.0, // Additional 10% interest (your example)
                         accountType: 'debit',
                         growthFrequency: 'annual',
-                        interestFrequency: 'annual',
+                        interestFrequency: 'monthly',
                         fees: [
                           { id: Date.now() + 12, name: 'Comisión anual', amount: 50, frequency: 'annual' }
                         ]
@@ -1285,7 +1310,8 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                         id: Date.now() + 2,
                         name: 'Credit Card Debt',
                         balance: -2500, // Negative balance (debt)
-                        annualRate: 18.0, // High interest rate for debt
+                        annualRate: 0, // No growth for debt
+                        interestRate: 50.0, // High 50% interest rate (your example)
                         accountType: 'credit',
                         growthFrequency: 'monthly',
                         interestFrequency: 'weekly', // Weekly compounding for credit card
@@ -1943,26 +1969,49 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
                       {fmt(a.balance)}
                     </span>
                     {a.balance < 0 && <span className="text-red-300 ml-1">({lang === 'es' ? 'DEUDA' : 'DEBT'})</span>}
-                     · {a.annualRate}% {lang === 'es' ? 'anual' : 'annual'}
+                     · {lang === 'es' ? 'Crecimiento' : 'Growth'}: {a.annualRate || 0}%
+                    {a.interestRate && a.interestRate > 0 && (
+                      <span> · {lang === 'es' ? 'Interés' : 'Interest'}: {a.interestRate}%</span>
+                    )}
                     {feesDisplay}
                   </p>
                   
                   {(a.accountType || 'debit') === 'credit' ? (
-                    <p className="text-red-400 text-xs mb-2">
-                      {lang === 'es' ? 'Interés' : 'Interest'}: {
-                        (a.interestFrequency || a.growthFrequency || 'annual') === 'weekly' ? (lang === 'es' ? 'semanal' : 'weekly') :
-                        (a.interestFrequency || a.growthFrequency || 'annual') === 'monthly' ? (lang === 'es' ? 'mensual' : 'monthly') :
-                        (lang === 'es' ? 'anual' : 'annual')
-                      } · 
-                      {lang === 'es' ? 'Interés anual' : 'Annual interest'}: {fmt(Math.abs(annualInterest))}
-                    </p>
-                  ) : (
-                    <p className="text-green-400 text-xs mb-2">
-                      {lang === 'es' ? 'Crece' : 'Grows'}: {(a.growthFrequency || 'monthly') === 'annual' ? (lang === 'es' ? 'anual' : 'annual') : (lang === 'es' ? 'mensual' : 'monthly')}
-                      {a.annualRate > 0 && (
-                        <span> · {lang === 'es' ? 'Rendimiento anual' : 'Annual yield'}: {fmt(annualInterest)}</span>
+                    <div className="text-xs mb-2">
+                      <p className="text-green-400">
+                        {lang === 'es' ? 'Crece' : 'Grows'}: {(a.growthFrequency || 'monthly') === 'annual' ? (lang === 'es' ? 'anual' : 'annual') : (lang === 'es' ? 'mensual' : 'monthly')}
+                        {a.annualRate > 0 && (
+                          <span> · {lang === 'es' ? 'Rendimiento' : 'Yield'}: {a.annualRate}%</span>
+                        )}
+                      </p>
+                      {a.interestRate && a.interestRate > 0 && (
+                        <p className="text-red-400">
+                          {lang === 'es' ? 'Interés' : 'Interest'}: {
+                            (a.interestFrequency || 'annual') === 'weekly' ? (lang === 'es' ? 'semanal' : 'weekly') :
+                            (a.interestFrequency || 'annual') === 'monthly' ? (lang === 'es' ? 'mensual' : 'monthly') :
+                            (lang === 'es' ? 'anual' : 'annual')
+                          } · {a.interestRate}%
+                        </p>
                       )}
-                    </p>
+                    </div>
+                  ) : (
+                    <div className="text-xs mb-2">
+                      <p className="text-green-400">
+                        {lang === 'es' ? 'Crece' : 'Grows'}: {(a.growthFrequency || 'monthly') === 'annual' ? (lang === 'es' ? 'anual' : 'annual') : (lang === 'es' ? 'mensual' : 'monthly')}
+                        {a.annualRate > 0 && (
+                          <span> · {lang === 'es' ? 'Rendimiento' : 'Yield'}: {a.annualRate}%</span>
+                        )}
+                      </p>
+                      {a.interestRate && a.interestRate > 0 && (
+                        <p className="text-blue-400">
+                          {lang === 'es' ? 'Interés adicional' : 'Additional interest'}: {
+                            (a.interestFrequency || 'annual') === 'weekly' ? (lang === 'es' ? 'semanal' : 'weekly') :
+                            (a.interestFrequency || 'annual') === 'monthly' ? (lang === 'es' ? 'mensual' : 'monthly') :
+                            (lang === 'es' ? 'anual' : 'annual')
+                          } · {a.interestRate}%
+                        </p>
+                      )}
+                    </div>
                   )}
                   
                   {/* Show individual fees if using new system */}
@@ -2031,11 +2080,11 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
               />
             </div>
             
-            {/* Interest rate and frequencies */}
+            {/* Growth rate and frequencies */}
             <div className="flex gap-2">
               <input
                 className="flex-1 bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder={lang === 'es' ? 'Tasa anual %' : 'Annual rate %'}
+                placeholder={lang === 'es' ? 'Tasa de crecimiento %' : 'Growth rate %'}
                 type="number"
                 value={newBank.annualRate}
                 onChange={e => setNewBank(p => ({ ...p, annualRate: e.target.value }))}
@@ -2050,23 +2099,25 @@ export default function PortfolioSimulator({ currency, setCurrency, nextCurrency
               </select>
             </div>
             
-            {/* Interest frequency - only show for credit accounts */}
-            {newBank.accountType === 'credit' && (
-              <div className="flex gap-2">
-                <label className="text-slate-400 text-sm self-center">
-                  {lang === 'es' ? 'Frecuencia de interés:' : 'Interest frequency:'}
-                </label>
-                <select
-                  className="flex-1 bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none"
-                  value={newBank.interestFrequency}
-                  onChange={e => setNewBank(p => ({ ...p, interestFrequency: e.target.value }))}
-                >
-                  <option value="weekly">{lang === 'es' ? 'Semanal' : 'Weekly'}</option>
-                  <option value="monthly">{lang === 'es' ? 'Mensual' : 'Monthly'}</option>
-                  <option value="annual">{lang === 'es' ? 'Anual' : 'Annual'}</option>
-                </select>
-              </div>
-            )}
+            {/* Interest rate - separate field */}
+            <div className="flex gap-2">
+              <input
+                className="flex-1 bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder={lang === 'es' ? 'Tasa de interés adicional %' : 'Additional interest rate %'}
+                type="number"
+                value={newBank.interestRate}
+                onChange={e => setNewBank(p => ({ ...p, interestRate: e.target.value }))}
+              />
+              <select
+                className="bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none"
+                value={newBank.interestFrequency}
+                onChange={e => setNewBank(p => ({ ...p, interestFrequency: e.target.value }))}
+              >
+                <option value="weekly">{lang === 'es' ? 'Semanal' : 'Weekly'}</option>
+                <option value="monthly">{lang === 'es' ? 'Mensual' : 'Monthly'}</option>
+                <option value="annual">{lang === 'es' ? 'Anual' : 'Annual'}</option>
+              </select>
+            </div>
             
             {/* Fees section */}
             <div className="border-t border-slate-600 pt-3">
