@@ -18,7 +18,7 @@ const DEFAULT_PORTFOLIO = {
   dividendsReceived: [],
 };
 
-export default function Portfolio() {
+export default function Portfolio({ enabledFeatures = {} }) {
   const [portfolio, setPortfolio] = useState(() => loadPortfolio() || DEFAULT_PORTFOLIO);
   const [prices, setPrices] = useState({});
   const [loadingPrices, setLoadingPrices] = useState(false);
