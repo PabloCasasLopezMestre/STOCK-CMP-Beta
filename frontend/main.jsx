@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
+import './index.css'; // Import Tailwind CSS
 import StockComparisonApp from './StockComparisonApp';
 import PortfolioSimulator from './PortfolioSimulator';
 import Community from './Community';
