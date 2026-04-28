@@ -90,10 +90,220 @@ export default function PortfolioSimulator({
   const [performanceData, setPerformanceData] = useState(null);
   const [loadingPerformance, setLoadingPerformance] = useState(false);
 
-  // Bank accounts - simplified
+  // Bank accounts - complete functionality
   const [bankAccounts, setBankAccounts] = useState(() => {
     try { return JSON.parse(localStorage.getItem('bankAccounts') || '[]'); } catch { return []; }
   });
+  const [showBankSection, setShowBankSection] = useState(false);
+  const [editingAccount, setEditingAccount] = useState(null);
+  const [newBank, setNewBank] = useState({ 
+    name: '', 
+    balance: '', 
+    annualRate: '', // Growth rate (rendimiento/crecimiento)
+    interestRate: '', // Interest rate (interés adicional)
+    accountType: 'debit', // 'debit' | 'credit'
+    growthFrequency: 'monthly', // 'monthly' | 'annual'
+    interestFrequency: 'annual', // 'weekly' | 'monthly' | 'annual'
+    fees: [] // Array of {name, amount, frequency}
+  });
+  
+  // State for adding individual fees
+  const [newFee, setNewFee] = useState({
+    name: '',
+    amount: '',
+    frequency: 'monthly'
+  });
+
+  const saveBankAccounts = (accounts) => {
+    setBankAccounts(accounts);
+    try { localStorage.setItem('bankAccounts', JSON.stringify(accounts)); } catch {}
+  };
+
+  // Functions to manage fees
+  const addFeeToNewBank = () => {
+    const amount = parseFloat(newFee.amount);
+    if (!newFee.name || isNaN(amount) || amount <= 0) return;
+    
+    const fee = {
+      id: Date.now(),
+      name: newFee.name,
+      amount: toUSD(amount),
+      frequency: newFee.frequency
+    };
+    
+    setNewBank(prev => ({
+      ...prev,
+      fees: [...prev.fees, fee]
+    }));
+    
+    setNewFee({
+      name: '',
+      amount: '',
+      frequency: 'monthly'
+    });
+  };
+
+  const removeFeeFromNewBank = (feeId) => {
+    setNewBank(prev => ({
+      ...prev,
+      fees: prev.fees.filter(fee => fee.id !== feeId)
+    }));
+  };
+
+  const addBankAccount = () => {
+    const balance = parseFloat(newBank.balance);
+    const rate = parseFloat(newBank.annualRate);
+    const interestRate = parseFloat(newBank.interestRate);
+    if (!newBank.name || isNaN(balance)) return;
+    
+    if (editingAccount) {
+      // Update existing account
+      const updatedAccounts = bankAccounts.map(account => 
+        account.id === editingAccount.id 
+          ? {
+              ...account,
+              name: newBank.name,
+              balance: toUSD(balance),
+              annualRate: isNaN(rate) ? 0 : rate,
+              interestRate: isNaN(interestRate) ? 0 : interestRate,
+              accountType: newBank.accountType,
+              growthFrequency: newBank.growthFrequency,
+              interestFrequency: newBank.interestFrequency,
+              fees: newBank.fees || []
+            }
+          : account
+      );
+      saveBankAccounts(updatedAccounts);
+      setEditingAccount(null);
+    } else {
+      // Add new account
+      const account = {
+        id: Date.now(),
+        name: newBank.name,
+        balance: toUSD(balance),
+        annualRate: isNaN(rate) ? 0 : rate,
+        interestRate: isNaN(interestRate) ? 0 : interestRate,
+        accountType: newBank.accountType,
+        growthFrequency: newBank.growthFrequency,
+        interestFrequency: newBank.interestFrequency,
+        fees: newBank.fees || []
+      };
+      saveBankAccounts([...bankAccounts, account]);
+    }
+    
+    // Reset form
+    setNewBank({ 
+      name: '', 
+      balance: '', 
+      annualRate: '', 
+      interestRate: '',
+      accountType: 'debit',
+      growthFrequency: 'monthly',
+      interestFrequency: 'annual',
+      fees: []
+    });
+    
+    if (editingAccount) {
+      setShowBankSection(false);
+    }
+  };
+
+  const startEditingAccount = (account) => {
+    setEditingAccount(account);
+    setNewBank({
+      name: account.name,
+      balance: String(fromUSD(account.balance)),
+      annualRate: String(account.annualRate || ''),
+      interestRate: String(account.interestRate || ''),
+      accountType: account.accountType || 'debit',
+      growthFrequency: account.growthFrequency || 'monthly',
+      interestFrequency: account.interestFrequency || 'annual',
+      fees: account.fees || []
+    });
+    setShowBankSection(true);
+  };
+
+  const cancelEditing = () => {
+    setEditingAccount(null);
+    setNewBank({ 
+      name: '', 
+      balance: '', 
+      annualRate: '', 
+      interestRate: '',
+      accountType: 'debit',
+      growthFrequency: 'monthly',
+      interestFrequency: 'annual',
+      fees: []
+    });
+    setShowBankSection(false);
+  };
+
+  const removeBankAccount = (id) => saveBankAccounts(bankAccounts.filter(a => a.id !== id));
+
+  const applyBankGrowth = () => {
+    const updated = bankAccounts.map(a => {
+      let newBalance = a.balance;
+      
+      // 1. Apply growth rate (rendimiento/crecimiento)
+      if (a.annualRate && a.annualRate > 0) {
+        let growthRate = 0;
+        if (a.growthFrequency === 'annual') {
+          growthRate = a.annualRate / 100;
+        } else {
+          growthRate = a.annualRate / 100 / 12;
+        }
+        const growthAmount = newBalance * growthRate;
+        newBalance += growthAmount;
+      }
+      
+      // 2. Apply interest rate (interés adicional)
+      if (a.interestRate && a.interestRate > 0) {
+        let interestRate = 0;
+        const frequency = a.interestFrequency || 'annual';
+        
+        if (frequency === 'weekly') {
+          interestRate = a.interestRate / 100 / 52;
+        } else if (frequency === 'monthly') {
+          interestRate = a.interestRate / 100 / 12;
+        } else {
+          interestRate = a.interestRate / 100;
+        }
+        
+        const interest = newBalance * interestRate;
+        newBalance += interest;
+      }
+      
+      // 3. Calculate total fees
+      let totalFees = 0;
+      if (a.fees && Array.isArray(a.fees)) {
+        totalFees = a.fees.reduce((sum, fee) => {
+          let feeAmount = 0;
+          if (fee.frequency === 'weekly') {
+            feeAmount = fee.amount / 52;
+          } else if (fee.frequency === 'annual') {
+            feeAmount = fee.amount / 12;
+          } else {
+            feeAmount = fee.amount;
+          }
+          return sum + feeAmount;
+        }, 0);
+      }
+      
+      const finalBalance = newBalance - totalFees;
+      return { ...a, balance: finalBalance };
+    });
+    saveBankAccounts(updated);
+  };
+
+  // Get total available cash from all bank accounts
+  const getTotalAvailableCash = () => {
+    return bankAccounts.reduce((total, account) => {
+      if (account.accountType === 'debit') {
+        return total + Math.max(0, account.balance);
+      }
+      return total;
+    }, 0);
+  };
 
   // Trading state
   const [tradeSymbol, setTradeSymbol] = useState('');
@@ -254,6 +464,163 @@ export default function PortfolioSimulator({
         totalChange
       };
     }
+  };
+
+  // Buy - deduct from bank accounts
+  const handleBuy = async () => {
+    setTradeError('');
+    const sym = tradeSymbol.trim().toUpperCase();
+    const shares = parseFloat(tradeShares);
+    if (!sym || isNaN(shares) || shares <= 0) { 
+      setTradeError(t('portfolio_symbol_required', lang)); 
+      return; 
+    }
+
+    let price = prices[sym];
+    if (!price) {
+      // fetch price on demand
+      try {
+        const data = await fetch(`${WORKER_BASE}/api/stock/${encodeURIComponent(sym)}?interval=1d&range=5d`).then((r) => r.json());
+        const closes = data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
+        price = closes.filter(Boolean).pop() ?? null;
+        if (price) setPrices((p) => ({ ...p, [sym]: price }));
+      } catch {}
+    }
+    if (!price) { 
+      setTradeError(t('portfolio_could_not_get_price', lang)); 
+      return; 
+    }
+
+    const total = price * shares;
+    const availableCash = getTotalAvailableCash();
+    if (total > availableCash) { 
+      setTradeError(`${t('portfolio_insufficient_funds', lang)} ${fmt(total)}`); 
+      return; 
+    }
+
+    // Deduct from bank accounts (prioritize debit accounts)
+    let remainingAmount = total;
+    const updatedAccounts = [...bankAccounts];
+    
+    for (let i = 0; i < updatedAccounts.length && remainingAmount > 0; i++) {
+      const account = updatedAccounts[i];
+      if (account.accountType === 'debit' && account.balance > 0) {
+        const deductAmount = Math.min(account.balance, remainingAmount);
+        updatedAccounts[i] = { ...account, balance: account.balance - deductAmount };
+        remainingAmount -= deductAmount;
+      }
+    }
+    
+    saveBankAccounts(updatedAccounts);
+
+    const existing = portfolio.holdings[sym] ?? { shares: 0, avgCost: 0 };
+    const newShares = existing.shares + shares;
+    const newAvgCost = (existing.avgCost * existing.shares + price * shares) / newShares;
+
+    const next = {
+      ...portfolio,
+      holdings: { ...portfolio.holdings, [sym]: { shares: newShares, avgCost: newAvgCost } },
+      transactions: [...portfolio.transactions, {
+        type: 'buy', symbol: sym, shares, price, total, date: new Date().toLocaleString('es-MX'),
+      }],
+    };
+    updatePortfolio(next);
+    setTradeSymbol('');
+    setTradeShares('');
+  };
+
+  // Sell - deposit to first available debit account
+  const handleSell = () => {
+    setTradeError('');
+    const sym = tradeSymbol.trim().toUpperCase();
+    const shares = parseFloat(tradeShares);
+    if (!sym || isNaN(shares) || shares <= 0) { 
+      setTradeError(t('portfolio_symbol_required', lang)); 
+      return; 
+    }
+
+    const holding = portfolio.holdings[sym];
+    if (!holding || holding.shares < shares) { 
+      setTradeError(`${t('portfolio_not_enough_shares', lang)} ${sym}`); 
+      return; 
+    }
+
+    const price = prices[sym];
+    if (!price) { 
+      setTradeError(t('portfolio_update_prices_first', lang)); 
+      return; 
+    }
+
+    const total = price * shares;
+    const newShares = holding.shares - shares;
+    const newHoldings = { ...portfolio.holdings };
+    if (newShares <= 0) delete newHoldings[sym];
+    else newHoldings[sym] = { ...holding, shares: newShares };
+
+    // Deposit proceeds to first available debit account
+    const updatedAccounts = [...bankAccounts];
+    const debitAccount = updatedAccounts.find(acc => acc.accountType === 'debit');
+    if (debitAccount) {
+      const accountIndex = updatedAccounts.findIndex(acc => acc.id === debitAccount.id);
+      updatedAccounts[accountIndex] = { 
+        ...debitAccount, 
+        balance: debitAccount.balance + total 
+      };
+      saveBankAccounts(updatedAccounts);
+    }
+
+    const next = {
+      ...portfolio,
+      holdings: newHoldings,
+      transactions: [...portfolio.transactions, {
+        type: 'sell', symbol: sym, shares, price, total, date: new Date().toLocaleString('es-MX'),
+      }],
+    };
+    updatePortfolio(next);
+    setTradeSymbol('');
+    setTradeShares('');
+  };
+
+  // Deposit / withdraw to/from specific bank account
+  const handleDeposit = () => {
+    const amount = parseFloat(depositAmount);
+    const accountId = parseInt(selectedBankAccount);
+    if (isNaN(amount) || amount <= 0 || !accountId) return;
+    
+    const amountUSD = toUSD(amount);
+    const accountIndex = bankAccounts.findIndex(acc => acc.id === accountId);
+    if (accountIndex === -1) return;
+    
+    const account = bankAccounts[accountIndex];
+    const delta = depositMode === 'deposit' ? amountUSD : -amountUSD;
+    
+    // Update bank account balance (can go negative)
+    const updatedAccounts = [...bankAccounts];
+    updatedAccounts[accountIndex] = {
+      ...account,
+      balance: account.balance + delta
+    };
+    saveBankAccounts(updatedAccounts);
+    
+    // Record transaction
+    const next = {
+      ...portfolio,
+      deposits: [...portfolio.deposits, { 
+        type: depositMode, 
+        amount: amountUSD, 
+        date: new Date().toISOString(),
+        bankAccount: account.name,
+        bankAccountId: accountId
+      }],
+      transactions: [...portfolio.transactions, {
+        type: depositMode, 
+        amount: amountUSD, 
+        date: new Date().toLocaleString('es-MX'),
+        bankAccount: account.name
+      }],
+    };
+    updatePortfolio(next);
+    setDepositAmount('');
   };
 
   // Update performance data when tab or range changes
@@ -428,6 +795,214 @@ export default function PortfolioSimulator({
             : 'This is a rebuilt version of PortfolioSimulator with basic performance functionality. It works without circular dependency errors.'
           }
         </p>
+      </div>
+
+      {/* Trading and Banking Section */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Deposit / Withdraw to specific bank account */}
+        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+          <h3 className="text-white font-semibold mb-3">{lang === 'es' ? 'Depositar/Retirar' : 'Deposit/Withdraw'}</h3>
+          <div className="flex gap-2 mb-3">
+            <button onClick={() => setDepositMode('deposit')} className={`flex-1 py-1.5 rounded text-sm font-medium ${depositMode === 'deposit' ? 'bg-green-600 text-white' : 'bg-slate-700 text-slate-300'}`}>{t('label_deposit', lang)}</button>
+            <button onClick={() => setDepositMode('withdraw')} className={`flex-1 py-1.5 rounded text-sm font-medium ${depositMode === 'withdraw' ? 'bg-red-600 text-white' : 'bg-slate-700 text-slate-300'}`}>{t('label_withdraw', lang)}</button>
+          </div>
+          
+          {/* Bank account selector */}
+          <select
+            className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 mb-2"
+            value={selectedBankAccount}
+            onChange={(e) => setSelectedBankAccount(e.target.value)}
+          >
+            <option value="">{lang === 'es' ? 'Seleccionar cuenta' : 'Select account'}</option>
+            {bankAccounts.map(account => (
+              <option key={account.id} value={account.id}>
+                {account.name} - {fmt(account.balance)} 
+                {account.balance < 0 && ` (${lang === 'es' ? 'DEUDA' : 'DEBT'})`}
+                ({account.accountType === 'debit' ? (lang === 'es' ? 'Débito' : 'Debit') : (lang === 'es' ? 'Crédito' : 'Credit')})
+              </option>
+            ))}
+          </select>
+          
+          <input
+            className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 mb-2"
+            placeholder={`${lang === 'es' ? 'Cantidad en' : 'Amount in'} ${currency}`}
+            type="number"
+            value={depositAmount}
+            onChange={(e) => setDepositAmount(e.target.value)}
+          />
+          <button 
+            onClick={handleDeposit} 
+            disabled={!selectedBankAccount}
+            className={`w-full py-2 rounded text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed ${depositMode === 'deposit' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
+          >
+            {depositMode === 'deposit' ? `+ ${t('label_deposit', lang)}` : `- ${t('label_withdraw', lang)}`}
+          </button>
+          <p className="text-slate-500 text-xs mt-2">{t('portfolio_deposited', lang)}: {fmt(totalDeposited)} · {t('portfolio_withdrawn', lang)}: {fmt(totalWithdrawn)}</p>
+          <p className="text-slate-500 text-xs">{t('portfolio_dividends_received', lang)}: {fmt(portfolio.dividendsReceived)}</p>
+        </div>
+
+        {/* Buy / Sell */}
+        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+          <h3 className="text-white font-semibold mb-3">{t('portfolio_buy_sell', lang)}</h3>
+          <div className="flex gap-2 mb-3">
+            <button onClick={() => setTradeMode('buy')} className={`flex-1 py-1.5 rounded text-sm font-medium ${tradeMode === 'buy' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'}`}>{t('label_buy', lang)}</button>
+            <button onClick={() => setTradeMode('sell')} className={`flex-1 py-1.5 rounded text-sm font-medium ${tradeMode === 'sell' ? 'bg-orange-600 text-white' : 'bg-slate-700 text-slate-300'}`}>{t('label_sell', lang)}</button>
+          </div>
+          <StockSuggest
+            value={tradeSymbol}
+            onChange={setTradeSymbol}
+            placeholder={t('portfolio_symbol_placeholder', lang)}
+            comparatorStocks={comparatorStocks}
+            holdingSymbols={Object.keys(portfolio.holdings)}
+            lang={lang}
+          />
+          <input
+            className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 mb-2"
+            placeholder={t('portfolio_shares_placeholder', lang)}
+            type="number"
+            value={tradeShares}
+            onChange={(e) => setTradeShares(e.target.value)}
+          />
+          {tradeSymbol && prices[tradeSymbol] && (
+            <p className="text-slate-400 text-xs mb-2">
+              {t('portfolio_current_price_total', lang)}: {fmt(prices[tradeSymbol])} · {t('portfolio_total', lang)}: {fmt(prices[tradeSymbol] * (parseFloat(tradeShares) || 0))}
+            </p>
+          )}
+          {tradeError && (
+            <div className="mb-2">
+              <p className="text-red-400 text-xs">{tradeError}</p>
+              <p className="text-slate-500 text-xs mt-0.5">
+                {lang === 'es' ? 'Revisa el código en Acerca → Códigos.' : 'Check the symbol in About → Symbol Codes.'}
+              </p>
+            </div>
+          )}
+          <button
+            onClick={tradeMode === 'buy' ? handleBuy : handleSell}
+            className={`w-full py-2 rounded text-sm font-medium text-white ${tradeMode === 'buy' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'}`}
+          >
+            {tradeMode === 'buy' ? t('label_buy', lang) : t('label_sell', lang)}
+          </button>
+        </div>
+
+        {/* Bank Account Management */}
+        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-white font-semibold">{lang === 'es' ? 'Cuentas Bancarias' : 'Bank Accounts'}</h3>
+            <button
+              onClick={() => setShowBankSection(!showBankSection)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-semibold"
+            >
+              {showBankSection ? (lang === 'es' ? 'Ocultar' : 'Hide') : (lang === 'es' ? 'Agregar' : 'Add')}
+            </button>
+          </div>
+
+          {/* Bank accounts list */}
+          <div className="space-y-2 mb-3">
+            {bankAccounts.map(account => (
+              <div key={account.id} className="bg-slate-700/50 rounded-lg p-3">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-white font-semibold text-sm">{account.name}</span>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => startEditingAccount(account)}
+                      className="text-blue-400 hover:text-blue-300 text-xs"
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      onClick={() => removeBankAccount(account.id)}
+                      className="text-red-400 hover:text-red-300 text-xs"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+                <p className={`text-lg font-bold ${account.balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {fmt(account.balance)}
+                </p>
+                <div className="text-xs text-slate-400 mt-1">
+                  <span>{account.accountType === 'debit' ? (lang === 'es' ? 'Débito' : 'Debit') : (lang === 'es' ? 'Crédito' : 'Credit')}</span>
+                  {account.annualRate > 0 && <span> · {account.annualRate}% {lang === 'es' ? 'crecimiento' : 'growth'}</span>}
+                  {account.interestRate > 0 && account.accountType === 'credit' && <span> · {account.interestRate}% {lang === 'es' ? 'interés' : 'interest'}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Add/Edit bank account form */}
+          {showBankSection && (
+            <div className="border-t border-slate-600 pt-3">
+              <h4 className="text-white font-semibold mb-2 text-sm">
+                {editingAccount ? (lang === 'es' ? 'Editar Cuenta' : 'Edit Account') : (lang === 'es' ? 'Nueva Cuenta' : 'New Account')}
+              </h4>
+              <input
+                className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 mb-2"
+                placeholder={lang === 'es' ? 'Nombre de la cuenta' : 'Account name'}
+                value={newBank.name}
+                onChange={(e) => setNewBank(prev => ({ ...prev, name: e.target.value }))}
+              />
+              <input
+                className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 mb-2"
+                placeholder={`${lang === 'es' ? 'Balance inicial en' : 'Initial balance in'} ${currency}`}
+                type="number"
+                value={newBank.balance}
+                onChange={(e) => setNewBank(prev => ({ ...prev, balance: e.target.value }))}
+              />
+              <select
+                className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 mb-2"
+                value={newBank.accountType}
+                onChange={(e) => setNewBank(prev => ({ ...prev, accountType: e.target.value, interestRate: e.target.value === 'debit' ? '' : prev.interestRate }))}
+              >
+                <option value="debit">{lang === 'es' ? 'Cuenta de Débito' : 'Debit Account'}</option>
+                <option value="credit">{lang === 'es' ? 'Cuenta de Crédito' : 'Credit Account'}</option>
+              </select>
+              <input
+                className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 mb-2"
+                placeholder={`${lang === 'es' ? 'Tasa de crecimiento anual' : 'Annual growth rate'} (%)`}
+                type="number"
+                step="0.1"
+                value={newBank.annualRate}
+                onChange={(e) => setNewBank(prev => ({ ...prev, annualRate: e.target.value }))}
+              />
+              {newBank.accountType === 'credit' && (
+                <input
+                  className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 mb-2"
+                  placeholder={`${lang === 'es' ? 'Tasa de interés anual' : 'Annual interest rate'} (%)`}
+                  type="number"
+                  step="0.1"
+                  value={newBank.interestRate}
+                  onChange={(e) => setNewBank(prev => ({ ...prev, interestRate: e.target.value }))}
+                />
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={addBankAccount}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded text-sm font-semibold"
+                >
+                  {editingAccount ? (lang === 'es' ? 'Actualizar' : 'Update') : (lang === 'es' ? 'Agregar' : 'Add')}
+                </button>
+                {editingAccount && (
+                  <button
+                    onClick={cancelEditing}
+                    className="flex-1 bg-slate-600 hover:bg-slate-700 text-white py-2 rounded text-sm font-semibold"
+                  >
+                    {lang === 'es' ? 'Cancelar' : 'Cancel'}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Apply growth button */}
+          {bankAccounts.length > 0 && (
+            <button
+              onClick={applyBankGrowth}
+              className="w-full mt-3 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded text-sm font-semibold"
+            >
+              {lang === 'es' ? 'Aplicar Crecimiento Mensual' : 'Apply Monthly Growth'}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
