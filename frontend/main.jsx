@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css'; // Import Tailwind CSS
 import StockComparisonApp from './StockComparisonApp';
-import PortfolioSimulator from './PortfolioSimulator.simple';
+import PortfolioSimulator from './PortfolioSimulator';
 import Community from './Community';
 import About from './About';
 import Settings, { ALL_CURRENCIES } from './Settings';
