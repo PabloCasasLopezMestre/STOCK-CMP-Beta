@@ -205,12 +205,22 @@ export default function Assets({
 
       const totalCost = shares * data.price;
       
-      // Check if account has enough balance
+      // Check if account has enough balance or credit limit
       const account = portfolio.bankAccounts.find(a => a.id === buyForm.accountId);
-      if (!account || account.balance < totalCost) {
-        alert(lang === 'es' ? 'Saldo insuficiente en la cuenta' : 'Insufficient account balance');
+      if (!account) {
+        alert(lang === 'es' ? 'Cuenta no encontrada' : 'Account not found');
         return;
       }
+
+      // For credit accounts, allow negative balance (debt)
+      // For debit accounts, require positive balance
+      if (account.type === 'debit' && account.balance < totalCost) {
+        alert(lang === 'es' ? 'Saldo insuficiente en cuenta de débito' : 'Insufficient balance in debit account');
+        return;
+      }
+      
+      // For credit accounts, we allow going into debt (no limit check for now)
+      // In a real system, you'd check against a credit limit
 
       const newPortfolio = { ...portfolio };
       
@@ -353,6 +363,11 @@ export default function Assets({
   const positiveBalance = bankAccounts.reduce((sum, account) => sum + Math.max(0, account.balance), 0);
   const negativeBalance = bankAccounts.reduce((sum, account) => sum + Math.min(0, account.balance), 0);
   
+  // Calculate available credit for credit accounts
+  const availableCredit = bankAccounts
+    .filter(account => account.type === 'credit' && account.balance < 0)
+    .reduce((sum, account) => sum + Math.abs(account.balance), 0);
+  
   // Calculate stock values
   const holdings = portfolio.holdings || {};
   const stockValue = Object.entries(holdings).reduce((sum, [symbol, holding]) => {
@@ -373,8 +388,8 @@ export default function Assets({
             </h1>
             <p className="text-slate-400 text-sm">
               {lang === 'es' 
-                ? 'Gestiona tus cuentas bancarias, depósitos y retiros'
-                : 'Manage your bank accounts, deposits and withdrawals'
+                ? 'Gestiona tus cuentas bancarias, compra acciones con efectivo o crédito'
+                : 'Manage your bank accounts, buy stocks with cash or credit'
               }
             </p>
           </div>
@@ -395,6 +410,11 @@ export default function Assets({
               {negativeBalance < 0 && (
                 <span className="text-slate-300">
                   {lang === 'es' ? 'Deuda' : 'Debt'}: <span className="text-red-400 font-semibold">{fmtCurrency(Math.abs(negativeBalance))}</span>
+                </span>
+              )}
+              {availableCredit > 0 && (
+                <span className="text-slate-300">
+                  {lang === 'es' ? 'Crédito usado' : 'Credit used'}: <span className="text-orange-400 font-semibold">{fmtCurrency(availableCredit)}</span>
                 </span>
               )}
             </div>
@@ -455,12 +475,19 @@ export default function Assets({
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <h3 className="text-white font-semibold">{account.name}</h3>
-                    <p className="text-slate-400 text-sm capitalize">
-                      {account.type === 'debit' 
-                        ? (lang === 'es' ? 'Débito' : 'Debit')
-                        : (lang === 'es' ? 'Crédito' : 'Credit')
-                      }
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-slate-400 text-sm capitalize">
+                        {account.type === 'debit' 
+                          ? (lang === 'es' ? 'Débito' : 'Debit')
+                          : (lang === 'es' ? 'Crédito' : 'Credit')
+                        }
+                      </p>
+                      {account.type === 'credit' && account.balance < 0 && (
+                        <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded">
+                          {lang === 'es' ? 'En deuda' : 'In debt'}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex gap-1">
                     <button
@@ -866,12 +893,21 @@ export default function Assets({
                   className="w-full bg-slate-700 text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">{lang === 'es' ? 'Seleccionar cuenta' : 'Select account'}</option>
-                  {bankAccounts.filter(account => account.balance > 0).map(account => (
+                  {bankAccounts.map(account => (
                     <option key={account.id} value={account.id}>
-                      {account.name} ({fmtCurrency(account.balance)})
+                      {account.name} ({fmtCurrency(account.balance)}) 
+                      {account.type === 'credit' && account.balance < 0 && 
+                        ` - ${lang === 'es' ? 'Crédito disponible' : 'Credit available'}`
+                      }
                     </option>
                   ))}
                 </select>
+                <p className="text-slate-500 text-xs mt-1">
+                  {lang === 'es' 
+                    ? 'Las cuentas de crédito pueden ir en deuda. Las de débito requieren saldo positivo.'
+                    : 'Credit accounts can go into debt. Debit accounts require positive balance.'
+                  }
+                </p>
               </div>
 
               <div className="flex gap-3 pt-4">
