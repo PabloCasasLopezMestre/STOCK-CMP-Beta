@@ -42,13 +42,11 @@ export default function PortfolioSimulator({
     }
   }, [initialPortfolio]);
 
-  // Calculate portfolio values
-  const bankAccounts = portfolio.bankAccounts || [];
-  const totalBankBalance = bankAccounts.reduce((s, a) => s + a.balance, 0);
+  // Calculate portfolio values (only stocks now, no bank accounts)
   const holdingsValue = Object.entries(portfolio.holdings || {}).reduce((sum, [sym, h]) => {
     return sum + h.shares * (h.avgCost || 0); // Use avgCost as fallback price
   }, 0);
-  const totalValue = totalBankBalance + holdingsValue;
+  const totalValue = holdingsValue; // Only stock investments now
 
   // Performance data fetching
   const fetchPortfolioPerformanceData = useCallback(async () => {
@@ -110,7 +108,7 @@ export default function PortfolioSimulator({
     } finally {
       setLoadingPerformance(false);
     }
-  }, [portfolio.transactions, portfolio.holdings, performanceRange, bankAccounts, totalValue, dataResetAt, accountCreated]);
+  }, [portfolio.transactions, portfolio.holdings, performanceRange, totalValue, dataResetAt, accountCreated]);
 
   const fetchStockPerformanceData = useCallback(async () => {
     setLoadingPerformance(true);
@@ -299,10 +297,9 @@ export default function PortfolioSimulator({
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {[
           { label: t('label_total_value', lang), value: fmtCurrency(totalValue), color: 'text-white' },
-          { label: lang === 'es' ? 'Cuentas bancarias' : 'Bank accounts', value: fmtCurrency(totalBankBalance), color: 'text-green-400' },
           { label: t('label_investments', lang), value: fmtCurrency(holdingsValue), color: 'text-blue-400' },
           { label: t('label_total_return', lang), value: fmtCurrency(0), color: 'text-green-400' },
         ].map(({ label, value, color }) => (
@@ -332,9 +329,15 @@ export default function PortfolioSimulator({
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+            <p className="text-slate-300 text-sm">
+              {lang === 'es' ? 'Cuentas bancarias movidas a pestaña Activos' : 'Bank accounts moved to Assets tab'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
             <p className="text-slate-300 text-sm">
-              {lang === 'es' ? 'Funcionalidad completa pendiente' : 'Full functionality pending'}
+              {lang === 'es' ? 'Trading de acciones pendiente' : 'Stock trading functionality pending'}
             </p>
           </div>
         </div>

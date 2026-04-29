@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import StockComparisonApp from './StockComparisonApp';
 import PortfolioSimulator from './PortfolioSimulator.simple';
+import Assets from './Assets';
 import Community from './Community';
 import About from './About';
 import Settings, { ALL_CURRENCIES } from './Settings';
@@ -381,6 +382,12 @@ function App() {
               {t('nav_portfolio', lang)}
             </button>
             <button
+              onClick={() => setTab('assets')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${tab === 'assets' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+            >
+              {lang === 'es' ? 'Activos' : 'Assets'}
+            </button>
+            <button
               onClick={() => setTab('community')}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${tab === 'community' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
             >
@@ -416,8 +423,8 @@ function App() {
           </div>
         </div>
 
-        {/* Row 2: currency + update + alerts (only on compare/portfolio) */}
-        {(tab === 'compare' || tab === 'portfolio') && (
+        {/* Row 2: currency + update + alerts (only on compare/portfolio/assets) */}
+        {(tab === 'compare' || tab === 'portfolio' || tab === 'assets') && (
           <div className="flex items-center gap-2 mt-1.5">
             <button
               onClick={nextCurrency}
@@ -455,15 +462,12 @@ function App() {
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
                 <h1 className="text-3xl font-bold text-white mb-1">{t('label_portfolio_title', lang)}</h1>
-                <p className="text-slate-400 text-sm">{lang === 'es' ? 'Deposita dinero, compra y vende acciones, recibe dividendos' : 'Deposit money, buy and sell stocks, receive dividends'}</p>
+                <p className="text-slate-400 text-sm">{lang === 'es' ? 'Compra y vende acciones, recibe dividendos' : 'Buy and sell stocks, receive dividends'}</p>
               </div>
               <div className="text-right">
                 <p className="text-slate-400 text-sm mb-1">{t('label_total_value', lang)}</p>
                 <p className="text-3xl font-bold text-green-400">USD 0.00</p>
                 <div className="flex items-center gap-4 mt-2 text-xs">
-                  <span className="text-slate-300">
-                    {lang === 'es' ? 'Cuentas bancarias' : 'Bank accounts'}: <span className="text-green-400 font-semibold">USD 0.00</span>
-                  </span>
                   <span className="text-slate-300">
                     {t('label_investments', lang)}: <span className="text-blue-400 font-semibold">USD 0.00</span>
                   </span>
@@ -473,6 +477,9 @@ function App() {
           </div>
           <PortfolioSimulator {...sharedProps} onOpenCommunityIdea={openCommunityIdea} initialPortfolio={initialPortfolio} onPortfolioChange={onPortfolioChange} refreshTrigger={refreshTrigger} showAlertsPanel={showAlertsPanel} setShowAlertsPanel={setShowAlertsPanel} comparatorStocks={tickerSymbols} enabledFeatures={enabledFeatures} visibleTimeRanges={visibleTimeRanges} defaultTimeRange={defaultTimeRange} accountCreated={accountCreated} dataResetAt={dataResetAt} />
         </div>
+      )}
+      {tab === 'assets' && (
+        <Assets {...sharedProps} initialPortfolio={initialPortfolio} onPortfolioChange={onPortfolioChange} />
       )}
       {tab === 'community' && (
         <Community lang={lang} prefill={communityPrefill} onPrefillConsumed={consumeCommunityPrefill} />
