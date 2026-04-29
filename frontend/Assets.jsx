@@ -99,6 +99,7 @@ export default function Assets({
   const [showTransactionHistory, setShowTransactionHistory] = useState(false);
   const [showAssetsChart, setShowAssetsChart] = useState(false);
   const [chartView, setChartView] = useState('detailed'); // 'detailed' or 'simple'
+  const [timeScale, setTimeScale] = useState('auto'); // 'auto', 'minutes', 'hours', 'days', 'months', 'years'
   const [editingAsset, setEditingAsset] = useState(null);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [expenseForm, setExpenseForm] = useState({
@@ -1898,10 +1899,40 @@ export default function Assets({
                   </button>
                 </div>
               </div>
+
+              {/* Time Scale Selector */}
+              <div className="flex justify-center mb-4">
+                <div className="bg-slate-800/50 rounded-lg p-1">
+                  <select
+                    value={timeScale}
+                    onChange={(e) => setTimeScale(e.target.value)}
+                    className="bg-transparent text-white px-3 py-2 rounded-md outline-none focus:ring-2 focus:ring-teal-500"
+                  >
+                    <option value="auto" className="bg-slate-800">
+                      {lang === 'es' ? 'Escala Automática' : 'Auto Scale'}
+                    </option>
+                    <option value="minutes" className="bg-slate-800">
+                      {lang === 'es' ? 'Por Minutos' : 'By Minutes'}
+                    </option>
+                    <option value="hours" className="bg-slate-800">
+                      {lang === 'es' ? 'Por Horas' : 'By Hours'}
+                    </option>
+                    <option value="days" className="bg-slate-800">
+                      {lang === 'es' ? 'Por Días' : 'By Days'}
+                    </option>
+                    <option value="months" className="bg-slate-800">
+                      {lang === 'es' ? 'Por Meses' : 'By Months'}
+                    </option>
+                    <option value="years" className="bg-slate-800">
+                      {lang === 'es' ? 'Por Años' : 'By Years'}
+                    </option>
+                  </select>
+                </div>
+              </div>
               
               {/* View Description */}
               <div className="text-center mb-6">
-                <p className="text-slate-400 text-sm">
+                <p className="text-slate-400 text-sm mb-1">
                   {chartView === 'detailed' 
                     ? (lang === 'es' 
                       ? 'Muestra el valor total y el desglose por tipo de activo'
@@ -1911,6 +1942,17 @@ export default function Assets({
                       ? 'Muestra solo la pendiente del valor total de todos los activos'
                       : 'Shows only the slope of total assets value'
                     )
+                  }
+                </p>
+                <p className="text-slate-500 text-xs">
+                  {timeScale === 'auto' 
+                    ? (lang === 'es' ? 'Escala automática basada en la antigüedad del portafolio' : 'Auto scale based on portfolio age')
+                    : (lang === 'es' ? `Mostrando datos por ${
+                        timeScale === 'minutes' ? 'minutos' :
+                        timeScale === 'hours' ? 'horas' :
+                        timeScale === 'days' ? 'días' :
+                        timeScale === 'months' ? 'meses' : 'años'
+                      }` : `Showing data by ${timeScale}`)
                   }
                 </p>
               </div>
@@ -2003,49 +2045,111 @@ export default function Assets({
                       }
                     });
                     
-                    // If no data exists, show current month only
+                    // If no data exists, show current time only
                     if (earliestDate >= now) {
-                      earliestDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                      earliestDate = new Date(now.getTime() - 60000); // 1 minute ago
                     }
                     
-                    // Generate monthly points from earliest date to now
-                    const startDate = new Date(earliestDate.getFullYear(), earliestDate.getMonth(), 1);
-                    const endDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                    // Calculate time difference
+                    const timeDiff = now.getTime() - earliestDate.getTime();
+                    const minutesDiff = timeDiff / (1000 * 60);
+                    const hoursDiff = minutesDiff / 60;
+                    const daysDiff = hoursDiff / 24;
+                    const monthsDiff = daysDiff / 30;
+                    const yearsDiff = daysDiff / 365;
                     
-                    let currentDate = new Date(startDate);
+                    // Determine appropriate scale
+                    let actualScale = timeScale;
+                    if (timeScale === 'auto') {
+                      if (minutesDiff < 120) { // Less than 2 hours
+                        actualScale = 'minutes';
+                      } else if (hoursDiff < 48) { // Less than 2 days
+                        actualScale = 'hours';
+                      } else if (daysDiff < 60) { // Less than 2 months
+                        actualScale = 'days';
+                      } else if (monthsDiff < 24) { // Less than 2 years
+                        actualScale = 'months';
+                      } else {
+                        actualScale = 'years';
+                      }
+                    }
                     
-                    while (currentDate <= endDate) {
-                      const monthName = currentDate.toLocaleDateString(lang === 'es' ? 'es-MX' : 'en-US', { 
-                        month: 'short', 
-                        year: currentDate.getFullYear() !== now.getFullYear() ? '2-digit' : undefined 
-                      });
+                    // Generate time points based on scale
+                    let currentTime = new Date(earliestDate);
+                    let increment, formatOptions, maxPoints;
+                    
+                    switch (actualScale) {
+                      case 'minutes':
+                        increment = 1000 * 60; // 1 minute
+                        formatOptions = { hour: '2-digit', minute: '2-digit' };
+                        maxPoints = Math.min(Math.ceil(minutesDiff), 60); // Max 60 points
+                        break;
+                      case 'hours':
+                        increment = 1000 * 60 * 60; // 1 hour
+                        formatOptions = { month: 'short', day: 'numeric', hour: '2-digit' };
+                        maxPoints = Math.min(Math.ceil(hoursDiff), 48); // Max 48 points
+                        break;
+                      case 'days':
+                        increment = 1000 * 60 * 60 * 24; // 1 day
+                        formatOptions = { month: 'short', day: 'numeric' };
+                        maxPoints = Math.min(Math.ceil(daysDiff), 90); // Max 90 points
+                        break;
+                      case 'months':
+                        // Special handling for months
+                        currentTime = new Date(earliestDate.getFullYear(), earliestDate.getMonth(), 1);
+                        formatOptions = { month: 'short', year: '2-digit' };
+                        maxPoints = Math.min(Math.ceil(monthsDiff), 24); // Max 24 points
+                        break;
+                      case 'years':
+                        // Special handling for years
+                        currentTime = new Date(earliestDate.getFullYear(), 0, 1);
+                        formatOptions = { year: 'numeric' };
+                        maxPoints = Math.min(Math.ceil(yearsDiff), 10); // Max 10 points
+                        break;
+                      default:
+                        increment = 1000 * 60 * 60 * 24; // Default to days
+                        formatOptions = { month: 'short', day: 'numeric' };
+                        maxPoints = 30;
+                    }
+                    
+                    let pointCount = 0;
+                    const endTime = now.getTime();
+                    
+                    while (currentTime.getTime() <= endTime && pointCount < maxPoints) {
+                      const timeLabel = currentTime.toLocaleDateString(
+                        lang === 'es' ? 'es-MX' : 'en-US', 
+                        formatOptions
+                      );
                       
-                      // Calculate actual values for this month
-                      // For simplicity, we'll use current values and simulate growth
-                      // In a real app, you'd calculate historical balances based on transactions
-                      const monthsFromStart = (currentDate.getFullYear() - startDate.getFullYear()) * 12 + 
-                                            (currentDate.getMonth() - startDate.getMonth());
-                      const totalMonths = (endDate.getFullYear() - startDate.getFullYear()) * 12 + 
-                                        (endDate.getMonth() - startDate.getMonth()) + 1;
+                      // Calculate progress factor
+                      const totalDuration = endTime - earliestDate.getTime();
+                      const currentDuration = currentTime.getTime() - earliestDate.getTime();
+                      const progressFactor = totalDuration > 0 ? currentDuration / totalDuration : 1;
                       
-                      const progressFactor = totalMonths > 1 ? monthsFromStart / (totalMonths - 1) : 1;
-                      
-                      // Simulate progressive growth (in real app, calculate from actual transaction history)
+                      // Simulate progressive growth
                       const currentCash = positiveBalance * (0.1 + progressFactor * 0.9);
                       const currentStocks = stockValue * (0.05 + progressFactor * 0.95);
                       const currentPhysical = physicalAssetsValue * (0.2 + progressFactor * 0.8);
                       const totalValue = currentCash + currentStocks + currentPhysical;
                       
                       timePoints.push({
-                        time: monthName,
+                        time: timeLabel,
                         value: totalValue,
                         cash: currentCash,
                         stocks: currentStocks,
                         physical: currentPhysical
                       });
                       
-                      // Move to next month
-                      currentDate.setMonth(currentDate.getMonth() + 1);
+                      // Increment time based on scale
+                      if (actualScale === 'months') {
+                        currentTime.setMonth(currentTime.getMonth() + 1);
+                      } else if (actualScale === 'years') {
+                        currentTime.setFullYear(currentTime.getFullYear() + 1);
+                      } else {
+                        currentTime = new Date(currentTime.getTime() + increment);
+                      }
+                      
+                      pointCount++;
                     }
                     
                     return timePoints;
