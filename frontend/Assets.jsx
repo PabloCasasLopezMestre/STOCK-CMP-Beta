@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit2, Trash2, DollarSign, TrendingUp, TrendingDown, ShoppingCart, History, BarChart3, Home, Minus } from 'lucide-react';
 import { t } from './i18n';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const WORKER_BASE = 'https://proxy.stockcmp-proxy.workers.dev';
 
@@ -891,13 +891,253 @@ export default function Assets({
           <History size={16} />
           {lang === 'es' ? 'Historial de Transacciones' : 'Transaction History'}
         </button>
-        <button
-          onClick={() => setShowAssetsChart(true)}
-          className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-colors"
-        >
-          <BarChart3 size={16} />
-          {lang === 'es' ? 'Gráfica de Activos' : 'Assets Chart'}
-        </button>
+      </div>
+
+      {/* Assets Charts - Always Visible */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Donut Chart - Asset Distribution */}
+        <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+          <h3 className="text-xl font-bold text-white mb-4">
+            {lang === 'es' ? 'Distribución de Activos' : 'Asset Distribution'}
+          </h3>
+          {(() => {
+            const chartData = [];
+            const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#f59e0b'];
+            
+            if (positiveBalance > 0) {
+              chartData.push({
+                name: lang === 'es' ? 'Efectivo' : 'Cash',
+                value: positiveBalance,
+                color: colors[0]
+              });
+            }
+            
+            if (stockValue > 0) {
+              chartData.push({
+                name: lang === 'es' ? 'Acciones' : 'Stocks',
+                value: stockValue,
+                color: colors[1]
+              });
+            }
+            
+            if (physicalAssetsValue > 0) {
+              chartData.push({
+                name: lang === 'es' ? 'Activos Físicos' : 'Physical Assets',
+                value: physicalAssetsValue,
+                color: colors[2]
+              });
+            }
+            
+            if (Math.abs(negativeBalance) > 0) {
+              chartData.push({
+                name: lang === 'es' ? 'Deuda' : 'Debt',
+                value: Math.abs(negativeBalance),
+                color: colors[3]
+              });
+            }
+            
+            if (availableCredit > 0) {
+              chartData.push({
+                name: lang === 'es' ? 'Crédito Usado' : 'Credit Used',
+                value: availableCredit,
+                color: colors[4]
+              });
+            }
+
+            if (chartData.length === 0) {
+              return (
+                <div className="flex items-center justify-center h-64">
+                  <p className="text-slate-400 text-center">
+                    {lang === 'es' 
+                      ? 'No hay datos para mostrar. Agrega algunas cuentas o activos.'
+                      : 'No data to display. Add some accounts or assets.'
+                    }
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={chartData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={120}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    formatter={(value) => [fmtCurrency(value), '']}
+                    contentStyle={{ 
+                      backgroundColor: '#1e293b', 
+                      border: '1px solid #475569', 
+                      borderRadius: '8px',
+                      color: '#e2e8f0'
+                    }}
+                  />
+                  <Legend 
+                    wrapperStyle={{ color: '#e2e8f0' }}
+                    formatter={(value, entry) => (
+                      <span style={{ color: entry.color }}>
+                        {value}: {fmtCurrency(entry.payload.value)}
+                      </span>
+                    )}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            );
+          })()}
+        </div>
+
+        {/* Line Chart - Assets Over Time */}
+        <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+          <h3 className="text-xl font-bold text-white mb-4">
+            {lang === 'es' ? 'Evolución de Activos' : 'Assets Over Time'}
+          </h3>
+          {(() => {
+            const hasAccounts = portfolio.bankAccounts?.length > 0;
+            const hasTransactions = portfolio.transactions?.length > 0;
+            const hasAssets = portfolio.physicalAssets?.length > 0;
+            
+            if (!hasAccounts && !hasTransactions && !hasAssets) {
+              return (
+                <div className="flex items-center justify-center h-64">
+                  <div className="text-center">
+                    <p className="text-slate-400 mb-2">
+                      {lang === 'es' 
+                        ? 'No hay transacciones para mostrar'
+                        : 'No transactions to display'
+                      }
+                    </p>
+                    <p className="text-slate-500 text-sm">
+                      {lang === 'es' 
+                        ? 'Agrega cuentas y realiza transacciones para ver la evolución'
+                        : 'Add accounts and make transactions to see evolution'
+                      }
+                    </p>
+                  </div>
+                </div>
+              );
+            }
+            
+            return (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={(() => {
+                  // Generate chart data based on transactions
+                  const transactions = [...(portfolio.transactions || [])];
+                  transactions.sort((a, b) => new Date(a.date) - new Date(b.date));
+                  
+                  let runningBalance = 0;
+                  let runningStocks = 0;
+                  let runningAssets = 0;
+                  
+                  const chartPoints = transactions.map(tx => {
+                    if (tx.type === 'deposit') {
+                      runningBalance += tx.amount;
+                    } else if (tx.type === 'withdrawal') {
+                      runningBalance -= tx.amount;
+                    } else if (tx.type === 'stock_purchase') {
+                      runningBalance -= tx.total;
+                      runningStocks += tx.total;
+                    } else if (tx.type === 'stock_sale') {
+                      runningBalance += tx.total;
+                      runningStocks -= tx.total;
+                    } else if (tx.type === 'asset_purchase') {
+                      runningBalance -= tx.amount;
+                      runningAssets += tx.amount;
+                    }
+                    
+                    return {
+                      date: new Date(tx.date).toLocaleDateString('es-MX', { 
+                        month: 'short', 
+                        day: 'numeric' 
+                      }),
+                      [lang === 'es' ? 'Efectivo' : 'Cash']: Math.max(0, runningBalance),
+                      [lang === 'es' ? 'Acciones' : 'Stocks']: runningStocks,
+                      [lang === 'es' ? 'Activos' : 'Assets']: runningAssets,
+                      [lang === 'es' ? 'Total' : 'Total']: Math.max(0, runningBalance) + runningStocks + runningAssets
+                    };
+                  });
+                  
+                  // If no transactions, show current state
+                  if (chartPoints.length === 0) {
+                    return [{
+                      date: new Date().toLocaleDateString('es-MX', { month: 'short', day: 'numeric' }),
+                      [lang === 'es' ? 'Efectivo' : 'Cash']: positiveBalance,
+                      [lang === 'es' ? 'Acciones' : 'Stocks']: stockValue,
+                      [lang === 'es' ? 'Activos' : 'Assets']: physicalAssetsValue,
+                      [lang === 'es' ? 'Total' : 'Total']: totalAssets
+                    }];
+                  }
+                  
+                  return chartPoints;
+                })()}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="#94a3b8" 
+                    tick={{ fill: '#94a3b8', fontSize: 12 }} 
+                  />
+                  <YAxis 
+                    stroke="#94a3b8" 
+                    tick={{ fill: '#94a3b8', fontSize: 12 }}
+                    tickFormatter={(value) => {
+                      if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+                      if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
+                      return value.toFixed(0);
+                    }}
+                  />
+                  <Tooltip
+                    contentStyle={{ 
+                      backgroundColor: '#1e293b', 
+                      border: '1px solid #475569', 
+                      borderRadius: '8px' 
+                    }}
+                    labelStyle={{ color: '#e2e8f0' }}
+                    formatter={(value) => [fmtCurrency(value), '']}
+                  />
+                  <Legend wrapperStyle={{ color: '#e2e8f0' }} />
+                  <Line 
+                    type="monotone" 
+                    dataKey={lang === 'es' ? 'Efectivo' : 'Cash'} 
+                    stroke="#10b981" 
+                    strokeWidth={2} 
+                    dot={false} 
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey={lang === 'es' ? 'Acciones' : 'Stocks'} 
+                    stroke="#3b82f6" 
+                    strokeWidth={2} 
+                    dot={false} 
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey={lang === 'es' ? 'Activos' : 'Assets'} 
+                    stroke="#8b5cf6" 
+                    strokeWidth={2} 
+                    dot={false} 
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey={lang === 'es' ? 'Total' : 'Total'} 
+                    stroke="#f59e0b" 
+                    strokeWidth={3} 
+                    strokeDasharray="5 5"
+                    dot={false} 
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            );
+          })()}
+        </div>
       </div>
 
       {/* Bank Accounts List */}

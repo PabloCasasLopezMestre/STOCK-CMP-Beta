@@ -1202,10 +1202,10 @@ export default function PortfolioSimulator({
   return (
     <div className="space-y-4">
 
-      {/* Compra/Venta de Acciones - Sección Principal */}
-      <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+      {/* 🚀 COMPRA/VENTA DE ACCIONES - SECCIÓN PRINCIPAL 🚀 */}
+      <div className="bg-gradient-to-r from-slate-800/50 to-blue-900/30 rounded-xl p-4 border border-blue-500/30">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-white font-semibold">{lang === 'es' ? 'Comprar/Vender Acciones' : 'Buy/Sell Stocks'}</h3>
+          <h3 className="text-white font-bold text-lg">{lang === 'es' ? '🚀 Comprar/Vender Acciones' : '🚀 Buy/Sell Stocks'}</h3>
           
           {/* Toggle Simple para Modo Solo Acciones */}
           <div className="flex items-center gap-2">
