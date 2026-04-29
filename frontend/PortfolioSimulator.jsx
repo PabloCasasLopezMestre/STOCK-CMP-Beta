@@ -759,6 +759,11 @@ export default function PortfolioSimulator({
   const [tradeMode, setTradeMode] = useState('buy');
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [tradeError, setTradeError] = useState('');
+  
+  // Debug: Log when selectedAccountId changes
+  useEffect(() => {
+    console.log('selectedAccountId changed to:', selectedAccountId);
+  }, [selectedAccountId]);
 
   // Dividend simulation
   const [divSymbol, setDivSymbol] = useState('');
@@ -954,12 +959,20 @@ export default function PortfolioSimulator({
     }
 
     // Validar cuenta seleccionada cuando NO está en modo stocks-only
-    if (!stocksOnlyMode && (!selectedAccountId || !assetsPortfolio?.bankAccounts?.find(acc => acc.id === selectedAccountId))) {
-      console.log('❌ Account validation failed');
-      console.log('selectedAccountId:', selectedAccountId);
-      console.log('available accounts:', assetsPortfolio?.bankAccounts?.map(acc => ({id: acc.id, name: acc.name})));
-      setTradeError(lang === 'es' ? 'Selecciona una cuenta para el pago' : 'Select an account for payment');
-      return;
+    if (!stocksOnlyMode) {
+      if (!selectedAccountId) {
+        console.log('❌ No account selected');
+        setTradeError(lang === 'es' ? 'Debes seleccionar una cuenta para el pago' : 'You must select an account for payment');
+        return;
+      }
+      
+      if (!assetsPortfolio?.bankAccounts?.find(acc => acc.id === selectedAccountId)) {
+        console.log('❌ Selected account not found in portfolio');
+        console.log('selectedAccountId:', selectedAccountId);
+        console.log('available accounts:', assetsPortfolio?.bankAccounts?.map(acc => ({id: acc.id, name: acc.name})));
+        setTradeError(lang === 'es' ? 'La cuenta seleccionada no existe' : 'Selected account does not exist');
+        return;
+      }
     }
 
     let price = prices[sym];
@@ -1345,18 +1358,28 @@ export default function PortfolioSimulator({
         
         {/* Selector de cuenta bancaria cuando NO está en modo stocks-only */}
         {!stocksOnlyMode && tradeMode === 'buy' && assetsPortfolio?.bankAccounts?.length > 0 && (
-          <select
-            className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 mb-2"
-            value={selectedAccountId}
-            onChange={(e) => setSelectedAccountId(e.target.value)}
-          >
-            <option value="">{lang === 'es' ? 'Seleccionar cuenta para pago' : 'Select account for payment'}</option>
-            {assetsPortfolio.bankAccounts.map(acc => (
-              <option key={acc.id} value={acc.id}>
-                {acc.name} - {fmt(acc.balance)} {acc.type === 'credit' && acc.balance < 0 ? `(${lang === 'es' ? 'crédito usado' : 'credit used'})` : ''}
-              </option>
-            ))}
-          </select>
+          <div className="mb-2">
+            <select
+              className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+              value={selectedAccountId}
+              onChange={(e) => {
+                console.log('Account selected:', e.target.value);
+                setSelectedAccountId(e.target.value);
+              }}
+            >
+              <option value="">{lang === 'es' ? 'Seleccionar cuenta para pago' : 'Select account for payment'}</option>
+              {assetsPortfolio.bankAccounts.map(acc => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.name} - {fmt(acc.balance)} {acc.type === 'credit' && acc.balance < 0 ? `(${lang === 'es' ? 'crédito usado' : 'credit used'})` : ''}
+                </option>
+              ))}
+            </select>
+            {selectedAccountId && (
+              <p className="text-green-400 text-xs mt-1">
+                ✓ {lang === 'es' ? 'Cuenta seleccionada' : 'Account selected'}: {assetsPortfolio.bankAccounts.find(acc => acc.id === selectedAccountId)?.name}
+              </p>
+            )}
+          </div>
         )}
         
         {tradeSymbol && prices[tradeSymbol] && (
