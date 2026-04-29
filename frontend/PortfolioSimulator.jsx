@@ -1201,6 +1201,13 @@ export default function PortfolioSimulator({
 
   return (
     <div className="space-y-4">
+      
+      {/* DEBUG: Portfolio está funcionando */}
+      <div className="bg-green-600/20 border border-green-500/30 rounded-lg px-3 py-2 mb-4">
+        <p className="text-green-400 text-sm font-medium">
+          ✅ Portfolio cargado correctamente - {new Date().toLocaleTimeString()}
+        </p>
+      </div>
 
       {/* 🚀 COMPRA/VENTA DE ACCIONES - SECCIÓN PRINCIPAL 🚀 */}
       <div className="bg-gradient-to-r from-slate-800/50 to-blue-900/30 rounded-xl p-4 border border-blue-500/30">
