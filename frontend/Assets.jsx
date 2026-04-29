@@ -98,6 +98,7 @@ export default function Assets({
   });
   const [showTransactionHistory, setShowTransactionHistory] = useState(false);
   const [showAssetsChart, setShowAssetsChart] = useState(false);
+  const [chartView, setChartView] = useState('detailed'); // 'detailed' or 'simple'
   const [editingAsset, setEditingAsset] = useState(null);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [expenseForm, setExpenseForm] = useState({
@@ -1872,6 +1873,47 @@ export default function Assets({
               </h3>
             </div>
             <div className="p-6">
+              {/* Chart View Toggle */}
+              <div className="flex justify-center mb-4">
+                <div className="bg-slate-800/50 rounded-lg p-1 flex">
+                  <button
+                    onClick={() => setChartView('detailed')}
+                    className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                      chartView === 'detailed'
+                        ? 'bg-teal-600 text-white'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {lang === 'es' ? 'Vista Detallada' : 'Detailed View'}
+                  </button>
+                  <button
+                    onClick={() => setChartView('simple')}
+                    className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                      chartView === 'simple'
+                        ? 'bg-teal-600 text-white'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {lang === 'es' ? 'Vista Simple' : 'Simple View'}
+                  </button>
+                </div>
+              </div>
+              
+              {/* View Description */}
+              <div className="text-center mb-6">
+                <p className="text-slate-400 text-sm">
+                  {chartView === 'detailed' 
+                    ? (lang === 'es' 
+                      ? 'Muestra el valor total y el desglose por tipo de activo'
+                      : 'Shows total value and breakdown by asset type'
+                    )
+                    : (lang === 'es' 
+                      ? 'Muestra solo la pendiente del valor total de todos los activos'
+                      : 'Shows only the slope of total assets value'
+                    )
+                  }
+                </p>
+              </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="bg-slate-800/50 rounded-lg p-4 text-center">
                   <p className="text-slate-400 text-sm">{lang === 'es' ? 'Efectivo' : 'Cash'}</p>
@@ -1941,35 +1983,43 @@ export default function Assets({
                         name === 'physical' ? (lang === 'es' ? 'Activos Físicos' : 'Physical Assets') : name
                       ]}
                     />
-                    <Legend />
+                    {chartView === 'detailed' && <Legend />}
+                    
+                    {/* Always show total value line */}
                     <Line 
                       type="monotone" 
                       dataKey="value" 
                       stroke="#10B981" 
-                      strokeWidth={3} 
+                      strokeWidth={chartView === 'simple' ? 4 : 3} 
                       name={lang === 'es' ? 'Valor Total' : 'Total Value'}
                     />
-                    <Line 
-                      type="monotone" 
-                      dataKey="cash" 
-                      stroke="#3B82F6" 
-                      strokeWidth={2} 
-                      name={lang === 'es' ? 'Efectivo' : 'Cash'}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="stocks" 
-                      stroke="#8B5CF6" 
-                      strokeWidth={2} 
-                      name={lang === 'es' ? 'Acciones' : 'Stocks'}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="physical" 
-                      stroke="#F59E0B" 
-                      strokeWidth={2} 
-                      name={lang === 'es' ? 'Activos Físicos' : 'Physical Assets'}
-                    />
+                    
+                    {/* Only show detailed lines in detailed view */}
+                    {chartView === 'detailed' && (
+                      <>
+                        <Line 
+                          type="monotone" 
+                          dataKey="cash" 
+                          stroke="#3B82F6" 
+                          strokeWidth={2} 
+                          name={lang === 'es' ? 'Efectivo' : 'Cash'}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="stocks" 
+                          stroke="#8B5CF6" 
+                          strokeWidth={2} 
+                          name={lang === 'es' ? 'Acciones' : 'Stocks'}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="physical" 
+                          stroke="#F59E0B" 
+                          strokeWidth={2} 
+                          name={lang === 'es' ? 'Activos Físicos' : 'Physical Assets'}
+                        />
+                      </>
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
