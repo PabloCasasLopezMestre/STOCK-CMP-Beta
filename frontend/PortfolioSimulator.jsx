@@ -1054,6 +1054,17 @@ export default function PortfolioSimulator({
     setTradeSymbol('');
     setTradeShares('');
     setSelectedAccountId('');
+    
+    // Show success message
+    const successMessage = stocksOnlyMode 
+      ? `${lang === 'es' ? '✅ Compra simulada exitosa' : '✅ Simulated purchase successful'}: ${shares} ${sym}`
+      : `${lang === 'es' ? '✅ Compra exitosa' : '✅ Purchase successful'}: ${shares} ${sym} - ${lang === 'es' ? 'Ve a Assets para ver los cambios' : 'Check Assets to see changes'}`;
+    
+    // Clear any previous error and show success
+    setTradeError('');
+    setTimeout(() => {
+      alert(successMessage);
+    }, 100);
   };
 
   // Sell - deposit to Assets accounts or simulate in stocks-only mode

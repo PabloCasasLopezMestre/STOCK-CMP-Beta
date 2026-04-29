@@ -50,22 +50,21 @@ export default function Assets({
   onPortfolioChange,
   comparatorStocks = []
 }) {
-  // Force re-render when initialPortfolio changes by using it in state
-  const [portfolioVersion, setPortfolioVersion] = useState(0);
-  
-  // Use initialPortfolio directly as the source of truth
-  const portfolio = initialPortfolio || {
+  // Use state to ensure re-renders when portfolio changes
+  const [portfolio, setPortfolio] = useState(initialPortfolio || {
     bankAccounts: [],
     deposits: [],
     transactions: [],
     holdings: {},
     physicalAssets: [],
     expenses: []
-  };
+  });
   
-  // Force re-render when initialPortfolio changes
+  // Update local state when initialPortfolio changes
   useEffect(() => {
-    setPortfolioVersion(prev => prev + 1);
+    if (initialPortfolio) {
+      setPortfolio(initialPortfolio);
+    }
   }, [initialPortfolio]);
   
   const [showBankForm, setShowBankForm] = useState(false);
@@ -140,6 +139,7 @@ export default function Assets({
 
   // Save portfolio changes
   const savePortfolio = useCallback((newPortfolio) => {
+    setPortfolio(newPortfolio);
     if (onPortfolioChange) {
       onPortfolioChange(newPortfolio);
     }
