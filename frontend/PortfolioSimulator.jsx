@@ -485,7 +485,7 @@ export default function PortfolioSimulator({
       const currentHoldingsValue = Object.entries(portfolio.holdings).reduce((sum, [sym, h]) => {
         return sum + h.shares * (prices[sym] ?? h.avgCost);
       }, 0);
-      const currentBankBalance = bankAccounts.reduce((s, a) => s + a.balance, 0);
+      const currentBankBalance = 0; // No bank accounts in investment-only mode
       const currentTotalValue = currentBankBalance + currentHoldingsValue;
       
       // Use dataResetAt if available, otherwise accountCreated, otherwise first transaction
@@ -546,7 +546,7 @@ export default function PortfolioSimulator({
     } finally {
       setLoadingPerformance(false);
     }
-  }, [portfolio.transactions, portfolio.holdings, performanceRange, prices, bankAccounts, dataResetAt, accountCreated]);
+  }, [portfolio.transactions, portfolio.holdings, performanceRange, prices, dataResetAt, accountCreated]);
 
   // Fetch stock performance data (individual stocks)
   const fetchStockPerformanceData = useCallback(async () => {
@@ -1419,8 +1419,8 @@ export default function PortfolioSimulator({
                           { id: Date.now() + 14, name: 'Comisión por uso', amount: 5, frequency: 'monthly' }
                         ]
                       }
-                    ];
-                    saveBankAccounts(sampleBankAccounts);
+                    // Sample bank accounts would be handled by Assets component
+                    // saveBankAccounts(sampleBankAccounts);
                   }}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-semibold"
                 >
@@ -2106,7 +2106,7 @@ export default function PortfolioSimulator({
           </>
         )}
         {!loadingNews && !newsError && newsItems.length === 0 && (
-          <p className="text-slate-600 text-sm">{t('portfolio_enter_symbol_news')}, lang</p>
+          <p className="text-slate-600 text-sm">{t('portfolio_enter_symbol_news', lang)}</p>
         )}
       </div>
       )}
