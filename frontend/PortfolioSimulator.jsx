@@ -1066,6 +1066,11 @@ export default function PortfolioSimulator({
       console.log('📤 Calling onAssetsPortfolioChange with updated portfolio');
       console.log('Updated accounts summary:', updatedAssetsPortfolio.bankAccounts.map(acc => ({name: acc.name, balance: acc.balance})));
       onAssetsPortfolioChange(updatedAssetsPortfolio);
+      
+      // Force Assets to update by dispatching a custom event
+      window.dispatchEvent(new CustomEvent('portfolioUpdated', { 
+        detail: updatedAssetsPortfolio 
+      }));
     } else {
       console.log('❌ Assets integration not available');
       console.log('onAssetsPortfolioChange:', !!onAssetsPortfolioChange);

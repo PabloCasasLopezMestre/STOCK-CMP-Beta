@@ -66,7 +66,7 @@ export default function Assets({
   // Update local state when initialPortfolio changes
   useEffect(() => {
     if (initialPortfolio) {
-      console.log('Assets: Received portfolio update', {
+      console.log('Assets: Received portfolio update via props', {
         bankAccounts: initialPortfolio.bankAccounts?.map(acc => ({
           name: acc.name,
           balance: acc.balance
@@ -76,6 +76,23 @@ export default function Assets({
       setRenderKey(prev => prev + 1); // Force re-render
     }
   }, [initialPortfolio]);
+  
+  // Listen for custom portfolio update events
+  useEffect(() => {
+    const handlePortfolioUpdate = (event) => {
+      console.log('Assets: Received portfolio update via event', {
+        bankAccounts: event.detail.bankAccounts?.map(acc => ({
+          name: acc.name,
+          balance: acc.balance
+        }))
+      });
+      setPortfolio(event.detail);
+      setRenderKey(prev => prev + 1); // Force re-render
+    };
+    
+    window.addEventListener('portfolioUpdated', handlePortfolioUpdate);
+    return () => window.removeEventListener('portfolioUpdated', handlePortfolioUpdate);
+  }, []);
   
   const [showBankForm, setShowBankForm] = useState(false);
   const [editingAccount, setEditingAccount] = useState(null);
