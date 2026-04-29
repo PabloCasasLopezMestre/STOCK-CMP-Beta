@@ -986,11 +986,21 @@ export default function PortfolioSimulator({
         }
       }
       
-      // Update Assets portfolio with new account balances
+      // Update Assets portfolio with new account balances AND stock holdings
       if (onAssetsPortfolioChange && assetsPortfolio) {
         const updatedAssetsPortfolio = {
           ...assetsPortfolio,
           bankAccounts: updatedAssetsAccounts,
+          // Add the stock to Assets holdings
+          holdings: {
+            ...assetsPortfolio.holdings,
+            [sym]: {
+              shares: (assetsPortfolio.holdings?.[sym]?.shares || 0) + shares,
+              avgCost: assetsPortfolio.holdings?.[sym] 
+                ? ((assetsPortfolio.holdings[sym].avgCost * assetsPortfolio.holdings[sym].shares) + (price * shares)) / ((assetsPortfolio.holdings[sym].shares || 0) + shares)
+                : price
+            }
+          },
           transactions: [...(assetsPortfolio.transactions || []), {
             id: Date.now().toString(),
             type: 'stock_purchase',
@@ -1060,10 +1070,20 @@ export default function PortfolioSimulator({
           balance: debitAccount.balance + total 
         };
         
-        // Update Assets portfolio
+        // Update Assets portfolio with account balances AND stock holdings
         const updatedAssetsPortfolio = {
           ...assetsPortfolio,
           bankAccounts: updatedAssetsAccounts,
+          // Update stock holdings in Assets
+          holdings: {
+            ...assetsPortfolio.holdings,
+            [sym]: newShares <= 0 
+              ? undefined // Remove if no shares left
+              : {
+                  shares: (assetsPortfolio.holdings?.[sym]?.shares || 0) - shares,
+                  avgCost: assetsPortfolio.holdings?.[sym]?.avgCost || price
+                }
+          },
           transactions: [...(assetsPortfolio.transactions || []), {
             id: Date.now().toString(),
             type: 'stock_sale',
@@ -1075,6 +1095,12 @@ export default function PortfolioSimulator({
             description: `${lang === 'es' ? 'Venta de acciones desde Portafolio' : 'Stock sale from Portfolio'}: ${shares} ${sym} @ ${fmt(price)}`
           }]
         };
+        
+        // Clean up undefined holdings
+        if (updatedAssetsPortfolio.holdings[sym] === undefined) {
+          delete updatedAssetsPortfolio.holdings[sym];
+        }
+        
         onAssetsPortfolioChange(updatedAssetsPortfolio);
       }
     }
@@ -1202,20 +1228,10 @@ export default function PortfolioSimulator({
   return (
     <div className="space-y-4">
       
-      {/* 🔥 NUEVA VERSIÓN - PORTFOLIO ACTUALIZADO 🔥 */}
-      <div className="bg-red-600/20 border border-red-500/30 rounded-lg px-4 py-3 mb-4">
-        <p className="text-red-400 text-lg font-bold text-center">
-          🔥 NUEVA VERSIÓN DEL PORTFOLIO - {new Date().toLocaleString()} 🔥
-        </p>
-        <p className="text-red-300 text-sm text-center mt-1">
-          Si ves este mensaje, la nueva versión está funcionando correctamente
-        </p>
-      </div>
-
-      {/* 🚀 COMPRA/VENTA DE ACCIONES - SECCIÓN PRINCIPAL 🚀 */}
+      {/* COMPRA/VENTA DE ACCIONES - SECCIÓN PRINCIPAL */}
       <div className="bg-gradient-to-r from-slate-800/50 to-blue-900/30 rounded-xl p-4 border border-blue-500/30">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-white font-bold text-lg">{lang === 'es' ? '🚀 Comprar/Vender Acciones' : '🚀 Buy/Sell Stocks'}</h3>
+          <h3 className="text-white font-bold text-lg">{lang === 'es' ? 'Comprar/Vender Acciones' : 'Buy/Sell Stocks'}</h3>
           
           {/* Toggle Simple para Modo Solo Acciones */}
           <div className="flex items-center gap-2">
@@ -1296,6 +1312,37 @@ export default function PortfolioSimulator({
         </button>
       </div>
 
+      {/* Alertas de Precios */}
+      <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+        <h3 className="text-white font-semibold mb-3">{t('portfolio_price_alerts', lang)}</h3>
+        <div className="flex gap-2 flex-wrap mb-4">
+          <input className="bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none w-24 uppercase" placeholder={t('label_symbol', lang)} value={newAlert.symbol} onChange={(e) => setNewAlert({ ...newAlert, symbol: e.target.value.toUpperCase() })} maxLength={10} />
+          <select className="bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none" value={newAlert.condition} onChange={(e) => setNewAlert({ ...newAlert, condition: e.target.value })}>
+            <option value="above">{t('portfolio_alert_rises_above', lang)}</option>
+            <option value="below">{t('portfolio_alert_falls_below', lang)}</option>
+          </select>
+          <input className="bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none w-28" placeholder={`Price ${currency}`} type="number" value={newAlert.price} onChange={(e) => setNewAlert({ ...newAlert, price: e.target.value })} />
+          <button onClick={addAlert} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded text-sm">{t('portfolio_alert_add', lang)}</button>
+        </div>
+        {!alerts?.length ? (
+          <p className="text-slate-500 text-sm">{t('portfolio_no_alerts', lang)}</p>
+        ) : (
+          <div className="space-y-2">
+            {alerts.map((a) => {
+              const triggered = triggeredAlerts.find((t) => t.id === a.id);
+              return (
+                <div key={a.id} className={`flex items-center justify-between rounded-lg px-3 py-2 ${triggered ? 'bg-red-900/40 border border-red-600' : 'bg-slate-700/50'}`}>
+                  <span className="text-white text-sm font-bold">{a.symbol}</span>
+                  <span className="text-slate-300 text-sm">{a.condition === 'above' ? t('portfolio_alert_rises_above', lang) : t('portfolio_alert_falls_below', lang)} <span className="text-white font-semibold">${a.price}</span></span>
+                  {triggered && <span className="text-red-400 text-xs font-bold">{t('portfolio_alert_active', lang).replace('🚨 ', '')}</span>}
+                  <button onClick={() => removeAlert(a.id)} className="text-slate-500 hover:text-red-400">✕</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Triggered alerts banner */}
       {triggeredAlerts.length > 0 && (
         <div className="bg-red-900/60 border border-red-500 rounded-xl p-3 flex flex-wrap gap-2 items-center">
@@ -1305,39 +1352,6 @@ export default function PortfolioSimulator({
               {a.symbol} {a.condition === 'above' ? '▲' : '▼'} ${a.price} · actual: ${a.currentPrice?.toFixed(2)}
             </span>
           ))}
-        </div>
-      )}
-
-      {/* Alert panel — controlled by navbar */}
-      {showAlertsPanel && (
-        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-          <h3 className="text-white font-semibold mb-3">{t('portfolio_price_alerts', lang)}</h3>
-          <div className="flex gap-2 flex-wrap mb-4">
-            <input className="bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none w-24 uppercase" placeholder={t('label_symbol', lang)} value={newAlert.symbol} onChange={(e) => setNewAlert({ ...newAlert, symbol: e.target.value.toUpperCase() })} maxLength={10} />
-            <select className="bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none" value={newAlert.condition} onChange={(e) => setNewAlert({ ...newAlert, condition: e.target.value })}>
-              <option value="above">{t('portfolio_alert_rises_above', lang)}</option>
-              <option value="below">{t('portfolio_alert_falls_below', lang)}</option>
-            </select>
-            <input className="bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none w-28" placeholder={`Price ${currency}`} type="number" value={newAlert.price} onChange={(e) => setNewAlert({ ...newAlert, price: e.target.value })} />
-            <button onClick={addAlert} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded text-sm">{t('portfolio_alert_add', lang)}</button>
-          </div>
-          {!alerts?.length ? (
-            <p className="text-slate-500 text-sm">{t('portfolio_no_alerts', lang)}</p>
-          ) : (
-            <div className="space-y-2">
-              {alerts.map((a) => {
-                const triggered = triggeredAlerts.find((t) => t.id === a.id);
-                return (
-                  <div key={a.id} className={`flex items-center justify-between rounded-lg px-3 py-2 ${triggered ? 'bg-red-900/40 border border-red-600' : 'bg-slate-700/50'}`}>
-                    <span className="text-white text-sm font-bold">{a.symbol}</span>
-                    <span className="text-slate-300 text-sm">{a.condition === 'above' ? t('portfolio_alert_rises_above', lang) : t('portfolio_alert_falls_below', lang)} <span className="text-white font-semibold">${a.price}</span></span>
-                    {triggered && <span className="text-red-400 text-xs font-bold">{t('portfolio_alert_active', lang).replace('🚨 ', '')}</span>}
-                    <button onClick={() => removeAlert(a.id)} className="text-slate-500 hover:text-red-400">✕</button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
       )}
 
@@ -2109,38 +2123,6 @@ export default function PortfolioSimulator({
       </div>
       )}
 
-      {/* Transaction history */}
-      {enabledFeatures.transactionHistory !== false && portfolio.transactions.length > 0 && (
-        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-          <h3 className="text-white font-semibold mb-3">{t('portfolio_transaction_history', lang)}</h3>
-          <div className="space-y-1 max-h-64 overflow-y-auto">
-            {[...portfolio.transactions].reverse().map((tx, i) => (
-              <div key={i} className="flex items-center justify-between text-xs py-1.5 border-b border-slate-700/50">
-                <span className="text-slate-400">{tx.date}</span>
-                <span className={`font-semibold px-2 py-0.5 rounded ${
-                  tx.type === 'buy' ? 'bg-blue-900/50 text-blue-300' :
-                  tx.type === 'sell' ? 'bg-orange-900/50 text-orange-300' :
-                  tx.type === 'dividend' ? 'bg-purple-900/50 text-purple-300' :
-                  tx.type === 'deposit' ? 'bg-green-900/50 text-green-300' :
-                  'bg-red-900/50 text-red-300'
-                }`}>
-                  {tx.type === 'buy' ? `${t('label_buy', lang)} ${tx.symbol}` :
-                   tx.type === 'sell' ? `${t('label_sell', lang)} ${tx.symbol}` :
-                   tx.type === 'dividend' ? `${t('portfolio_record_dividend', lang)} ${tx.symbol}` :
-                   tx.type === 'deposit' ? t('label_deposit', lang) : t('label_withdraw', lang)}
-                </span>
-                <span className="text-white font-medium">
-                  {tx.type === 'buy' || tx.type === 'sell' ? `${tx.shares} ${t('portfolio_shares_count', lang)} @ ${fmt(tx.price)}` :
-                   tx.type === 'dividend' ? `${tx.shares} ${t('portfolio_shares_count', lang)} × ${fmt(tx.amount)}` : ''}
-                </span>
-                <span className={`font-bold ${tx.type === 'sell' || tx.type === 'deposit' || tx.type === 'dividend' ? 'text-green-400' : 'text-red-400'}`}>
-                  {tx.type === 'sell' || tx.type === 'deposit' || tx.type === 'dividend' ? '+' : '-'}{fmt(tx.total ?? tx.amount)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
