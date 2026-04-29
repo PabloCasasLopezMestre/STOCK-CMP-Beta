@@ -4,6 +4,43 @@ import { t } from './i18n';
 
 const WORKER_BASE = 'https://proxy.stockcmp-proxy.workers.dev';
 
+// Stock suggestion component (moved outside to prevent re-renders)
+const StockSuggest = ({ value, onChange, placeholder, comparatorStocks = [] }) => {
+  const [focused, setFocused] = useState(false);
+  // Combine comparator stocks with popular symbols
+  const popularSymbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'NFLX'];
+  const suggestions = [...new Set([...popularSymbols, ...comparatorStocks])];
+
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value.toUpperCase())}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setTimeout(() => setFocused(false), 150)}
+        className="w-full bg-slate-700 text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+        placeholder={placeholder}
+        maxLength={10}
+      />
+      {focused && suggestions.length > 0 && (
+        <div className="absolute top-full left-0 right-0 z-20 bg-slate-800 border border-slate-600 rounded-lg mt-0.5 overflow-hidden shadow-lg max-h-40 overflow-y-auto">
+          {suggestions.map(sym => (
+            <button
+              key={sym}
+              type="button"
+              onMouseDown={() => onChange(sym)}
+              className="w-full text-left px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-700 font-mono"
+            >
+              {sym}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function Assets({ 
   currency = 'USD', 
   rates = {}, 
@@ -86,9 +123,20 @@ export default function Assets({
     try {
       const promises = symbols.map(async (symbol) => {
         try {
-          const response = await fetch(`${WORKER_BASE}/api/stock/${symbol}`);
+          const url = `${WORKER_BASE}/api/stock/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
+          const response = await fetch(url);
+          if (!response.ok) throw new Error(`Error ${response.status} para ${symbol}`);
           const data = await response.json();
-          return { symbol, price: data.price || 0 };
+          
+          if (!data.chart?.result?.[0]) {
+            console.warn(`No data for ${symbol}`);
+            return { symbol, price: 0 };
+          }
+          
+          const result = data.chart.result[0];
+          const closes = result.indicators?.quote?.[0]?.close ?? [];
+          const price = closes.filter(Boolean).pop() || 0;
+          return { symbol, price };
         } catch (error) {
           console.error(`Error fetching price for ${symbol}:`, error);
           return { symbol, price: 0 };
@@ -194,30 +242,49 @@ export default function Assets({
     if (isNaN(shares) || shares <= 0) return;
 
     try {
-      // Get current stock price
+      // Get current stock price using the same method as StockComparisonApp
       console.log(`Fetching price for symbol: ${symbol}`);
-      const response = await fetch(`${WORKER_BASE}/api/stock/${symbol}`);
-      const data = await response.json();
+      const url = `${WORKER_BASE}/api/stock/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
+      const response = await fetch(url);
       
-      console.log(`API response for ${symbol}:`, data);
+      console.log(`API response status for ${symbol}:`, response.status);
       
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`API error for ${symbol}:`, errorText);
         alert(lang === 'es' 
-          ? `Error del servidor: ${data.error || 'No se pudo conectar'}`
-          : `Server error: ${data.error || 'Could not connect'}`
+          ? `Error del servidor (${response.status}): No se pudo obtener el precio`
+          : `Server error (${response.status}): Could not get price`
         );
         return;
       }
       
-      if (!data.price || data.price <= 0) {
+      const data = await response.json();
+      console.log(`API data for ${symbol}:`, data);
+      
+      if (!data.chart?.result?.[0]) {
         alert(lang === 'es' 
-          ? `No se encontró precio válido para ${symbol}. Verifica que el símbolo sea correcto.`
-          : `No valid price found for ${symbol}. Please verify the symbol is correct.`
+          ? `No se encontraron datos para ${symbol}. Verifica que el símbolo sea correcto.`
+          : `No data found for ${symbol}. Please verify the symbol is correct.`
+        );
+        return;
+      }
+      
+      // Extract price using the same method as StockComparisonApp
+      const result = data.chart.result[0];
+      const closes = result.indicators?.quote?.[0]?.close ?? [];
+      const price = closes.filter(Boolean).pop();
+      
+      if (!price || price <= 0) {
+        alert(lang === 'es' 
+          ? `No se encontró precio válido para ${symbol}. El símbolo puede no estar disponible.`
+          : `No valid price found for ${symbol}. The symbol may not be available.`
         );
         return;
       }
 
-      const totalCost = shares * data.price;
+      console.log(`Price for ${symbol}:`, price);
+      const totalCost = shares * price;
       
       // Check if account has enough balance or credit limit
       const account = portfolio.bankAccounts.find(a => a.id === buyForm.accountId);
@@ -258,7 +325,7 @@ export default function Assets({
         // New holding
         newPortfolio.holdings[symbol] = {
           shares: shares,
-          avgCost: data.price
+          avgCost: price
         };
       }
       
@@ -268,7 +335,7 @@ export default function Assets({
         type: 'buy',
         symbol: symbol,
         shares: shares,
-        price: data.price,
+        price: price,
         total: totalCost,
         accountId: buyForm.accountId,
         date: new Date().toISOString()
@@ -287,7 +354,7 @@ export default function Assets({
       setShowBuyForm(false);
       
       // Update prices
-      setPrices(prev => ({ ...prev, [symbol]: data.price }));
+      setPrices(prev => ({ ...prev, [symbol]: price }));
       
       // Show success message
       alert(lang === 'es' 
@@ -304,42 +371,6 @@ export default function Assets({
     }
   };
 
-  // Stock suggestion component
-  const StockSuggest = ({ value, onChange, placeholder }) => {
-    const [focused, setFocused] = useState(false);
-    // Combine comparator stocks with popular symbols
-    const popularSymbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'NFLX'];
-    const suggestions = [...new Set([...popularSymbols, ...(comparatorStocks || [])])];
-
-    return (
-      <div className="relative">
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value.toUpperCase())}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setTimeout(() => setFocused(false), 150)}
-          className="w-full bg-slate-700 text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 uppercase"
-          placeholder={placeholder}
-          maxLength={10}
-        />
-        {focused && suggestions.length > 0 && (
-          <div className="absolute top-full left-0 right-0 z-20 bg-slate-800 border border-slate-600 rounded-lg mt-0.5 overflow-hidden shadow-lg max-h-40 overflow-y-auto">
-            {suggestions.map(sym => (
-              <button
-                key={sym}
-                type="button"
-                onMouseDown={() => onChange(sym)}
-                className="w-full text-left px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-700 font-mono"
-              >
-                {sym}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
   const handleDeposit = () => {
     if (!depositForm.accountId || !depositForm.amount) return;
 
@@ -892,6 +923,7 @@ export default function Assets({
                       value={buyForm.symbol}
                       onChange={(value) => setBuyForm(prev => ({ ...prev, symbol: value }))}
                       placeholder={lang === 'es' ? 'Ej: AAPL' : 'Ex: AAPL'}
+                      comparatorStocks={comparatorStocks}
                     />
                   </div>
                   <button
@@ -899,14 +931,27 @@ export default function Assets({
                     onClick={async () => {
                       if (!buyForm.symbol) return;
                       try {
-                        const response = await fetch(`${WORKER_BASE}/api/stock/${buyForm.symbol.toUpperCase()}`);
+                        const url = `${WORKER_BASE}/api/stock/${encodeURIComponent(buyForm.symbol.toUpperCase())}?interval=1d&range=5d`;
+                        const response = await fetch(url);
+                        if (!response.ok) {
+                          alert(lang === 'es' ? `Error ${response.status}` : `Error ${response.status}`);
+                          return;
+                        }
                         const data = await response.json();
-                        if (data.price) {
-                          alert(`${buyForm.symbol.toUpperCase()}: ${fmtCurrency(data.price)}`);
+                        if (!data.chart?.result?.[0]) {
+                          alert(lang === 'es' ? 'No se encontraron datos' : 'No data found');
+                          return;
+                        }
+                        const result = data.chart.result[0];
+                        const closes = result.indicators?.quote?.[0]?.close ?? [];
+                        const price = closes.filter(Boolean).pop();
+                        if (price) {
+                          alert(`${buyForm.symbol.toUpperCase()}: ${fmtCurrency(price)}`);
                         } else {
                           alert(lang === 'es' ? 'Precio no disponible' : 'Price not available');
                         }
                       } catch (error) {
+                        console.error('Price check error:', error);
                         alert(lang === 'es' ? 'Error al obtener precio' : 'Error fetching price');
                       }
                     }}
