@@ -444,8 +444,8 @@ export default function Assets({
             </h1>
             <p className="text-slate-400 text-sm">
               {lang === 'es' 
-                ? 'Gestiona tus cuentas bancarias, compra acciones con efectivo o crédito'
-                : 'Manage your bank accounts, buy stocks with cash or credit'
+                ? 'Registra y administra tu patrimonio financiero de manera integral'
+                : 'Register and manage your financial assets comprehensively'
               }
             </p>
           </div>
@@ -485,21 +485,21 @@ export default function Assets({
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-colors"
         >
           <Plus size={16} />
-          {lang === 'es' ? 'Nueva Cuenta' : 'New Account'}
+          {lang === 'es' ? 'Registra Nueva Cuenta' : 'Register New Account'}
         </button>
         <button
           onClick={() => setShowDepositForm(true)}
           className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-colors"
         >
           <DollarSign size={16} />
-          {lang === 'es' ? 'Depósito/Retiro' : 'Deposit/Withdrawal'}
+          {lang === 'es' ? 'Registra Depósito/Retiro' : 'Register Deposit/Withdrawal'}
         </button>
         <button
           onClick={() => setShowBuyForm(true)}
           className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-colors"
         >
           <ShoppingCart size={16} />
-          {lang === 'es' ? 'Comprar Acciones' : 'Buy Stocks'}
+          {lang === 'es' ? 'Registra Compra de Acciones' : 'Register Stock Purchase'}
         </button>
       </div>
 
@@ -521,7 +521,7 @@ export default function Assets({
               onClick={() => setShowBankForm(true)}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold"
             >
-              {lang === 'es' ? 'Crear Primera Cuenta' : 'Create First Account'}
+              {lang === 'es' ? 'Registra Primera Cuenta' : 'Register First Account'}
             </button>
           </div>
         ) : (
@@ -623,7 +623,7 @@ export default function Assets({
               onClick={() => setShowBuyForm(true)}
               className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-semibold"
             >
-              {lang === 'es' ? 'Comprar Primera Acción' : 'Buy First Stock'}
+              {lang === 'es' ? 'Registra Primera Compra' : 'Register First Purchase'}
             </button>
           </div>
         ) : (
@@ -706,7 +706,7 @@ export default function Assets({
               <h3 className="text-white font-bold text-lg">
                 {editingAccount 
                   ? (lang === 'es' ? 'Editar Cuenta' : 'Edit Account')
-                  : (lang === 'es' ? 'Nueva Cuenta Bancaria' : 'New Bank Account')
+                  : (lang === 'es' ? 'Registra Nueva Cuenta Bancaria' : 'Register New Bank Account')
                 }
               </h3>
             </div>
@@ -816,7 +816,7 @@ export default function Assets({
                 >
                   {editingAccount 
                     ? (lang === 'es' ? 'Guardar' : 'Save')
-                    : (lang === 'es' ? 'Crear' : 'Create')
+                    : (lang === 'es' ? 'Registrar' : 'Register')
                   }
                 </button>
               </div>
@@ -831,7 +831,7 @@ export default function Assets({
           <div className="bg-slate-900 border border-slate-600 rounded-2xl w-full max-w-md shadow-2xl">
             <div className="bg-gradient-to-r from-green-700 to-green-500 px-6 py-3 rounded-t-2xl">
               <h3 className="text-white font-bold text-lg">
-                {lang === 'es' ? 'Depósito / Retiro' : 'Deposit / Withdrawal'}
+                {lang === 'es' ? 'Registra Depósito / Retiro' : 'Register Deposit / Withdrawal'}
               </h3>
             </div>
             <div className="p-6 space-y-4">
@@ -893,8 +893,8 @@ export default function Assets({
                   className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-semibold transition-colors"
                 >
                   {depositForm.type === 'deposit' 
-                    ? (lang === 'es' ? 'Depositar' : 'Deposit')
-                    : (lang === 'es' ? 'Retirar' : 'Withdraw')
+                    ? (lang === 'es' ? 'Registrar Depósito' : 'Register Deposit')
+                    : (lang === 'es' ? 'Registrar Retiro' : 'Register Withdrawal')
                   }
                 </button>
               </div>
@@ -909,7 +909,7 @@ export default function Assets({
           <div className="bg-slate-900 border border-slate-600 rounded-2xl w-full max-w-md shadow-2xl">
             <div className="bg-gradient-to-r from-purple-700 to-purple-500 px-6 py-3 rounded-t-2xl">
               <h3 className="text-white font-bold text-lg">
-                {lang === 'es' ? 'Comprar Acciones' : 'Buy Stocks'}
+                {lang === 'es' ? 'Registra Compra de Acciones' : 'Register Stock Purchase'}
               </h3>
             </div>
             <div className="p-6 space-y-4">
@@ -1015,7 +1015,7 @@ export default function Assets({
                   onClick={handleBuyStock}
                   className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg font-semibold transition-colors"
                 >
-                  {lang === 'es' ? 'Comprar' : 'Buy'}
+                  {lang === 'es' ? 'Registrar Compra' : 'Register Purchase'}
                 </button>
               </div>
             </div>
