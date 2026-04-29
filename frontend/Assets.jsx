@@ -129,7 +129,7 @@ export default function Assets({
     }).format(v * rate);
   };
 
-  // Load initial portfolio
+  // Load initial portfolio and sync with updates
   useEffect(() => {
     if (initialPortfolio) {
       setPortfolio(prev => ({
