@@ -978,8 +978,14 @@ export default function PortfolioSimulator({
       if (!stocksOnlyMode) {
         // Find the selected account
         const selectedAccount = updatedAssetsAccounts.find(acc => acc.id === selectedAccountId);
-        if (!selectedAccount || selectedAccount.balance < total) {
-          setTradeError(`${t('portfolio_insufficient_funds', lang)} ${fmt(total)}. ${lang === 'es' ? 'Disponible' : 'Available'}: ${fmt(selectedAccount?.balance || 0)}`);
+        if (!selectedAccount) {
+          setTradeError(lang === 'es' ? 'Cuenta no encontrada' : 'Account not found');
+          return;
+        }
+
+        // Check if account has sufficient funds/credit
+        if (selectedAccount.type === 'debit' && selectedAccount.balance < total) {
+          setTradeError(`${t('portfolio_insufficient_funds', lang)} ${fmt(total)}. ${lang === 'es' ? 'Disponible' : 'Available'}: ${fmt(selectedAccount.balance)}`);
           return;
         }
 
@@ -1265,8 +1271,8 @@ export default function PortfolioSimulator({
           <div className="mb-4 bg-purple-500/20 border border-purple-500/30 rounded-lg px-3 py-2">
             <p className="text-purple-400 text-xs">
               {lang === 'es' 
-                ? '⚠️ Modo Solo Acciones: Las operaciones no afectan las cuentas de Activos'
-                : '⚠️ Stocks Only Mode: Operations do not affect Assets accounts'
+                ? 'Modo Solo Acciones: Las operaciones no afectan las cuentas bancarias de Activos'
+                : 'Stocks Only Mode: Operations do not affect Assets bank accounts'
               }
             </p>
           </div>
@@ -1302,14 +1308,11 @@ export default function PortfolioSimulator({
             onChange={(e) => setSelectedAccountId(e.target.value)}
           >
             <option value="">{lang === 'es' ? 'Seleccionar cuenta para pago' : 'Select account for payment'}</option>
-            {assetsPortfolio.bankAccounts
-              .filter(acc => acc.type === 'debit' && acc.balance > 0)
-              .map(acc => (
-                <option key={acc.id} value={acc.id}>
-                  {acc.name} - {fmt(acc.balance)} {lang === 'es' ? 'disponible' : 'available'}
-                </option>
-              ))
-            }
+            {assetsPortfolio.bankAccounts.map(acc => (
+              <option key={acc.id} value={acc.id}>
+                {acc.name} - {fmt(acc.balance)} {acc.type === 'credit' && acc.balance < 0 ? `(${lang === 'es' ? 'crédito usado' : 'credit used'})` : ''}
+              </option>
+            ))}
           </select>
         )}
         
@@ -1319,12 +1322,9 @@ export default function PortfolioSimulator({
           </p>
         )}
         
-        {!stocksOnlyMode && tradeMode === 'buy' && assetsPortfolio?.bankAccounts && (
+        {!stocksOnlyMode && tradeMode === 'buy' && selectedAccountId && assetsPortfolio?.bankAccounts && (
           <p className="text-slate-400 text-xs mb-2">
-            {selectedAccountId 
-              ? `${lang === 'es' ? 'Cuenta seleccionada' : 'Selected account'}: ${assetsPortfolio.bankAccounts.find(acc => acc.id === selectedAccountId)?.name || ''}`
-              : `${lang === 'es' ? 'Total disponible en Activos' : 'Total available in Assets'}: ${fmt(assetsPortfolio.bankAccounts.reduce((sum, acc) => acc.type === 'debit' ? sum + Math.max(0, acc.balance) : sum, 0))}`
-            }
+            {lang === 'es' ? 'Cuenta seleccionada' : 'Selected account'}: {assetsPortfolio.bankAccounts.find(acc => acc.id === selectedAccountId)?.name || ''}
           </p>
         )}
         
