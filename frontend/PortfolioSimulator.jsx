@@ -94,7 +94,10 @@ export default function PortfolioSimulator({
   visibleTimeRanges = [], 
   defaultTimeRange = '1month', 
   accountCreated, 
-  dataResetAt 
+  dataResetAt,
+  // New props for Assets integration
+  assetsPortfolio,
+  onAssetsPortfolioChange
 }) {
   // Safety check to ensure all required props are available
   if (!setCurrency || !setAlerts) {
@@ -107,6 +110,9 @@ export default function PortfolioSimulator({
   const [historicalPrices, setHistoricalPrices] = useState({});
   const [loadingPrices, setLoadingPrices] = useState(false);
   const [loadingHistorical, setLoadingHistorical] = useState(false);
+
+  // Stocks-only mode state (similar to retrospective mode in Assets)
+  const [stocksOnlyMode, setStocksOnlyMode] = useState(false);
 
   // Performance state
   const [tab, setTab] = useState('portfolio-performance');
@@ -179,7 +185,6 @@ export default function PortfolioSimulator({
   // Total value chart Y axis
   const [yMin, setYMin] = useState('');
   const [yMax, setYMax] = useState('');
-  const [includeBankAccounts, setIncludeBankAccounts] = useState(true);
   const [totalChartRange, setTotalChartRange] = useState('Todo');
   const [totalChartFilter, setTotalChartFilter] = useState('todo');
 
@@ -746,10 +751,7 @@ export default function PortfolioSimulator({
     return amount * rate;
   };
 
-  // Deposit / withdraw to specific bank account
-  const [depositAmount, setDepositAmount] = useState('');
-  const [depositMode, setDepositMode] = useState('deposit'); // 'deposit' | 'withdraw'
-  const [selectedBankAccount, setSelectedBankAccount] = useState(''); // bank account ID
+
 
   // Buy / sell
   const [tradeSymbol, setTradeSymbol] = useState('');
@@ -853,245 +855,6 @@ export default function PortfolioSimulator({
     setSimEndDate('');
   };
 
-  // Bank accounts
-  const [bankAccounts, setBankAccounts] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('bankAccounts') || '[]'); } catch { return []; }
-  });
-  const [showBankSection, setShowBankSection] = useState(false);
-  const [editingAccount, setEditingAccount] = useState(null); // For editing existing accounts
-  const [newBank, setNewBank] = useState({ 
-    name: '', 
-    balance: '', 
-    annualRate: '', // Growth rate (rendimiento/crecimiento)
-    interestRate: '', // Interest rate (interés adicional)
-    accountType: 'debit', // 'debit' | 'credit'
-    growthFrequency: 'monthly', // 'monthly' | 'annual'
-    interestFrequency: 'annual', // 'weekly' | 'monthly' | 'annual' - how often interest is applied
-    fees: [] // Array of {name, amount, frequency}
-  });
-  
-  // State for adding individual fees
-  const [newFee, setNewFee] = useState({
-    name: '',
-    amount: '',
-    frequency: 'monthly'
-  });
-
-  const saveBankAccounts = (accounts) => {
-    setBankAccounts(accounts);
-    try { localStorage.setItem('bankAccounts', JSON.stringify(accounts)); } catch {}
-  };
-
-  // Functions to manage fees
-  const addFeeToNewBank = () => {
-    const amount = parseFloat(newFee.amount);
-    if (!newFee.name || isNaN(amount) || amount <= 0) return;
-    
-    const fee = {
-      id: Date.now(),
-      name: newFee.name,
-      amount: toUSD(amount),
-      frequency: newFee.frequency
-    };
-    
-    setNewBank(prev => ({
-      ...prev,
-      fees: [...prev.fees, fee]
-    }));
-    
-    setNewFee({
-      name: '',
-      amount: '',
-      frequency: 'monthly'
-    });
-  };
-
-  const removeFeeFromNewBank = (feeId) => {
-    setNewBank(prev => ({
-      ...prev,
-      fees: prev.fees.filter(fee => fee.id !== feeId)
-    }));
-  };
-
-  const addBankAccount = () => {
-    const balance = parseFloat(newBank.balance);
-    const rate = parseFloat(newBank.annualRate);
-    const interestRate = parseFloat(newBank.interestRate);
-    if (!newBank.name || isNaN(balance)) return; // Remove balance >= 0 restriction to allow negative balances
-    
-    if (editingAccount) {
-      // Update existing account
-      const updatedAccounts = bankAccounts.map(account => 
-        account.id === editingAccount.id 
-          ? {
-              ...account,
-              name: newBank.name,
-              balance: toUSD(balance),
-              annualRate: isNaN(rate) ? 0 : rate,
-              interestRate: isNaN(interestRate) ? 0 : interestRate,
-              accountType: newBank.accountType,
-              growthFrequency: newBank.growthFrequency,
-              interestFrequency: newBank.interestFrequency,
-              fees: newBank.fees || []
-            }
-          : account
-      );
-      saveBankAccounts(updatedAccounts);
-      setEditingAccount(null);
-    } else {
-      // Add new account
-      const account = {
-        id: Date.now(),
-        name: newBank.name,
-        balance: toUSD(balance), // Can be negative now
-        annualRate: isNaN(rate) ? 0 : rate,
-        interestRate: isNaN(interestRate) ? 0 : interestRate,
-        accountType: newBank.accountType,
-        growthFrequency: newBank.growthFrequency,
-        interestFrequency: newBank.interestFrequency,
-        fees: newBank.fees || [] // Array of fee objects
-      };
-      saveBankAccounts([...bankAccounts, account]);
-    }
-    
-    // Reset form
-    setNewBank({ 
-      name: '', 
-      balance: '', 
-      annualRate: '', 
-      interestRate: '',
-      accountType: 'debit',
-      growthFrequency: 'monthly',
-      interestFrequency: 'annual',
-      fees: []
-    });
-    
-    // Close form if we were editing
-    if (editingAccount) {
-      setShowBankSection(false);
-    }
-  };
-
-  const startEditingAccount = (account) => {
-    setEditingAccount(account);
-    setNewBank({
-      name: account.name,
-      balance: String(fromUSD(account.balance)),
-      annualRate: String(account.annualRate || ''),
-      interestRate: String(account.interestRate || ''),
-      accountType: account.accountType || 'debit',
-      growthFrequency: account.growthFrequency || 'monthly',
-      interestFrequency: account.interestFrequency || 'annual',
-      fees: account.fees || []
-    });
-    setShowBankSection(true);
-  };
-
-  const cancelEditing = () => {
-    setEditingAccount(null);
-    setNewBank({ 
-      name: '', 
-      balance: '', 
-      annualRate: '', 
-      interestRate: '',
-      accountType: 'debit',
-      growthFrequency: 'monthly',
-      interestFrequency: 'annual',
-      fees: []
-    });
-    setShowBankSection(false); // Close the form when canceling
-  };
-
-  const removeBankAccount = (id) => saveBankAccounts(bankAccounts.filter(a => a.id !== id));
-
-  const applyBankGrowth = () => {
-    const updated = bankAccounts.map(a => {
-      let newBalance = a.balance;
-      
-      // 1. Apply growth rate (rendimiento/crecimiento)
-      if (a.annualRate && a.annualRate > 0) {
-        let growthRate = 0;
-        if (a.growthFrequency === 'annual') {
-          growthRate = a.annualRate / 100; // full annual rate
-        } else { // monthly
-          growthRate = a.annualRate / 100 / 12; // monthly rate
-        }
-        const growthAmount = newBalance * growthRate;
-        newBalance += growthAmount;
-      }
-      
-      // 2. Apply interest rate (interés adicional) - separate from growth
-      if (a.interestRate && a.interestRate > 0) {
-        let interestRate = 0;
-        
-        // Use interestFrequency for interest calculations
-        const frequency = a.interestFrequency || 'annual';
-        
-        if (frequency === 'weekly') {
-          interestRate = a.interestRate / 100 / 52; // weekly rate
-        } else if (frequency === 'monthly') {
-          interestRate = a.interestRate / 100 / 12; // monthly rate
-        } else { // annual
-          interestRate = a.interestRate / 100; // full annual rate
-        }
-        
-        // Calculate interest (positive for positive balances, negative for negative balances)
-        const interest = newBalance * interestRate;
-        
-        // For negative balances (debt), interest increases the debt
-        // For positive balances, interest increases the balance
-        newBalance += interest;
-      }
-      
-      // 3. Calculate total fees from all fee entries
-      let totalFees = 0;
-      
-      // Handle new fee system (array of fees)
-      if (a.fees && Array.isArray(a.fees)) {
-        totalFees = a.fees.reduce((sum, fee) => {
-          let feeAmount = 0;
-          if (fee.frequency === 'weekly') {
-            feeAmount = fee.amount / 52; // Apply 1/52 of annual fee
-          } else if (fee.frequency === 'annual') {
-            feeAmount = fee.amount / 12; // Apply 1/12 of annual fee monthly
-          } else {
-            feeAmount = fee.amount; // monthly (default)
-          }
-          return sum + feeAmount;
-        }, 0);
-      }
-      // Handle legacy fee system for backward compatibility
-      else if (a.fee) {
-        if (a.feeFrequency === 'weekly') {
-          totalFees = a.fee / 52;
-        } else if (a.feeFrequency === 'annual') {
-          totalFees = a.fee / 12;
-        } else {
-          totalFees = a.fee;
-        }
-      }
-      
-      // 4. Apply fees (always subtract fees, making negative balances more negative)
-      const finalBalance = newBalance - totalFees;
-      
-      return { ...a, balance: finalBalance };
-    });
-    saveBankAccounts(updated);
-  };
-
-  const totalBankBalance = bankAccounts.reduce((s, a) => s + a.balance, 0);
-  
-  // Get total available cash from all bank accounts
-  const getTotalAvailableCash = () => {
-    return bankAccounts.reduce((total, account) => {
-      // Only count debit accounts as available cash
-      // For negative balances, they don't contribute to available cash
-      if (account.accountType === 'debit') {
-        return total + Math.max(0, account.balance); // Only positive balances count as available
-      }
-      return total;
-    }, 0);
-  };
   const [divAmount, setDivAmount] = useState('');
   const [divLoading, setDivLoading] = useState(false);
   const [divInfo, setDivInfo] = useState(null); // { annual, quarterly, yield }
@@ -1173,53 +936,7 @@ export default function PortfolioSimulator({
   useEffect(() => { fetchHistoricalPrices(compareRange); }, [JSON.stringify(Object.keys(portfolio.holdings)), compareRange]);
   useEffect(() => { if (refreshTrigger > 0) { fetchPrices(); fetchHistoricalPrices(compareRange); } }, [refreshTrigger]);
 
-  // Deposit / withdraw to/from specific bank account
-  const handleDeposit = () => {
-    const amount = parseFloat(depositAmount);
-    const accountId = parseInt(selectedBankAccount);
-    if (isNaN(amount) || amount <= 0 || !accountId) return;
-    
-    const amountUSD = toUSD(amount);
-    const accountIndex = bankAccounts.findIndex(acc => acc.id === accountId);
-    if (accountIndex === -1) return;
-    
-    const account = bankAccounts[accountIndex];
-    
-    // Remove the restriction for withdrawals - allow negative balances
-    // if (depositMode === 'withdraw' && amountUSD > account.balance) return;
-    
-    const delta = depositMode === 'deposit' ? amountUSD : -amountUSD;
-    
-    // Update bank account balance (can go negative)
-    const updatedAccounts = [...bankAccounts];
-    updatedAccounts[accountIndex] = {
-      ...account,
-      balance: account.balance + delta
-    };
-    saveBankAccounts(updatedAccounts);
-    
-    // Record transaction
-    const next = {
-      ...portfolio,
-      deposits: [...portfolio.deposits, { 
-        type: depositMode, 
-        amount: amountUSD, 
-        date: new Date().toISOString(),
-        bankAccount: account.name,
-        bankAccountId: accountId
-      }],
-      transactions: [...portfolio.transactions, {
-        type: depositMode, 
-        amount: amountUSD, 
-        date: new Date().toLocaleString('es-MX'),
-        bankAccount: account.name
-      }],
-    };
-    updatePortfolio(next);
-    setDepositAmount('');
-  };
-
-  // Buy - deduct from bank accounts
+  // Buy - deduct from Assets accounts or simulate in stocks-only mode
   const handleBuy = async () => {
     setTradeError('');
     const sym = tradeSymbol.trim().toUpperCase();
@@ -1239,23 +956,55 @@ export default function PortfolioSimulator({
     if (!price) { setTradeError(t('portfolio_could_not_get_price', lang)); return; }
 
     const total = price * shares;
-    const availableCash = getTotalAvailableCash();
-    if (total > availableCash) { setTradeError(`${t('portfolio_insufficient_funds', lang)} ${fmt(total)}`); return; }
-
-    // Deduct from bank accounts (prioritize debit accounts)
-    let remainingAmount = total;
-    const updatedAccounts = [...bankAccounts];
     
-    for (let i = 0; i < updatedAccounts.length && remainingAmount > 0; i++) {
-      const account = updatedAccounts[i];
-      if (account.accountType === 'debit' && account.balance > 0) {
-        const deductAmount = Math.min(account.balance, remainingAmount);
-        updatedAccounts[i] = { ...account, balance: account.balance - deductAmount };
-        remainingAmount -= deductAmount;
+    // In stocks-only mode, don't check or deduct from accounts
+    if (!stocksOnlyMode) {
+      // Check if Assets accounts have enough balance
+      const assetsAccounts = assetsPortfolio?.bankAccounts || [];
+      const availableCash = assetsAccounts.reduce((sum, account) => {
+        if (account.type === 'debit') {
+          return sum + Math.max(0, account.balance);
+        }
+        return sum;
+      }, 0);
+      
+      if (total > availableCash) { 
+        setTradeError(`${t('portfolio_insufficient_funds', lang)} ${fmt(total)}. ${lang === 'es' ? 'Disponible en Activos' : 'Available in Assets'}: ${fmt(availableCash)}`); 
+        return; 
+      }
+
+      // Deduct from Assets accounts (prioritize debit accounts)
+      let remainingAmount = total;
+      const updatedAssetsAccounts = [...assetsAccounts];
+      
+      for (let i = 0; i < updatedAssetsAccounts.length && remainingAmount > 0; i++) {
+        const account = updatedAssetsAccounts[i];
+        if (account.type === 'debit' && account.balance > 0) {
+          const deductAmount = Math.min(account.balance, remainingAmount);
+          updatedAssetsAccounts[i] = { ...account, balance: account.balance - deductAmount };
+          remainingAmount -= deductAmount;
+        }
+      }
+      
+      // Update Assets portfolio with new account balances
+      if (onAssetsPortfolioChange && assetsPortfolio) {
+        const updatedAssetsPortfolio = {
+          ...assetsPortfolio,
+          bankAccounts: updatedAssetsAccounts,
+          transactions: [...(assetsPortfolio.transactions || []), {
+            id: Date.now().toString(),
+            type: 'stock_purchase',
+            symbol: sym,
+            shares: shares,
+            price: price,
+            total: total,
+            date: new Date().toISOString(),
+            description: `${lang === 'es' ? 'Compra de acciones desde Portafolio' : 'Stock purchase from Portfolio'}: ${shares} ${sym} @ ${fmt(price)}`
+          }]
+        };
+        onAssetsPortfolioChange(updatedAssetsPortfolio);
       }
     }
-    
-    saveBankAccounts(updatedAccounts);
 
     const existing = portfolio.holdings[sym] ?? { shares: 0, avgCost: 0 };
     const newShares = existing.shares + shares;
@@ -1265,7 +1014,13 @@ export default function PortfolioSimulator({
       ...portfolio,
       holdings: { ...portfolio.holdings, [sym]: { shares: newShares, avgCost: newAvgCost } },
       transactions: [...portfolio.transactions, {
-        type: 'buy', symbol: sym, shares, price, total, date: new Date().toLocaleString('es-MX'),
+        type: stocksOnlyMode ? 'buy_simulation' : 'buy', 
+        symbol: sym, 
+        shares, 
+        price, 
+        total, 
+        date: new Date().toLocaleString('es-MX'),
+        isSimulation: stocksOnlyMode
       }],
     };
     updatePortfolio(next);
@@ -1273,7 +1028,7 @@ export default function PortfolioSimulator({
     setTradeShares('');
   };
 
-  // Sell - deposit to first available debit account
+  // Sell - deposit to Assets accounts or simulate in stocks-only mode
   const handleSell = () => {
     setTradeError('');
     const sym = tradeSymbol.trim().toUpperCase();
@@ -1292,23 +1047,49 @@ export default function PortfolioSimulator({
     if (newShares <= 0) delete newHoldings[sym];
     else newHoldings[sym] = { ...holding, shares: newShares };
 
-    // Deposit proceeds to first available debit account
-    const updatedAccounts = [...bankAccounts];
-    const debitAccount = updatedAccounts.find(acc => acc.accountType === 'debit');
-    if (debitAccount) {
-      const accountIndex = updatedAccounts.findIndex(acc => acc.id === debitAccount.id);
-      updatedAccounts[accountIndex] = { 
-        ...debitAccount, 
-        balance: debitAccount.balance + total 
-      };
-      saveBankAccounts(updatedAccounts);
+    // In stocks-only mode, don't deposit to accounts
+    if (!stocksOnlyMode) {
+      // Deposit proceeds to first available Assets debit account
+      const assetsAccounts = assetsPortfolio?.bankAccounts || [];
+      const debitAccount = assetsAccounts.find(acc => acc.type === 'debit');
+      if (debitAccount && onAssetsPortfolioChange && assetsPortfolio) {
+        const updatedAssetsAccounts = [...assetsAccounts];
+        const accountIndex = updatedAssetsAccounts.findIndex(acc => acc.id === debitAccount.id);
+        updatedAssetsAccounts[accountIndex] = { 
+          ...debitAccount, 
+          balance: debitAccount.balance + total 
+        };
+        
+        // Update Assets portfolio
+        const updatedAssetsPortfolio = {
+          ...assetsPortfolio,
+          bankAccounts: updatedAssetsAccounts,
+          transactions: [...(assetsPortfolio.transactions || []), {
+            id: Date.now().toString(),
+            type: 'stock_sale',
+            symbol: sym,
+            shares: shares,
+            price: price,
+            total: total,
+            date: new Date().toISOString(),
+            description: `${lang === 'es' ? 'Venta de acciones desde Portafolio' : 'Stock sale from Portfolio'}: ${shares} ${sym} @ ${fmt(price)}`
+          }]
+        };
+        onAssetsPortfolioChange(updatedAssetsPortfolio);
+      }
     }
 
     const next = {
       ...portfolio,
       holdings: newHoldings,
       transactions: [...portfolio.transactions, {
-        type: 'sell', symbol: sym, shares, price, total, date: new Date().toLocaleString('es-MX'),
+        type: stocksOnlyMode ? 'sell_simulation' : 'sell', 
+        symbol: sym, 
+        shares, 
+        price, 
+        total, 
+        date: new Date().toLocaleString('es-MX'),
+        isSimulation: stocksOnlyMode
       }],
     };
     updatePortfolio(next);
@@ -1316,7 +1097,7 @@ export default function PortfolioSimulator({
     setTradeShares('');
   };
 
-  // Dividend - deposit to first available debit account
+  // Dividend - deposit to Assets accounts or simulate in stocks-only mode
   const handleDividend = () => {
     const sym = divSymbol.trim().toUpperCase();
     const amountInput = parseFloat(divAmount);
@@ -1326,23 +1107,49 @@ export default function PortfolioSimulator({
     const shares = holding?.shares ?? 0;
     const total = amount * shares;
     
-    // Deposit dividend to first available debit account
-    const updatedAccounts = [...bankAccounts];
-    const debitAccount = updatedAccounts.find(acc => acc.accountType === 'debit');
-    if (debitAccount) {
-      const accountIndex = updatedAccounts.findIndex(acc => acc.id === debitAccount.id);
-      updatedAccounts[accountIndex] = { 
-        ...debitAccount, 
-        balance: debitAccount.balance + total 
-      };
-      saveBankAccounts(updatedAccounts);
+    // In stocks-only mode, don't deposit to accounts
+    if (!stocksOnlyMode) {
+      // Deposit dividend to first available Assets debit account
+      const assetsAccounts = assetsPortfolio?.bankAccounts || [];
+      const debitAccount = assetsAccounts.find(acc => acc.type === 'debit');
+      if (debitAccount && onAssetsPortfolioChange && assetsPortfolio) {
+        const updatedAssetsAccounts = [...assetsAccounts];
+        const accountIndex = updatedAssetsAccounts.findIndex(acc => acc.id === debitAccount.id);
+        updatedAssetsAccounts[accountIndex] = { 
+          ...debitAccount, 
+          balance: debitAccount.balance + total 
+        };
+        
+        // Update Assets portfolio
+        const updatedAssetsPortfolio = {
+          ...assetsPortfolio,
+          bankAccounts: updatedAssetsAccounts,
+          transactions: [...(assetsPortfolio.transactions || []), {
+            id: Date.now().toString(),
+            type: 'dividend_received',
+            symbol: sym,
+            amount: amount,
+            shares: shares,
+            total: total,
+            date: new Date().toISOString(),
+            description: `${lang === 'es' ? 'Dividendo recibido desde Portafolio' : 'Dividend received from Portfolio'}: ${shares} ${sym} × ${fmt(amount)}`
+          }]
+        };
+        onAssetsPortfolioChange(updatedAssetsPortfolio);
+      }
     }
     
     const next = {
       ...portfolio,
       dividendsReceived: portfolio.dividendsReceived + total,
       transactions: [...portfolio.transactions, {
-        type: 'dividend', symbol: sym, amount, shares, total, date: new Date().toLocaleString('es-MX'),
+        type: stocksOnlyMode ? 'dividend_simulation' : 'dividend', 
+        symbol: sym, 
+        amount, 
+        shares, 
+        total, 
+        date: new Date().toLocaleString('es-MX'),
+        isSimulation: stocksOnlyMode
       }],
     };
     updatePortfolio(next);
@@ -1350,40 +1157,98 @@ export default function PortfolioSimulator({
     setDivAmount('');
   };
 
-  // Portfolio value - now includes bank accounts
+  // Portfolio value - now shows only investment values (no bank accounts)
   const holdingsValue = Object.entries(portfolio.holdings).reduce((sum, [sym, h]) => {
     return sum + h.shares * (prices[sym] ?? h.avgCost);
   }, 0);
-  const totalValue = totalBankBalance + holdingsValue;
+  
+  // Total value is now just holdings value (investments only)
+  const totalValue = holdingsValue;
+  
+  // Calculate deposits/withdrawals from transactions (for return calculation)
   const totalDeposited = portfolio.deposits.filter((d) => d.type === 'deposit').reduce((s, d) => s + d.amount, 0);
   const totalWithdrawn = portfolio.deposits.filter((d) => d.type === 'withdraw').reduce((s, d) => s + d.amount, 0);
   const netDeposited = totalDeposited - totalWithdrawn;
-  const totalReturn = totalValue - netDeposited;
-  const totalReturnPct = netDeposited > 0 ? (totalReturn / netDeposited) * 100 : 0;
+  
+  // For investment-only return calculation, use cost basis instead of net deposited
+  const totalCostBasis = Object.entries(portfolio.holdings).reduce((sum, [sym, h]) => {
+    return sum + h.shares * h.avgCost;
+  }, 0);
+  
+  const totalReturn = totalValue - totalCostBasis;
+  const totalReturnPct = totalCostBasis > 0 ? (totalReturn / totalCostBasis) * 100 : 0;
 
-  // Gains breakdown - now includes bank account gains
+  // Gains breakdown - now focuses only on investment gains
   const unrealizedProfit = Object.entries(portfolio.holdings).reduce((sum, [sym, h]) => {
     const currentPrice = prices[sym] ?? h.avgCost;
     return sum + h.shares * (currentPrice - h.avgCost);
   }, 0);
+  
   const realizedProfit = portfolio.transactions
-    .filter((tx) => tx.type === 'sell')
+    .filter((tx) => tx.type === 'sell' || tx.type === 'sell_simulation')
     .reduce((sum, tx) => {
       return sum + tx.total;
     }, 0) - portfolio.transactions
-    .filter((tx) => tx.type === 'sell')
+    .filter((tx) => tx.type === 'sell' || tx.type === 'sell_simulation')
     .reduce((sum, tx) => sum + tx.shares * (portfolio.holdings[tx.symbol]?.avgCost ?? tx.price), 0);
+    
   const dividendProfit = portfolio.dividendsReceived;
   
-  // Bank account gains (interest earned minus fees paid)
-  const bankGains = totalBankBalance - netDeposited;
-  
-  const totalProfit = unrealizedProfit + dividendProfit + bankGains;
+  // Total profit is now just investment-related gains
+  const totalProfit = unrealizedProfit + dividendProfit;
 
   const fmt = fmtCurrency;
 
   return (
     <div className="space-y-4">
+
+      {/* Stocks-Only Mode Toggle */}
+      <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h3 className="text-white font-semibold mb-1">
+              {lang === 'es' ? 'Modo de Operación' : 'Operation Mode'}
+            </h3>
+            <p className="text-slate-400 text-sm">
+              {stocksOnlyMode 
+                ? (lang === 'es' ? 'Las operaciones no afectan cuentas de Activos' : 'Operations do not affect Assets accounts')
+                : (lang === 'es' ? 'Las compras/ventas se conectan con tus cuentas de Activos' : 'Purchases/sales connect with your Assets accounts')
+              }
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-slate-300 text-sm font-medium">
+              {lang === 'es' ? 'Modo:' : 'Mode:'}
+            </span>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={stocksOnlyMode}
+                onChange={(e) => setStocksOnlyMode(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+            </label>
+            <span className={`text-sm font-medium ${stocksOnlyMode ? 'text-purple-400' : 'text-green-400'}`}>
+              {stocksOnlyMode 
+                ? (lang === 'es' ? 'Solo Acciones' : 'Stocks Only')
+                : (lang === 'es' ? 'Conectado' : 'Connected')
+              }
+            </span>
+          </div>
+        </div>
+
+        {stocksOnlyMode && (
+          <div className="mt-3 bg-purple-500/20 border border-purple-500/30 rounded-lg px-3 py-2">
+            <p className="text-purple-400 text-xs font-medium">
+              {lang === 'es' 
+                ? '⚠️ Modo Solo Acciones: Las compras/ventas no afectan las cuentas de Activos'
+                : '⚠️ Stocks Only Mode: Purchases/sales do not affect Assets accounts'
+              }
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Triggered alerts banner */}
       {triggeredAlerts.length > 0 && (
@@ -1701,14 +1566,13 @@ export default function PortfolioSimulator({
         </div>
       )}
 
-      {/* Summary - only show when not on performance tab */}
+      {/* Summary - investment-focused */}
       {tab !== 'portfolio-performance' && (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {[
-          { label: t('label_total_value', lang), value: fmt(totalValue), color: 'text-white' },
-          { label: lang === 'es' ? 'Cuentas bancarias' : 'Bank accounts', value: fmt(totalBankBalance), color: 'text-green-400' },
           { label: t('label_investments', lang), value: fmt(holdingsValue), color: 'text-blue-400' },
           { label: t('label_total_return', lang), value: `${totalReturn >= 0 ? '+' : ''}${fmt(totalReturn)} (${totalReturnPct.toFixed(2)}%)`, color: totalReturn >= 0 ? 'text-green-400' : 'text-red-400' },
+          { label: lang === 'es' ? 'Costo Base' : 'Cost Basis', value: fmt(totalCostBasis), color: 'text-slate-300' },
         ].map(({ label, value, color }) => (
           <div key={label} className="bg-slate-800/70 rounded-lg p-4 border border-slate-700">
             <p className="text-slate-400 text-xs mb-1">{label}</p>
@@ -1718,23 +1582,16 @@ export default function PortfolioSimulator({
       </div>
       )}
 
-      {/* Gains breakdown */}
+      {/* Gains breakdown - investment-focused */}
       <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
         <h3 className="text-white font-semibold mb-3">{t('portfolio_gains_summary', lang)}</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="bg-slate-700/50 rounded-lg p-4 border border-purple-500/30">
             <p className="text-slate-400 text-xs mb-1">{t('portfolio_dividend_gains', lang)}</p>
             <p className={`text-2xl font-bold ${dividendProfit >= 0 ? 'text-purple-400' : 'text-red-400'}`}>
               {dividendProfit >= 0 ? '+' : ''}{fmt(dividendProfit)}
             </p>
             <p className="text-slate-500 text-xs mt-1">{t('portfolio_dividends_accumulated', lang)}</p>
-          </div>
-          <div className="bg-slate-700/50 rounded-lg p-4 border border-orange-500/30">
-            <p className="text-slate-400 text-xs mb-1">{lang === 'es' ? 'Ganancias bancarias' : 'Bank gains'}</p>
-            <p className={`text-2xl font-bold ${bankGains >= 0 ? 'text-orange-400' : 'text-red-400'}`}>
-              {bankGains >= 0 ? '+' : ''}{fmt(bankGains)}
-            </p>
-            <p className="text-slate-500 text-xs mt-1">{lang === 'es' ? 'Intereses menos comisiones' : 'Interest minus fees'}</p>
           </div>
           <div className="bg-slate-700/50 rounded-lg p-4 border border-blue-500/30">
             <p className="text-slate-400 text-xs mb-1">{t('portfolio_stock_value_gain', lang)}</p>
@@ -1748,54 +1605,12 @@ export default function PortfolioSimulator({
             <p className={`text-2xl font-bold ${totalProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
               {totalProfit >= 0 ? '+' : ''}{fmt(totalProfit)}
             </p>
-            <p className="text-slate-500 text-xs mt-1">{lang === 'es' ? 'Dividendos + bancos + acciones' : 'Dividends + banks + stocks'}</p>
+            <p className="text-slate-500 text-xs mt-1">{lang === 'es' ? 'Dividendos + acciones' : 'Dividends + stocks'}</p>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-        {/* Deposit / Withdraw to specific bank account */}
-        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-          <h3 className="text-white font-semibold mb-3">{lang === 'es' ? 'Depositar/Retirar' : 'Deposit/Withdraw'}</h3>
-          <div className="flex gap-2 mb-3">
-            <button onClick={() => setDepositMode('deposit')} className={`flex-1 py-1.5 rounded text-sm font-medium ${depositMode === 'deposit' ? 'bg-green-600 text-white' : 'bg-slate-700 text-slate-300'}`}>{t('label_deposit', lang)}</button>
-            <button onClick={() => setDepositMode('withdraw')} className={`flex-1 py-1.5 rounded text-sm font-medium ${depositMode === 'withdraw' ? 'bg-red-600 text-white' : 'bg-slate-700 text-slate-300'}`}>{t('label_withdraw', lang)}</button>
-          </div>
-          
-          {/* Bank account selector */}
-          <select
-            className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 mb-2"
-            value={selectedBankAccount}
-            onChange={(e) => setSelectedBankAccount(e.target.value)}
-          >
-            <option value="">{lang === 'es' ? 'Seleccionar cuenta' : 'Select account'}</option>
-            {bankAccounts.map(account => (
-              <option key={account.id} value={account.id}>
-                {account.name} - {fmt(account.balance)} 
-                {account.balance < 0 && ` (${lang === 'es' ? 'DEUDA' : 'DEBT'})`}
-                ({account.accountType === 'debit' ? (lang === 'es' ? 'Débito' : 'Debit') : (lang === 'es' ? 'Crédito' : 'Credit')})
-              </option>
-            ))}
-          </select>
-          
-          <input
-            className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 mb-2"
-            placeholder={`${lang === 'es' ? 'Cantidad en' : 'Amount in'} ${currency}`}
-            type="number"
-            value={depositAmount}
-            onChange={(e) => setDepositAmount(e.target.value)}
-          />
-          <button 
-            onClick={handleDeposit} 
-            disabled={!selectedBankAccount}
-            className={`w-full py-2 rounded text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed ${depositMode === 'deposit' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
-          >
-            {depositMode === 'deposit' ? `+ ${t('label_deposit', lang)}` : `- ${t('label_withdraw', lang)}`}
-          </button>
-          <p className="text-slate-500 text-xs mt-2">{t('portfolio_deposited', lang)}: {fmt(totalDeposited)} · {t('portfolio_withdrawn', lang)}: {fmt(totalWithdrawn)}</p>
-          <p className="text-slate-500 text-xs">{t('portfolio_dividends_received', lang)}: {fmt(portfolio.dividendsReceived)}</p>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
         {/* Buy / Sell */}
         <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
@@ -1824,6 +1639,11 @@ export default function PortfolioSimulator({
               {t('portfolio_current_price_total', lang)}: {fmt(prices[tradeSymbol])} · {t('portfolio_total', lang)}: {fmt(prices[tradeSymbol] * (parseFloat(tradeShares) || 0))}
             </p>
           )}
+          {!stocksOnlyMode && tradeMode === 'buy' && assetsPortfolio?.bankAccounts && (
+            <p className="text-slate-400 text-xs mb-2">
+              {lang === 'es' ? 'Disponible en Activos' : 'Available in Assets'}: {fmt(assetsPortfolio.bankAccounts.reduce((sum, acc) => acc.type === 'debit' ? sum + Math.max(0, acc.balance) : sum, 0))}
+            </p>
+          )}
           {tradeError && (
             <div className="mb-2">
               <p className="text-red-400 text-xs">{tradeError}</p>
@@ -1837,6 +1657,7 @@ export default function PortfolioSimulator({
             className={`w-full py-2 rounded text-sm font-medium text-white ${tradeMode === 'buy' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'}`}
           >
             {tradeMode === 'buy' ? t('label_buy', lang) : t('label_sell', lang)}
+            {stocksOnlyMode && ` (${lang === 'es' ? 'Simulación' : 'Simulation'})`}
           </button>
         </div>
 
@@ -2079,31 +1900,24 @@ export default function PortfolioSimulator({
         </div>
       )}
 
-      {/* Portfolio Total Value Chart */}
+      {/* Portfolio Total Value Chart - Investment focused */}
       {enabledFeatures.portfolioChart !== false && portfolio.transactions.length > 0 && (() => {
-        let bankBalance = 0; // Track bank balance through transactions
         let costBasis = {};
         const allPoints = [];
 
         portfolio.transactions.forEach((tx) => {
-          if (tx.type === 'deposit') bankBalance += tx.amount;
-          else if (tx.type === 'withdraw') bankBalance -= tx.amount;
-          else if (tx.type === 'buy') {
-            bankBalance -= tx.total;
+          if (tx.type === 'buy' || tx.type === 'buy_simulation') {
             costBasis[tx.symbol] = (costBasis[tx.symbol] ?? 0) + tx.total;
-          } else if (tx.type === 'sell') {
-            bankBalance += tx.total;
+          } else if (tx.type === 'sell' || tx.type === 'sell_simulation') {
             const prev = costBasis[tx.symbol] ?? 0;
             const sharesLeft = (portfolio.holdings[tx.symbol]?.shares ?? 0);
             const totalShares = sharesLeft + tx.shares;
             costBasis[tx.symbol] = Math.max(0, prev * (sharesLeft / Math.max(totalShares, 0.0001)));
-          } else if (tx.type === 'dividend') {
-            bankBalance += tx.total;
           }
+          
           const investedValue = Object.values(costBasis).reduce((s, v) => s + v, 0);
-          // Use current bank balance for the most recent point, historical bank balance for older points
-          const currentBankBalance = totalBankBalance;
-          const total = includeBankAccounts ? currentBankBalance + investedValue : investedValue;
+          const total = investedValue; // Only investment value, no bank accounts
+          
           const ts = tx.isoDate
             ? new Date(tx.isoDate).getTime()
             : (() => {
@@ -2120,23 +1934,16 @@ export default function PortfolioSimulator({
         if (points.length === 1) {
           points = [{ date: points[0].date, valor: 0 }, ...points];
         }
-        const lastVal = points[points.length - 1]?.valor ?? 0;
 
         return (
           <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <div className="flex items-center gap-3 flex-wrap">
-                <h3 className="text-white font-semibold">{t('portfolio_total_value_chart', lang)}</h3>
+                <h3 className="text-white font-semibold">{lang === 'es' ? 'Valor de Inversiones' : 'Investment Value'}</h3>
                 <div className="bg-green-900/50 border border-green-500/40 rounded-lg px-3 py-1.5 text-center">
-                  <p className="text-green-400 text-xs">{t('portfolio_current_value', lang)}</p>
-                  <p className="text-white font-bold text-sm">{fmt(includeBankAccounts ? totalValue : holdingsValue)}</p>
+                  <p className="text-green-400 text-xs">{lang === 'es' ? 'Valor Actual' : 'Current Value'}</p>
+                  <p className="text-white font-bold text-sm">{fmt(holdingsValue)}</p>
                 </div>
-                <button
-                  onClick={() => setIncludeBankAccounts(!includeBankAccounts)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${includeBankAccounts ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'}`}
-                >
-                  {includeBankAccounts ? (lang === 'es' ? 'Con cuentas de banco' : 'With bank accounts') : (lang === 'es' ? 'Sin cuentas de banco' : 'Without bank accounts')}
-                </button>
               </div>
               <div className="flex gap-1 flex-wrap items-center">
                 <button
@@ -2164,330 +1971,14 @@ export default function PortfolioSimulator({
                   domain={[yMin !== '' ? parseFloat(yMin) : 0, yMax !== '' ? parseFloat(yMax) : 'auto']}
                 />
                 <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px' }} labelStyle={{ color: '#e2e8f0' }} formatter={(v) => [fmt(v), 'Valor']} />
-                <Line type="monotone" dataKey="valor" stroke="#10b981" strokeWidth={2} dot={false} name="Valor Total" />
+                <Line type="monotone" dataKey="valor" stroke="#10b981" strokeWidth={2} dot={false} name="Valor de Inversiones" />
               </LineChart>
             </ResponsiveContainer>
           </div>
         );
       })()}
 
-      
-      {/* Bank Accounts Section */}
-      {enabledFeatures.bankAccounts !== false && (
-      <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-white font-semibold">{lang === 'es' ? 'Cuentas Bancarias' : 'Bank Accounts'}</h3>
-          <div className="flex items-center gap-2">
-            {bankAccounts.length > 0 && (
-              <span className="text-slate-400 text-xs">{lang === 'es' ? 'Total' : 'Total'}: <span className="text-white font-semibold">{fmt(totalBankBalance)}</span></span>
-            )}
-            <button
-              type="button"
-              onClick={() => setShowBankSection(p => !p)}
-              className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1 rounded-lg"
-            >
-              {showBankSection ? (lang === 'es' ? 'Ocultar' : 'Hide') : (lang === 'es' ? 'Gestionar' : 'Manage')}
-            </button>
-          </div>
-        </div>
 
-        {/* Existing accounts */}
-        {bankAccounts.length > 0 && (
-          <div className="space-y-2 mb-3">
-            {bankAccounts.map(a => {
-              const annualInterest = a.balance * (a.annualRate / 100);
-              
-              // Calculate total fees display
-              let feesDisplay = '';
-              if (a.fees && Array.isArray(a.fees) && a.fees.length > 0) {
-                const totalMonthlyFees = a.fees.reduce((sum, fee) => {
-                  if (fee.frequency === 'weekly') return sum + (fee.amount / 52) * 4.33; // weekly to monthly
-                  if (fee.frequency === 'annual') return sum + (fee.amount / 12); // annual to monthly
-                  return sum + fee.amount; // monthly
-                }, 0);
-                feesDisplay = ` · ${lang === 'es' ? 'Gastos' : 'Fees'}: ${fmt(totalMonthlyFees)}/${lang === 'es' ? 'mes' : 'mo'}`;
-              }
-              // Legacy fee system for backward compatibility
-              else if (a.fee && a.fee > 0) {
-                const feeFreq = a.feeFrequency || a.feeType || 'monthly';
-                const freqLabel = feeFreq === 'weekly' ? (lang === 'es' ? 'sem' : 'wk') :
-                                 feeFreq === 'annual' ? (lang === 'es' ? 'año' : 'yr') :
-                                 (lang === 'es' ? 'mes' : 'mo');
-                feesDisplay = ` · ${lang === 'es' ? 'Cobro' : 'Fee'}: ${fmt(a.fee)}/${freqLabel}`;
-              }
-              
-              return (
-                <div key={a.id} className="bg-slate-700/50 rounded-lg px-3 py-2">
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2">
-                      <p className="text-white text-sm font-semibold truncate">{a.name}</p>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        (a.accountType || 'debit') === 'debit' 
-                          ? 'bg-green-600/20 text-green-400' 
-                          : 'bg-orange-600/20 text-orange-400'
-                      }`}>
-                        {(a.accountType || 'debit') === 'debit' ? (lang === 'es' ? 'Débito' : 'Debit') : (lang === 'es' ? 'Crédito' : 'Credit')}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button 
-                        onClick={() => startEditingAccount(a)} 
-                        className="text-slate-400 hover:text-blue-400 text-xs px-2 py-1 rounded bg-slate-600/50 hover:bg-slate-600"
-                        title={lang === 'es' ? 'Editar cuenta' : 'Edit account'}
-                      >
-                        ✏️
-                      </button>
-                      <button onClick={() => removeBankAccount(a.id)} className="text-slate-500 hover:text-red-400 text-xs shrink-0">✕</button>
-                    </div>
-                  </div>
-                  
-                  <p className="text-slate-400 text-xs mb-1">
-                    <span className={a.balance >= 0 ? 'text-white' : 'text-red-400 font-semibold'}>
-                      {fmt(a.balance)}
-                    </span>
-                    {a.balance < 0 && <span className="text-red-300 ml-1">({lang === 'es' ? 'DEUDA' : 'DEBT'})</span>}
-                     · {lang === 'es' ? 'Crecimiento' : 'Growth'}: {a.annualRate || 0}%
-                    {(a.accountType === 'credit') && a.interestRate && a.interestRate > 0 && (
-                      <span> · {lang === 'es' ? 'Interés' : 'Interest'}: {a.interestRate}%</span>
-                    )}
-                    {feesDisplay}
-                  </p>
-                  
-                  {(a.accountType || 'debit') === 'credit' ? (
-                    <div className="text-xs mb-2">
-                      <p className="text-green-400">
-                        {lang === 'es' ? 'Crece' : 'Grows'}: {(a.growthFrequency || 'monthly') === 'annual' ? (lang === 'es' ? 'anual' : 'annual') : (lang === 'es' ? 'mensual' : 'monthly')}
-                        {a.annualRate > 0 && (
-                          <span> · {lang === 'es' ? 'Rendimiento' : 'Yield'}: {a.annualRate}%</span>
-                        )}
-                      </p>
-                      {a.interestRate && a.interestRate > 0 && (
-                        <p className="text-red-400">
-                          {lang === 'es' ? 'Interés' : 'Interest'}: {
-                            (a.interestFrequency || 'annual') === 'weekly' ? (lang === 'es' ? 'semanal' : 'weekly') :
-                            (a.interestFrequency || 'annual') === 'monthly' ? (lang === 'es' ? 'mensual' : 'monthly') :
-                            (lang === 'es' ? 'anual' : 'annual')
-                          } · {a.interestRate}%
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-xs mb-2">
-                      <p className="text-green-400">
-                        {lang === 'es' ? 'Crece' : 'Grows'}: {(a.growthFrequency || 'monthly') === 'annual' ? (lang === 'es' ? 'anual' : 'annual') : (lang === 'es' ? 'mensual' : 'monthly')}
-                        {a.annualRate > 0 && (
-                          <span> · {lang === 'es' ? 'Rendimiento' : 'Yield'}: {a.annualRate}%</span>
-                        )}
-                      </p>
-                    </div>
-                  )}
-                  
-                  {/* Show individual fees if using new system */}
-                  {a.fees && Array.isArray(a.fees) && a.fees.length > 0 && (
-                    <div className="border-t border-slate-600 pt-2 mt-2">
-                      <p className="text-slate-500 text-xs mb-1">{lang === 'es' ? 'Gastos detallados:' : 'Detailed fees:'}</p>
-                      <div className="space-y-1">
-                        {a.fees.map(fee => (
-                          <div key={fee.id} className="flex justify-between text-xs">
-                            <span className="text-slate-300">{fee.name}</span>
-                            <span className="text-slate-400">
-                              {fmt(fee.amount)}/{fee.frequency === 'weekly' ? (lang === 'es' ? 'sem' : 'wk') : 
-                                                fee.frequency === 'annual' ? (lang === 'es' ? 'año' : 'yr') : 
-                                                (lang === 'es' ? 'mes' : 'mo')}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-            <button
-              type="button"
-              onClick={applyBankGrowth}
-              className="w-full py-1.5 rounded text-xs font-semibold bg-blue-700 hover:bg-blue-600 text-white"
-            >
-              {lang === 'es' ? 'Aplicar crecimiento' : 'Apply growth'}
-            </button>
-          </div>
-        )}
-
-        {/* Add/Edit account form */}
-        {showBankSection && (
-          <div className="space-y-3 border-t border-slate-700 pt-3">
-            <h4 className="text-white text-sm font-semibold">
-              {editingAccount 
-                ? (lang === 'es' ? `Editar: ${editingAccount.name}` : `Edit: ${editingAccount.name}`)
-                : (lang === 'es' ? 'Agregar nueva cuenta' : 'Add new account')
-              }
-            </h4>
-            <input
-              className="w-full bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
-              placeholder={lang === 'es' ? 'Nombre de la cuenta (ej. BBVA, Nu)' : 'Account name (e.g. Chase, Nu)'}
-              value={newBank.name}
-              onChange={e => setNewBank(p => ({ ...p, name: e.target.value }))}
-            />
-            
-            {/* Account type and balance */}
-            <div className="flex gap-2">
-              <select
-                className="bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none"
-                value={newBank.accountType}
-                onChange={e => {
-                  const newType = e.target.value;
-                  setNewBank(p => ({ 
-                    ...p, 
-                    accountType: newType,
-                    // Clear interest rate if switching to debit
-                    interestRate: newType === 'debit' ? '' : p.interestRate
-                  }));
-                }}
-              >
-                <option value="debit">{lang === 'es' ? 'Débito' : 'Debit'}</option>
-                <option value="credit">{lang === 'es' ? 'Crédito' : 'Credit'}</option>
-              </select>
-              <input
-                className="flex-1 bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder={`${lang === 'es' ? 'Saldo' : 'Balance'} (${currency})`}
-                type="number"
-                value={newBank.balance}
-                onChange={e => setNewBank(p => ({ ...p, balance: e.target.value }))}
-              />
-            </div>
-            
-            {/* Growth rate and frequencies */}
-            <div className="flex gap-2">
-              <input
-                className="flex-1 bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder={lang === 'es' ? 'Tasa de crecimiento %' : 'Growth rate %'}
-                type="number"
-                value={newBank.annualRate}
-                onChange={e => setNewBank(p => ({ ...p, annualRate: e.target.value }))}
-              />
-              <select
-                className="bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none"
-                value={newBank.growthFrequency}
-                onChange={e => setNewBank(p => ({ ...p, growthFrequency: e.target.value }))}
-              >
-                <option value="monthly">{lang === 'es' ? 'Crece mensual' : 'Monthly growth'}</option>
-                <option value="annual">{lang === 'es' ? 'Crece anual' : 'Annual growth'}</option>
-              </select>
-            </div>
-            
-            {/* Interest rate - only show for credit accounts */}
-            {newBank.accountType === 'credit' && (
-              <div className="flex gap-2">
-                <input
-                  className="flex-1 bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
-                  placeholder={lang === 'es' ? 'Tasa de interés %' : 'Interest rate %'}
-                  type="number"
-                  value={newBank.interestRate}
-                  onChange={e => setNewBank(p => ({ ...p, interestRate: e.target.value }))}
-                />
-                <select
-                  className="bg-slate-700 text-white rounded px-3 py-1.5 text-sm outline-none"
-                  value={newBank.interestFrequency}
-                  onChange={e => setNewBank(p => ({ ...p, interestFrequency: e.target.value }))}
-                >
-                  <option value="weekly">{lang === 'es' ? 'Semanal' : 'Weekly'}</option>
-                  <option value="monthly">{lang === 'es' ? 'Mensual' : 'Monthly'}</option>
-                  <option value="annual">{lang === 'es' ? 'Anual' : 'Annual'}</option>
-                </select>
-              </div>
-            )}
-            
-            {/* Fees section */}
-            <div className="border-t border-slate-600 pt-3">
-              <p className="text-white text-sm font-medium mb-2">{lang === 'es' ? 'Gastos/Comisiones' : 'Fees/Expenses'}</p>
-              
-              {/* Show existing fees */}
-              {newBank.fees.length > 0 && (
-                <div className="space-y-1 mb-3">
-                  {newBank.fees.map(fee => (
-                    <div key={fee.id} className="flex items-center justify-between bg-slate-600/50 rounded px-2 py-1">
-                      <span className="text-slate-200 text-xs">
-                        {fee.name}: {fmt(fee.amount)}/{fee.frequency === 'weekly' ? (lang === 'es' ? 'sem' : 'wk') : 
-                                                      fee.frequency === 'annual' ? (lang === 'es' ? 'año' : 'yr') : 
-                                                      (lang === 'es' ? 'mes' : 'mo')}
-                      </span>
-                      <button
-                        onClick={() => removeFeeFromNewBank(fee.id)}
-                        className="text-slate-400 hover:text-red-400 text-xs"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              
-              {/* Add new fee */}
-              <div className="space-y-2">
-                <input
-                  className="w-full bg-slate-600 text-white rounded px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-blue-500"
-                  placeholder={lang === 'es' ? 'Nombre del gasto (ej. Mantenimiento, Transferencias)' : 'Fee name (e.g. Maintenance, Transfers)'}
-                  value={newFee.name}
-                  onChange={e => setNewFee(p => ({ ...p, name: e.target.value }))}
-                />
-                <div className="flex gap-2">
-                  <input
-                    className="flex-1 bg-slate-600 text-white rounded px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-blue-500"
-                    placeholder={`${lang === 'es' ? 'Monto' : 'Amount'} (${currency})`}
-                    type="number"
-                    value={newFee.amount}
-                    onChange={e => setNewFee(p => ({ ...p, amount: e.target.value }))}
-                  />
-                  <select
-                    className="bg-slate-600 text-white rounded px-3 py-1.5 text-xs outline-none"
-                    value={newFee.frequency}
-                    onChange={e => setNewFee(p => ({ ...p, frequency: e.target.value }))}
-                  >
-                    <option value="weekly">{lang === 'es' ? 'Semanal' : 'Weekly'}</option>
-                    <option value="monthly">{lang === 'es' ? 'Mensual' : 'Monthly'}</option>
-                    <option value="annual">{lang === 'es' ? 'Anual' : 'Annual'}</option>
-                  </select>
-                  <button
-                    onClick={addFeeToNewBank}
-                    disabled={!newFee.name || !newFee.amount}
-                    className="bg-slate-500 hover:bg-slate-400 disabled:opacity-50 text-white px-3 py-1.5 rounded text-xs font-semibold"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={addBankAccount}
-                disabled={!newBank.name || !newBank.balance}
-                className="flex-1 py-1.5 rounded text-sm font-semibold bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white"
-              >
-                {editingAccount 
-                  ? (lang === 'es' ? '💾 Guardar cambios' : '💾 Save changes')
-                  : (lang === 'es' ? '+ Agregar cuenta' : '+ Add account')
-                }
-              </button>
-              {editingAccount && (
-                <button
-                  type="button"
-                  onClick={cancelEditing}
-                  className="px-4 py-1.5 rounded text-sm font-semibold bg-slate-600 hover:bg-slate-500 text-white"
-                >
-                  {lang === 'es' ? 'Cancelar' : 'Cancel'}
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {bankAccounts.length === 0 && !showBankSection && (
-          <p className="text-slate-500 text-sm">{lang === 'es' ? 'Agrega cuentas bancarias para rastrear su crecimiento.' : 'Add bank accounts to track their growth.'}</p>
-        )}
-      </div>
-      )}
 
       {/* News section */}
       {enabledFeatures.portfolioNews !== false && (
