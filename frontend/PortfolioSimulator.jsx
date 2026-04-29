@@ -957,63 +957,66 @@ export default function PortfolioSimulator({
 
     const total = price * shares;
     
-    // In stocks-only mode, don't check or deduct from accounts
-    if (!stocksOnlyMode) {
-      // Check if Assets accounts have enough balance
-      const assetsAccounts = assetsPortfolio?.bankAccounts || [];
-      const availableCash = assetsAccounts.reduce((sum, account) => {
-        if (account.type === 'debit') {
-          return sum + Math.max(0, account.balance);
-        }
-        return sum;
-      }, 0);
+    // Always update Assets with stock holdings, but only deduct money if NOT in stocks-only mode
+    if (onAssetsPortfolioChange && assetsPortfolio) {
+      let updatedAssetsAccounts = [...(assetsPortfolio.bankAccounts || [])];
       
-      if (total > availableCash) { 
-        setTradeError(`${t('portfolio_insufficient_funds', lang)} ${fmt(total)}. ${lang === 'es' ? 'Disponible en Activos' : 'Available in Assets'}: ${fmt(availableCash)}`); 
-        return; 
-      }
+      // Only deduct money if NOT in stocks-only mode
+      if (!stocksOnlyMode) {
+        // Check if Assets accounts have enough balance
+        const availableCash = updatedAssetsAccounts.reduce((sum, account) => {
+          if (account.type === 'debit') {
+            return sum + Math.max(0, account.balance);
+          }
+          return sum;
+        }, 0);
+        
+        if (total > availableCash) { 
+          setTradeError(`${t('portfolio_insufficient_funds', lang)} ${fmt(total)}. ${lang === 'es' ? 'Disponible en Activos' : 'Available in Assets'}: ${fmt(availableCash)}`); 
+          return; 
+        }
 
-      // Deduct from Assets accounts (prioritize debit accounts)
-      let remainingAmount = total;
-      const updatedAssetsAccounts = [...assetsAccounts];
-      
-      for (let i = 0; i < updatedAssetsAccounts.length && remainingAmount > 0; i++) {
-        const account = updatedAssetsAccounts[i];
-        if (account.type === 'debit' && account.balance > 0) {
-          const deductAmount = Math.min(account.balance, remainingAmount);
-          updatedAssetsAccounts[i] = { ...account, balance: account.balance - deductAmount };
-          remainingAmount -= deductAmount;
+        // Deduct from Assets accounts (prioritize debit accounts)
+        let remainingAmount = total;
+        
+        for (let i = 0; i < updatedAssetsAccounts.length && remainingAmount > 0; i++) {
+          const account = updatedAssetsAccounts[i];
+          if (account.type === 'debit' && account.balance > 0) {
+            const deductAmount = Math.min(account.balance, remainingAmount);
+            updatedAssetsAccounts[i] = { ...account, balance: account.balance - deductAmount };
+            remainingAmount -= deductAmount;
+          }
         }
       }
       
-      // Update Assets portfolio with new account balances AND stock holdings
-      if (onAssetsPortfolioChange && assetsPortfolio) {
-        const updatedAssetsPortfolio = {
-          ...assetsPortfolio,
-          bankAccounts: updatedAssetsAccounts,
-          // Add the stock to Assets holdings
-          holdings: {
-            ...assetsPortfolio.holdings,
-            [sym]: {
-              shares: (assetsPortfolio.holdings?.[sym]?.shares || 0) + shares,
-              avgCost: assetsPortfolio.holdings?.[sym] 
-                ? ((assetsPortfolio.holdings[sym].avgCost * assetsPortfolio.holdings[sym].shares) + (price * shares)) / ((assetsPortfolio.holdings[sym].shares || 0) + shares)
-                : price
-            }
-          },
-          transactions: [...(assetsPortfolio.transactions || []), {
-            id: Date.now().toString(),
-            type: 'stock_purchase',
-            symbol: sym,
-            shares: shares,
-            price: price,
-            total: total,
-            date: new Date().toISOString(),
-            description: `${lang === 'es' ? 'Compra de acciones desde Portafolio' : 'Stock purchase from Portfolio'}: ${shares} ${sym} @ ${fmt(price)}`
-          }]
-        };
-        onAssetsPortfolioChange(updatedAssetsPortfolio);
-      }
+      // Always add the stock to Assets holdings (regardless of mode)
+      const updatedAssetsPortfolio = {
+        ...assetsPortfolio,
+        bankAccounts: updatedAssetsAccounts,
+        // Add the stock to Assets holdings
+        holdings: {
+          ...assetsPortfolio.holdings,
+          [sym]: {
+            shares: (assetsPortfolio.holdings?.[sym]?.shares || 0) + shares,
+            avgCost: assetsPortfolio.holdings?.[sym] 
+              ? ((assetsPortfolio.holdings[sym].avgCost * assetsPortfolio.holdings[sym].shares) + (price * shares)) / ((assetsPortfolio.holdings[sym].shares || 0) + shares)
+              : price
+          }
+        },
+        transactions: [...(assetsPortfolio.transactions || []), {
+          id: Date.now().toString(),
+          type: stocksOnlyMode ? 'stock_purchase_free' : 'stock_purchase',
+          symbol: sym,
+          shares: shares,
+          price: price,
+          total: total,
+          date: new Date().toISOString(),
+          description: stocksOnlyMode 
+            ? `${lang === 'es' ? 'Compra gratuita desde Portafolio (Solo Acciones)' : 'Free purchase from Portfolio (Stocks Only)'}: ${shares} ${sym} @ ${fmt(price)}`
+            : `${lang === 'es' ? 'Compra de acciones desde Portafolio' : 'Stock purchase from Portfolio'}: ${shares} ${sym} @ ${fmt(price)}`
+        }]
+      };
+      onAssetsPortfolioChange(updatedAssetsPortfolio);
     }
 
     const existing = portfolio.holdings[sym] ?? { shares: 0, avgCost: 0 };
@@ -1024,13 +1027,13 @@ export default function PortfolioSimulator({
       ...portfolio,
       holdings: { ...portfolio.holdings, [sym]: { shares: newShares, avgCost: newAvgCost } },
       transactions: [...portfolio.transactions, {
-        type: stocksOnlyMode ? 'buy_simulation' : 'buy', 
+        type: stocksOnlyMode ? 'buy_free' : 'buy', 
         symbol: sym, 
         shares, 
         price, 
         total, 
         date: new Date().toLocaleString('es-MX'),
-        isSimulation: stocksOnlyMode
+        isFree: stocksOnlyMode
       }],
     };
     updatePortfolio(next);
