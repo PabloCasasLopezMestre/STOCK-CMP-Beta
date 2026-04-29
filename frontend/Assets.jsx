@@ -100,6 +100,8 @@ export default function Assets({
   const [showAssetsChart, setShowAssetsChart] = useState(false);
   const [chartView, setChartView] = useState('detailed'); // 'detailed' or 'simple'
   const [timeScale, setTimeScale] = useState('auto'); // 'auto', 'minutes', 'hours', 'days', 'months', 'years'
+  const [retrospectiveMode, setRetrospectiveMode] = useState(false);
+  const [retrospectiveDate, setRetrospectiveDate] = useState(new Date().toISOString().split('T')[0]);
   const [editingAsset, setEditingAsset] = useState(null);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [expenseForm, setExpenseForm] = useState({
@@ -341,11 +343,14 @@ export default function Assets({
 
       const newPortfolio = { ...portfolio };
       
-      // Update account balance
-      const accountIndex = newPortfolio.bankAccounts.findIndex(a => a.id === buyForm.accountId);
-      newPortfolio.bankAccounts[accountIndex].balance -= totalCost;
+      // In retrospective mode, don't update account balance
+      if (!retrospectiveMode) {
+        // Update account balance only in normal mode
+        const accountIndex = newPortfolio.bankAccounts.findIndex(a => a.id === buyForm.accountId);
+        newPortfolio.bankAccounts[accountIndex].balance -= totalCost;
+      }
       
-      // Update holdings
+      // Update holdings (always, regardless of mode)
       if (!newPortfolio.holdings) newPortfolio.holdings = {};
       
       if (newPortfolio.holdings[symbol]) {
@@ -365,16 +370,18 @@ export default function Assets({
         };
       }
       
-      // Add transaction record
+      // Add transaction record with appropriate date
+      const transactionDate = retrospectiveMode ? new Date(retrospectiveDate).toISOString() : new Date().toISOString();
       const transaction = {
         id: Date.now().toString(),
-        type: 'buy',
+        type: retrospectiveMode ? 'buy_retrospective' : 'buy',
         symbol: symbol,
         shares: shares,
         price: price,
         total: totalCost,
         accountId: buyForm.accountId,
-        date: new Date().toISOString()
+        date: transactionDate,
+        isRetrospective: retrospectiveMode
       };
       
       newPortfolio.transactions = [...(newPortfolio.transactions || []), transaction];
@@ -393,9 +400,12 @@ export default function Assets({
       setPrices(prev => ({ ...prev, [symbol]: price }));
       
       // Show success message
+      const modeText = retrospectiveMode 
+        ? (lang === 'es' ? ' (Simulación)' : ' (Simulation)')
+        : '';
       alert(lang === 'es' 
-        ? `¡Compra exitosa! ${shares} acciones de ${symbol} por ${fmtCurrency(totalCost)}`
-        : `Purchase successful! ${shares} shares of ${symbol} for ${fmtCurrency(totalCost)}`
+        ? `¡Compra exitosa${modeText}! ${shares} acciones de ${symbol} por ${fmtCurrency(totalCost)}`
+        : `Purchase successful${modeText}! ${shares} shares of ${symbol} for ${fmtCurrency(totalCost)}`
       );
       
     } catch (error) {
@@ -424,7 +434,7 @@ export default function Assets({
       endDate: expenseForm.endDate || null,
       hasInterest: expenseForm.hasInterest,
       interestRate: expenseForm.hasInterest ? (parseFloat(expenseForm.interestRate) || 0) : 0,
-      createdAt: editingExpense?.createdAt || new Date().toISOString(),
+      createdAt: editingExpense?.createdAt || (retrospectiveMode ? new Date(retrospectiveDate).toISOString() : new Date().toISOString()),
       isActive: true
     };
 
@@ -441,17 +451,23 @@ export default function Assets({
       newPortfolio.expenses = [...(newPortfolio.expenses || []), expense];
     }
 
-    // Add transaction record
+    // Add transaction record with appropriate date and type
+    const transactionDate = retrospectiveMode ? new Date(retrospectiveDate).toISOString() : new Date().toISOString();
+    const transactionType = retrospectiveMode 
+      ? (editingExpense ? 'expense_update_retrospective' : 'expense_created_retrospective')
+      : (editingExpense ? 'expense_update' : 'expense_created');
+    
     const transaction = {
       id: Date.now().toString() + '_expense',
-      type: editingExpense ? 'expense_update' : 'expense_created',
+      type: transactionType,
       expenseId: expense.id,
       expenseName: expense.name,
       amount: editingExpense ? 0 : amount,
-      date: new Date().toISOString(),
+      date: transactionDate,
+      isRetrospective: retrospectiveMode,
       description: editingExpense 
-        ? `${lang === 'es' ? 'Actualización de gasto' : 'Expense update'}: ${expense.name}`
-        : `${lang === 'es' ? 'Nuevo gasto registrado' : 'New expense registered'}: ${expense.name}`
+        ? `${lang === 'es' ? 'Actualización de gasto' : 'Expense update'}: ${expense.name}` + (retrospectiveMode ? ' (Simulación)' : '')
+        : `${lang === 'es' ? 'Nuevo gasto registrado' : 'New expense registered'}: ${expense.name}` + (retrospectiveMode ? ' (Simulación)' : '')
     };
 
     newPortfolio.transactions = [...(newPortfolio.transactions || []), transaction];
@@ -515,15 +531,17 @@ export default function Assets({
     let paymentDetails = {};
     
     if (assetForm.paymentMethod === 'cash') {
-      // Cash payment - deduct full amount from account
-      const accountIndex = newPortfolio.bankAccounts.findIndex(a => a.id === assetForm.accountId);
-      if (accountIndex !== -1) {
-        if (newPortfolio.bankAccounts[accountIndex].type === 'debit' && 
-            newPortfolio.bankAccounts[accountIndex].balance < purchasePrice) {
-          alert(lang === 'es' ? 'Saldo insuficiente para pago en efectivo' : 'Insufficient balance for cash payment');
-          return;
+      // Cash payment - deduct full amount from account only in normal mode
+      if (!retrospectiveMode) {
+        const accountIndex = newPortfolio.bankAccounts.findIndex(a => a.id === assetForm.accountId);
+        if (accountIndex !== -1) {
+          if (newPortfolio.bankAccounts[accountIndex].type === 'debit' && 
+              newPortfolio.bankAccounts[accountIndex].balance < purchasePrice) {
+            alert(lang === 'es' ? 'Saldo insuficiente para pago en efectivo' : 'Insufficient balance for cash payment');
+            return;
+          }
+          newPortfolio.bankAccounts[accountIndex].balance -= purchasePrice;
         }
-        newPortfolio.bankAccounts[accountIndex].balance -= purchasePrice;
       }
       paymentDetails = { method: 'cash', totalPaid: purchasePrice };
     } else {
@@ -533,8 +551,8 @@ export default function Assets({
       const interestRate = parseFloat(assetForm.interestRate) || 0;
       const interestAfterMonths = parseInt(assetForm.interestAfterMonths) || 0;
       
-      // Deduct down payment if any
-      if (downPayment > 0) {
+      // Deduct down payment if any, only in normal mode
+      if (downPayment > 0 && !retrospectiveMode) {
         const accountIndex = newPortfolio.bankAccounts.findIndex(a => a.id === assetForm.accountId);
         if (accountIndex !== -1) {
           if (newPortfolio.bankAccounts[accountIndex].type === 'debit' && 
@@ -566,9 +584,9 @@ export default function Assets({
       type: assetForm.type,
       purchasePrice,
       currentValue,
-      purchaseDate: editingAsset?.purchaseDate || new Date().toISOString(),
+      purchaseDate: editingAsset?.purchaseDate || (retrospectiveMode ? new Date(retrospectiveDate).toISOString() : new Date().toISOString()),
       paymentDetails,
-      createdAt: editingAsset?.createdAt || new Date().toISOString()
+      createdAt: editingAsset?.createdAt || (retrospectiveMode ? new Date(retrospectiveDate).toISOString() : new Date().toISOString())
     };
 
     if (editingAsset) {
@@ -582,17 +600,23 @@ export default function Assets({
       newPortfolio.physicalAssets = [...(newPortfolio.physicalAssets || []), asset];
     }
 
-    // Add transaction record
+    // Add transaction record with appropriate date and type
+    const transactionDate = retrospectiveMode ? new Date(retrospectiveDate).toISOString() : new Date().toISOString();
+    const transactionType = retrospectiveMode 
+      ? (editingAsset ? 'asset_update_retrospective' : 'asset_purchase_retrospective')
+      : (editingAsset ? 'asset_update' : 'asset_purchase');
+    
     const transaction = {
       id: Date.now().toString() + '_asset',
-      type: editingAsset ? 'asset_update' : 'asset_purchase',
+      type: transactionType,
       assetId: asset.id,
       assetName: asset.name,
-      amount: editingAsset ? 0 : (assetForm.paymentMethod === 'cash' ? purchasePrice : downPayment),
-      date: new Date().toISOString(),
+      amount: editingAsset ? 0 : (assetForm.paymentMethod === 'cash' ? purchasePrice : (assetForm.withDownPayment === 'yes' ? parseFloat(assetForm.downPayment) || 0 : 0)),
+      date: transactionDate,
+      isRetrospective: retrospectiveMode,
       description: editingAsset 
-        ? `${lang === 'es' ? 'Actualización de' : 'Update of'} ${asset.name}`
-        : `${lang === 'es' ? 'Compra de' : 'Purchase of'} ${asset.name}`
+        ? `${lang === 'es' ? 'Actualización de' : 'Update of'} ${asset.name}` + (retrospectiveMode ? ' (Simulación)' : '')
+        : `${lang === 'es' ? 'Compra de' : 'Purchase of'} ${asset.name}` + (retrospectiveMode ? ' (Simulación)' : '')
     };
 
     newPortfolio.transactions = [...(newPortfolio.transactions || []), transaction];
@@ -655,26 +679,34 @@ export default function Assets({
 
     const newPortfolio = { ...portfolio };
     
-    // Update account balance
-    const accountIndex = newPortfolio.bankAccounts.findIndex(a => a.id === depositForm.accountId);
-    if (accountIndex !== -1) {
-      if (depositForm.type === 'deposit') {
-        newPortfolio.bankAccounts[accountIndex].balance += amount;
-      } else {
-        newPortfolio.bankAccounts[accountIndex].balance -= amount;
+    // Update account balance only in normal mode
+    if (!retrospectiveMode) {
+      const accountIndex = newPortfolio.bankAccounts.findIndex(a => a.id === depositForm.accountId);
+      if (accountIndex !== -1) {
+        if (depositForm.type === 'deposit') {
+          newPortfolio.bankAccounts[accountIndex].balance += amount;
+        } else {
+          newPortfolio.bankAccounts[accountIndex].balance -= amount;
+        }
       }
     }
 
-    // Add transaction record
+    // Add transaction record with appropriate date and type
+    const transactionDate = retrospectiveMode ? new Date(retrospectiveDate).toISOString() : new Date().toISOString();
+    const transactionType = retrospectiveMode 
+      ? (depositForm.type === 'deposit' ? 'deposit_retrospective' : 'withdraw_retrospective')
+      : depositForm.type;
+    
     const transaction = {
       id: Date.now().toString(),
-      type: depositForm.type,
+      type: transactionType,
       amount: Math.abs(amount),
       accountId: depositForm.accountId,
-      date: new Date().toISOString(),
+      date: transactionDate,
+      isRetrospective: retrospectiveMode,
       description: depositForm.type === 'deposit' 
-        ? (lang === 'es' ? 'Depósito' : 'Deposit')
-        : (lang === 'es' ? 'Retiro' : 'Withdrawal')
+        ? (lang === 'es' ? 'Depósito' : 'Deposit') + (retrospectiveMode ? ' (Simulación)' : '')
+        : (lang === 'es' ? 'Retiro' : 'Withdrawal') + (retrospectiveMode ? ' (Simulación)' : '')
     };
 
     newPortfolio.deposits = [...(newPortfolio.deposits || []), transaction];
@@ -717,7 +749,7 @@ export default function Assets({
     <div className="max-w-7xl mx-auto p-4 space-y-6">
       {/* Header */}
       <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
-        <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
           <div>
             <h1 className="text-3xl font-bold text-white mb-1">
               {lang === 'es' ? 'Activos' : 'Assets'}
@@ -757,6 +789,60 @@ export default function Assets({
                 </span>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* Retrospective Mode Toggle */}
+        <div className="border-t border-slate-600 pt-4">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <span className="text-slate-300 text-sm font-medium">
+                  {lang === 'es' ? 'Modo:' : 'Mode:'}
+                </span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={retrospectiveMode}
+                    onChange={(e) => setRetrospectiveMode(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+                <span className={`text-sm font-medium ${retrospectiveMode ? 'text-orange-400' : 'text-green-400'}`}>
+                  {retrospectiveMode 
+                    ? (lang === 'es' ? 'Retrospectiva' : 'Retrospective')
+                    : (lang === 'es' ? 'Actual' : 'Current')
+                  }
+                </span>
+              </div>
+
+              {retrospectiveMode && (
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-400 text-sm">
+                    {lang === 'es' ? 'Fecha:' : 'Date:'}
+                  </span>
+                  <input
+                    type="date"
+                    value={retrospectiveDate}
+                    max={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setRetrospectiveDate(e.target.value)}
+                    className="bg-slate-700 text-white rounded-lg px-3 py-1 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
+            </div>
+
+            {retrospectiveMode && (
+              <div className="bg-orange-500/20 border border-orange-500/30 rounded-lg px-3 py-2">
+                <p className="text-orange-400 text-xs font-medium">
+                  {lang === 'es' 
+                    ? '⚠️ Modo Simulación: Las operaciones no afectan cuentas reales'
+                    : '⚠️ Simulation Mode: Operations do not affect real accounts'
+                  }
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
