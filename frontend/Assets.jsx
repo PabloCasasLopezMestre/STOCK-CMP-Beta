@@ -195,11 +195,25 @@ export default function Assets({
 
     try {
       // Get current stock price
+      console.log(`Fetching price for symbol: ${symbol}`);
       const response = await fetch(`${WORKER_BASE}/api/stock/${symbol}`);
       const data = await response.json();
       
+      console.log(`API response for ${symbol}:`, data);
+      
+      if (!response.ok) {
+        alert(lang === 'es' 
+          ? `Error del servidor: ${data.error || 'No se pudo conectar'}`
+          : `Server error: ${data.error || 'Could not connect'}`
+        );
+        return;
+      }
+      
       if (!data.price || data.price <= 0) {
-        alert(lang === 'es' ? 'No se pudo obtener el precio de la acción' : 'Could not get stock price');
+        alert(lang === 'es' 
+          ? `No se encontró precio válido para ${symbol}. Verifica que el símbolo sea correcto.`
+          : `No valid price found for ${symbol}. Please verify the symbol is correct.`
+        );
         return;
       }
 
@@ -275,16 +289,27 @@ export default function Assets({
       // Update prices
       setPrices(prev => ({ ...prev, [symbol]: data.price }));
       
+      // Show success message
+      alert(lang === 'es' 
+        ? `¡Compra exitosa! ${shares} acciones de ${symbol} por ${fmtCurrency(totalCost)}`
+        : `Purchase successful! ${shares} shares of ${symbol} for ${fmtCurrency(totalCost)}`
+      );
+      
     } catch (error) {
       console.error('Error buying stock:', error);
-      alert(lang === 'es' ? 'Error al comprar la acción' : 'Error buying stock');
+      alert(lang === 'es' 
+        ? `Error al comprar la acción: ${error.message}`
+        : `Error buying stock: ${error.message}`
+      );
     }
   };
 
   // Stock suggestion component
   const StockSuggest = ({ value, onChange, placeholder }) => {
     const [focused, setFocused] = useState(false);
-    const suggestions = [...new Set([...(comparatorStocks || [])])];
+    // Combine comparator stocks with popular symbols
+    const popularSymbols = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'NFLX'];
+    const suggestions = [...new Set([...popularSymbols, ...(comparatorStocks || [])])];
 
     return (
       <div className="relative">
@@ -299,7 +324,7 @@ export default function Assets({
           maxLength={10}
         />
         {focused && suggestions.length > 0 && (
-          <div className="absolute top-full left-0 right-0 z-20 bg-slate-800 border border-slate-600 rounded-lg mt-0.5 overflow-hidden shadow-lg">
+          <div className="absolute top-full left-0 right-0 z-20 bg-slate-800 border border-slate-600 rounded-lg mt-0.5 overflow-hidden shadow-lg max-h-40 overflow-y-auto">
             {suggestions.map(sym => (
               <button
                 key={sym}
@@ -861,11 +886,35 @@ export default function Assets({
                 <label className="block text-slate-300 text-sm font-medium mb-2">
                   {lang === 'es' ? 'Símbolo de la acción' : 'Stock symbol'}
                 </label>
-                <StockSuggest
-                  value={buyForm.symbol}
-                  onChange={(value) => setBuyForm(prev => ({ ...prev, symbol: value }))}
-                  placeholder={lang === 'es' ? 'Ej: AAPL' : 'Ex: AAPL'}
-                />
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <StockSuggest
+                      value={buyForm.symbol}
+                      onChange={(value) => setBuyForm(prev => ({ ...prev, symbol: value }))}
+                      placeholder={lang === 'es' ? 'Ej: AAPL' : 'Ex: AAPL'}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!buyForm.symbol) return;
+                      try {
+                        const response = await fetch(`${WORKER_BASE}/api/stock/${buyForm.symbol.toUpperCase()}`);
+                        const data = await response.json();
+                        if (data.price) {
+                          alert(`${buyForm.symbol.toUpperCase()}: ${fmtCurrency(data.price)}`);
+                        } else {
+                          alert(lang === 'es' ? 'Precio no disponible' : 'Price not available');
+                        }
+                      } catch (error) {
+                        alert(lang === 'es' ? 'Error al obtener precio' : 'Error fetching price');
+                      }
+                    }}
+                    className="px-3 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-lg text-sm transition-colors"
+                  >
+                    {lang === 'es' ? 'Precio' : 'Price'}
+                  </button>
+                </div>
               </div>
 
               <div>
