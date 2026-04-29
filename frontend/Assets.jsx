@@ -50,14 +50,15 @@ export default function Assets({
   onPortfolioChange,
   comparatorStocks = []
 }) {
-  const [portfolio, setPortfolio] = useState({
+  // Use initialPortfolio directly as the source of truth instead of local state
+  const portfolio = initialPortfolio || {
     bankAccounts: [],
     deposits: [],
     transactions: [],
     holdings: {},
-    physicalAssets: [], // New: for cars, houses, land, etc.
-    expenses: [] // New: for recurring expenses
-  });
+    physicalAssets: [],
+    expenses: []
+  };
   
   const [showBankForm, setShowBankForm] = useState(false);
   const [editingAccount, setEditingAccount] = useState(null);
@@ -129,24 +130,8 @@ export default function Assets({
     }).format(v * rate);
   };
 
-  // Load initial portfolio and sync with updates
-  useEffect(() => {
-    if (initialPortfolio) {
-      setPortfolio(prev => ({
-        ...prev,
-        bankAccounts: initialPortfolio.bankAccounts || [],
-        deposits: initialPortfolio.deposits || [],
-        transactions: initialPortfolio.transactions || [],
-        holdings: initialPortfolio.holdings || {},
-        physicalAssets: initialPortfolio.physicalAssets || [],
-        expenses: initialPortfolio.expenses || []
-      }));
-    }
-  }, [initialPortfolio]);
-
   // Save portfolio changes
   const savePortfolio = useCallback((newPortfolio) => {
-    setPortfolio(newPortfolio);
     if (onPortfolioChange) {
       onPortfolioChange(newPortfolio);
     }

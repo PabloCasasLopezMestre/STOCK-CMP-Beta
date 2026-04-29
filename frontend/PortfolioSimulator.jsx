@@ -938,10 +938,6 @@ export default function PortfolioSimulator({
 
   // Buy - deduct from Assets accounts or simulate in stocks-only mode
   const handleBuy = async () => {
-    console.log('handleBuy called, stocksOnlyMode:', stocksOnlyMode);
-    console.log('assetsPortfolio:', assetsPortfolio);
-    console.log('onAssetsPortfolioChange:', onAssetsPortfolioChange);
-    
     setTradeError('');
     const sym = tradeSymbol.trim().toUpperCase();
     const shares = parseFloat(tradeShares);
@@ -963,12 +959,10 @@ export default function PortfolioSimulator({
     
     // Always update Assets with stock holdings, but only deduct money if NOT in stocks-only mode
     if (onAssetsPortfolioChange && assetsPortfolio) {
-      console.log('Updating assets portfolio...');
       let updatedAssetsAccounts = [...(assetsPortfolio.bankAccounts || [])];
       
       // Only deduct money if NOT in stocks-only mode
       if (!stocksOnlyMode) {
-        console.log('Normal mode - checking balance...');
         // Check if Assets accounts have enough balance
         const availableCash = updatedAssetsAccounts.reduce((sum, account) => {
           if (account.type === 'debit') {
@@ -993,8 +987,6 @@ export default function PortfolioSimulator({
             remainingAmount -= deductAmount;
           }
         }
-      } else {
-        console.log('Stocks-only mode - no money deduction');
       }
       
       // Always add the stock to Assets holdings (regardless of mode)
@@ -1025,10 +1017,7 @@ export default function PortfolioSimulator({
         }]
       };
       
-      console.log('Updated assets portfolio:', updatedAssetsPortfolio);
       onAssetsPortfolioChange(updatedAssetsPortfolio);
-    } else {
-      console.log('No assets portfolio integration available');
     }
 
     const existing = portfolio.holdings[sym] ?? { shares: 0, avgCost: 0 };
@@ -1051,8 +1040,6 @@ export default function PortfolioSimulator({
     updatePortfolio(next);
     setTradeSymbol('');
     setTradeShares('');
-    
-    console.log('Purchase completed successfully');
   };
 
   // Sell - deposit to Assets accounts or simulate in stocks-only mode
