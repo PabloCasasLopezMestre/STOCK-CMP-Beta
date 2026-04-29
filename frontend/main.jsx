@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import StockComparisonApp from './StockComparisonApp';
-import PortfolioSimulator from './PortfolioSimulator.simple';
+import PortfolioSimulator from './PortfolioSimulator';
 import Assets from './Assets';
 import Community from './Community';
 import About from './About';
