@@ -1202,52 +1202,88 @@ export default function PortfolioSimulator({
   return (
     <div className="space-y-4">
 
-      {/* Stocks-Only Mode Toggle - Always visible */}
-      <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700 mb-4">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h3 className="text-white font-semibold mb-1">
-              {lang === 'es' ? 'Modo de Operación' : 'Operation Mode'}
-            </h3>
-            <p className="text-slate-400 text-sm">
-              {stocksOnlyMode 
-                ? (lang === 'es' ? 'Las operaciones no afectan cuentas de Activos' : 'Operations do not affect Assets accounts')
-                : (lang === 'es' ? 'Las compras/ventas se conectan con tus cuentas de Activos' : 'Purchases/sales connect with your Assets accounts')
-              }
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-slate-300 text-sm font-medium">
-              {lang === 'es' ? 'Modo:' : 'Mode:'}
-            </span>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={stocksOnlyMode}
-                onChange={(e) => setStocksOnlyMode(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-            </label>
-            <span className={`text-sm font-medium ${stocksOnlyMode ? 'text-purple-400' : 'text-green-400'}`}>
-              {stocksOnlyMode 
-                ? (lang === 'es' ? 'Solo Acciones' : 'Stocks Only')
-                : (lang === 'es' ? 'Conectado' : 'Connected')
-              }
-            </span>
+      {/* Compra/Venta de Acciones - Sección Principal */}
+      <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-white font-semibold">{lang === 'es' ? 'Comprar/Vender Acciones' : 'Buy/Sell Stocks'}</h3>
+          
+          {/* Toggle Simple para Modo Solo Acciones */}
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400 text-sm">{lang === 'es' ? 'Solo Acciones:' : 'Stocks Only:'}</span>
+            <button
+              onClick={() => setStocksOnlyMode(!stocksOnlyMode)}
+              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                stocksOnlyMode 
+                  ? 'bg-purple-600 text-white' 
+                  : 'bg-slate-600 text-slate-300'
+              }`}
+            >
+              {stocksOnlyMode ? (lang === 'es' ? 'SÍ' : 'YES') : (lang === 'es' ? 'NO' : 'NO')}
+            </button>
           </div>
         </div>
 
         {stocksOnlyMode && (
-          <div className="mt-3 bg-purple-500/20 border border-purple-500/30 rounded-lg px-3 py-2">
-            <p className="text-purple-400 text-xs font-medium">
+          <div className="mb-4 bg-purple-500/20 border border-purple-500/30 rounded-lg px-3 py-2">
+            <p className="text-purple-400 text-xs">
               {lang === 'es' 
-                ? '⚠️ Modo Solo Acciones: Las compras/ventas no afectan las cuentas de Activos'
-                : '⚠️ Stocks Only Mode: Purchases/sales do not affect Assets accounts'
+                ? '⚠️ Modo Solo Acciones: Las operaciones no afectan las cuentas de Activos'
+                : '⚠️ Stocks Only Mode: Operations do not affect Assets accounts'
               }
             </p>
           </div>
         )}
+
+        <div className="flex gap-2 mb-3">
+          <button onClick={() => setTradeMode('buy')} className={`flex-1 py-1.5 rounded text-sm font-medium ${tradeMode === 'buy' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'}`}>{t('label_buy', lang)}</button>
+          <button onClick={() => setTradeMode('sell')} className={`flex-1 py-1.5 rounded text-sm font-medium ${tradeMode === 'sell' ? 'bg-orange-600 text-white' : 'bg-slate-700 text-slate-300'}`}>{t('label_sell', lang)}</button>
+        </div>
+        
+        <StockSuggest
+          value={tradeSymbol}
+          onChange={setTradeSymbol}
+          placeholder={t('portfolio_symbol_placeholder', lang)}
+          comparatorStocks={comparatorStocks}
+          holdingSymbols={Object.keys(portfolio.holdings)}
+          lang={lang}
+        />
+        
+        <input
+          className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 mb-2"
+          placeholder={t('portfolio_shares_placeholder', lang)}
+          type="number"
+          value={tradeShares}
+          onChange={(e) => setTradeShares(e.target.value)}
+        />
+        
+        {tradeSymbol && prices[tradeSymbol] && (
+          <p className="text-slate-400 text-xs mb-2">
+            {t('portfolio_current_price_total', lang)}: {fmt(prices[tradeSymbol])} · {t('portfolio_total', lang)}: {fmt(prices[tradeSymbol] * (parseFloat(tradeShares) || 0))}
+          </p>
+        )}
+        
+        {!stocksOnlyMode && tradeMode === 'buy' && assetsPortfolio?.bankAccounts && (
+          <p className="text-slate-400 text-xs mb-2">
+            {lang === 'es' ? 'Disponible en Activos' : 'Available in Assets'}: {fmt(assetsPortfolio.bankAccounts.reduce((sum, acc) => acc.type === 'debit' ? sum + Math.max(0, acc.balance) : sum, 0))}
+          </p>
+        )}
+        
+        {tradeError && (
+          <div className="mb-2">
+            <p className="text-red-400 text-xs">{tradeError}</p>
+            <p className="text-slate-500 text-xs mt-0.5">
+              {lang === 'es' ? 'Revisa el código en Acerca → Códigos.' : 'Check the symbol in About → Symbol Codes.'}
+            </p>
+          </div>
+        )}
+        
+        <button
+          onClick={tradeMode === 'buy' ? handleBuy : handleSell}
+          className={`w-full py-2 rounded text-sm font-medium text-white ${tradeMode === 'buy' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'}`}
+        >
+          {tradeMode === 'buy' ? t('label_buy', lang) : t('label_sell', lang)}
+          {stocksOnlyMode && ` (${lang === 'es' ? 'Simulación' : 'Simulation'})`}
+        </button>
       </div>
 
       {/* Triggered alerts banner */}
@@ -1610,56 +1646,7 @@ export default function PortfolioSimulator({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-        {/* Buy / Sell */}
-        <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-          <h3 className="text-white font-semibold mb-3">{t('portfolio_buy_sell', lang)}</h3>
-          <div className="flex gap-2 mb-3">
-            <button onClick={() => setTradeMode('buy')} className={`flex-1 py-1.5 rounded text-sm font-medium ${tradeMode === 'buy' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'}`}>{t('label_buy', lang)}</button>
-            <button onClick={() => setTradeMode('sell')} className={`flex-1 py-1.5 rounded text-sm font-medium ${tradeMode === 'sell' ? 'bg-orange-600 text-white' : 'bg-slate-700 text-slate-300'}`}>{t('label_sell', lang)}</button>
-          </div>
-          <StockSuggest
-            value={tradeSymbol}
-            onChange={setTradeSymbol}
-            placeholder={t('portfolio_symbol_placeholder', lang)}
-            comparatorStocks={comparatorStocks}
-            holdingSymbols={Object.keys(portfolio.holdings)}
-            lang={lang}
-          />
-          <input
-            className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 mb-2"
-            placeholder={t('portfolio_shares_placeholder', lang)}
-            type="number"
-            value={tradeShares}
-            onChange={(e) => setTradeShares(e.target.value)}
-          />
-          {tradeSymbol && prices[tradeSymbol] && (
-            <p className="text-slate-400 text-xs mb-2">
-              {t('portfolio_current_price_total', lang)}: {fmt(prices[tradeSymbol])} · {t('portfolio_total', lang)}: {fmt(prices[tradeSymbol] * (parseFloat(tradeShares) || 0))}
-            </p>
-          )}
-          {!stocksOnlyMode && tradeMode === 'buy' && assetsPortfolio?.bankAccounts && (
-            <p className="text-slate-400 text-xs mb-2">
-              {lang === 'es' ? 'Disponible en Activos' : 'Available in Assets'}: {fmt(assetsPortfolio.bankAccounts.reduce((sum, acc) => acc.type === 'debit' ? sum + Math.max(0, acc.balance) : sum, 0))}
-            </p>
-          )}
-          {tradeError && (
-            <div className="mb-2">
-              <p className="text-red-400 text-xs">{tradeError}</p>
-              <p className="text-slate-500 text-xs mt-0.5">
-                {lang === 'es' ? 'Revisa el código en Acerca → Códigos.' : 'Check the symbol in About → Symbol Codes.'}
-              </p>
-            </div>
-          )}
-          <button
-            onClick={tradeMode === 'buy' ? handleBuy : handleSell}
-            className={`w-full py-2 rounded text-sm font-medium text-white ${tradeMode === 'buy' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'}`}
-          >
-            {tradeMode === 'buy' ? t('label_buy', lang) : t('label_sell', lang)}
-            {stocksOnlyMode && ` (${lang === 'es' ? 'Simulación' : 'Simulation'})`}
-          </button>
-        </div>
+      <div className="grid grid-cols-1 gap-4">
 
         {/* Dividends */}
         <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
