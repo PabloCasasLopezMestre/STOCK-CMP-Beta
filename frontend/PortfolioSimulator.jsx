@@ -1465,6 +1465,7 @@ export default function PortfolioSimulator({
                           { id: Date.now() + 14, name: 'Comisión por uso', amount: 5, frequency: 'monthly' }
                         ]
                       }
+                    ];
                     // Sample bank accounts would be handled by Assets component
                     // saveBankAccounts(sampleBankAccounts);
                   }}
