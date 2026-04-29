@@ -1934,25 +1934,106 @@ export default function Assets({
               </div>
               
               <div className="h-80 bg-slate-800/30 rounded-lg p-4">
-                <ResponsiveContainer width="100%" height="100%">
+                {(() => {
+                  // Check if we have any data to show
+                  const hasAccounts = bankAccounts.length > 0;
+                  const hasTransactions = (portfolio.deposits || []).length > 0 || (portfolio.transactions || []).length > 0;
+                  const hasAssets = (portfolio.physicalAssets || []).length > 0;
+                  
+                  if (!hasAccounts && !hasTransactions && !hasAssets) {
+                    return (
+                      <div className="flex items-center justify-center h-full">
+                        <div className="text-center">
+                          <p className="text-slate-400 text-lg mb-2">
+                            {lang === 'es' ? 'No hay datos para mostrar' : 'No data to display'}
+                          </p>
+                          <p className="text-slate-500 text-sm">
+                            {lang === 'es' 
+                              ? 'Crea cuentas bancarias o registra transacciones para ver la gráfica'
+                              : 'Create bank accounts or register transactions to see the chart'
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={(() => {
-                    // Generate time-based data points
+                    // Get real data based on actual account creation dates and transactions
                     const now = new Date();
                     const timePoints = [];
                     
-                    // Create sample data points for the last 12 months
-                    for (let i = 11; i >= 0; i--) {
-                      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-                      const monthName = date.toLocaleDateString(lang === 'es' ? 'es-MX' : 'en-US', { 
+                    // Find the earliest date from accounts, transactions, or assets
+                    let earliestDate = now;
+                    
+                    // Check bank accounts creation dates
+                    bankAccounts.forEach(account => {
+                      if (account.createdAt) {
+                        const accountDate = new Date(account.createdAt);
+                        if (accountDate < earliestDate) {
+                          earliestDate = accountDate;
+                        }
+                      }
+                    });
+                    
+                    // Check transactions dates
+                    const allTransactions = [
+                      ...(portfolio.deposits || []),
+                      ...(portfolio.transactions || [])
+                    ];
+                    
+                    allTransactions.forEach(transaction => {
+                      if (transaction.date) {
+                        const transactionDate = new Date(transaction.date);
+                        if (transactionDate < earliestDate) {
+                          earliestDate = transactionDate;
+                        }
+                      }
+                    });
+                    
+                    // Check physical assets dates
+                    (portfolio.physicalAssets || []).forEach(asset => {
+                      if (asset.createdAt) {
+                        const assetDate = new Date(asset.createdAt);
+                        if (assetDate < earliestDate) {
+                          earliestDate = assetDate;
+                        }
+                      }
+                    });
+                    
+                    // If no data exists, show current month only
+                    if (earliestDate >= now) {
+                      earliestDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                    }
+                    
+                    // Generate monthly points from earliest date to now
+                    const startDate = new Date(earliestDate.getFullYear(), earliestDate.getMonth(), 1);
+                    const endDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                    
+                    let currentDate = new Date(startDate);
+                    
+                    while (currentDate <= endDate) {
+                      const monthName = currentDate.toLocaleDateString(lang === 'es' ? 'es-MX' : 'en-US', { 
                         month: 'short', 
-                        year: i > 6 ? '2-digit' : undefined 
+                        year: currentDate.getFullYear() !== now.getFullYear() ? '2-digit' : undefined 
                       });
                       
-                      // Calculate progressive asset growth (simplified simulation)
-                      const progressFactor = (12 - i) / 12;
-                      const currentCash = positiveBalance * (0.3 + progressFactor * 0.7);
-                      const currentStocks = stockValue * (0.1 + progressFactor * 0.9);
-                      const currentPhysical = physicalAssetsValue * (0.5 + progressFactor * 0.5);
+                      // Calculate actual values for this month
+                      // For simplicity, we'll use current values and simulate growth
+                      // In a real app, you'd calculate historical balances based on transactions
+                      const monthsFromStart = (currentDate.getFullYear() - startDate.getFullYear()) * 12 + 
+                                            (currentDate.getMonth() - startDate.getMonth());
+                      const totalMonths = (endDate.getFullYear() - startDate.getFullYear()) * 12 + 
+                                        (endDate.getMonth() - startDate.getMonth()) + 1;
+                      
+                      const progressFactor = totalMonths > 1 ? monthsFromStart / (totalMonths - 1) : 1;
+                      
+                      // Simulate progressive growth (in real app, calculate from actual transaction history)
+                      const currentCash = positiveBalance * (0.1 + progressFactor * 0.9);
+                      const currentStocks = stockValue * (0.05 + progressFactor * 0.95);
+                      const currentPhysical = physicalAssetsValue * (0.2 + progressFactor * 0.8);
                       const totalValue = currentCash + currentStocks + currentPhysical;
                       
                       timePoints.push({
@@ -1962,6 +2043,9 @@ export default function Assets({
                         stocks: currentStocks,
                         physical: currentPhysical
                       });
+                      
+                      // Move to next month
+                      currentDate.setMonth(currentDate.getMonth() + 1);
                     }
                     
                     return timePoints;
@@ -2022,6 +2106,8 @@ export default function Assets({
                     )}
                   </LineChart>
                 </ResponsiveContainer>
+                  );
+                })()}
               </div>
               
               <div className="flex justify-end pt-4">
