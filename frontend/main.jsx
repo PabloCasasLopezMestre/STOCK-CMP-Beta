@@ -464,15 +464,6 @@ function App() {
                 <h1 className="text-3xl font-bold text-white mb-1">{t('label_portfolio_title', lang)}</h1>
                 <p className="text-slate-400 text-sm">{lang === 'es' ? 'Compra y vende acciones, recibe dividendos' : 'Buy and sell stocks, receive dividends'}</p>
               </div>
-              <div className="text-right">
-                <p className="text-slate-400 text-sm mb-1">{lang === 'es' ? 'Valor de Inversiones' : 'Investment Value'}</p>
-                <p className="text-3xl font-bold text-blue-400">{currencyLabel} 0.00</p>
-                <div className="flex items-center gap-4 mt-2 text-xs">
-                  <span className="text-slate-300">
-                    {lang === 'es' ? 'Solo acciones y dividendos' : 'Stocks and dividends only'}
-                  </span>
-                </div>
-              </div>
             </div>
           </div>
           <PortfolioSimulator {...sharedProps} onOpenCommunityIdea={openCommunityIdea} initialPortfolio={initialPortfolio} onPortfolioChange={onPortfolioChange} refreshTrigger={refreshTrigger} showAlertsPanel={showAlertsPanel} setShowAlertsPanel={setShowAlertsPanel} comparatorStocks={tickerSymbols} enabledFeatures={enabledFeatures} visibleTimeRanges={visibleTimeRanges} defaultTimeRange={defaultTimeRange} accountCreated={accountCreated} dataResetAt={dataResetAt} assetsPortfolio={initialPortfolio} onAssetsPortfolioChange={onPortfolioChange} />
