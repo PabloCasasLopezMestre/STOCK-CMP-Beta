@@ -50,7 +50,10 @@ export default function Assets({
   onPortfolioChange,
   comparatorStocks = []
 }) {
-  // Use initialPortfolio directly as the source of truth instead of local state
+  // Force re-render when initialPortfolio changes by using it in state
+  const [portfolioVersion, setPortfolioVersion] = useState(0);
+  
+  // Use initialPortfolio directly as the source of truth
   const portfolio = initialPortfolio || {
     bankAccounts: [],
     deposits: [],
@@ -60,15 +63,9 @@ export default function Assets({
     expenses: []
   };
   
-  // Debug: Log when portfolio changes
+  // Force re-render when initialPortfolio changes
   useEffect(() => {
-    console.log('Assets: initialPortfolio updated:', initialPortfolio);
-    if (initialPortfolio?.bankAccounts) {
-      console.log('Assets: Bank accounts:', initialPortfolio.bankAccounts.map(acc => ({
-        name: acc.name,
-        balance: acc.balance
-      })));
-    }
+    setPortfolioVersion(prev => prev + 1);
   }, [initialPortfolio]);
   
   const [showBankForm, setShowBankForm] = useState(false);

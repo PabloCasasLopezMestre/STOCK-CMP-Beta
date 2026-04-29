@@ -972,20 +972,12 @@ export default function PortfolioSimulator({
     
     // Always update Assets with stock holdings, but only deduct money if NOT in stocks-only mode
     if (onAssetsPortfolioChange && assetsPortfolio) {
-      console.log('=== DEBUGGING PURCHASE ===');
-      console.log('stocksOnlyMode:', stocksOnlyMode);
-      console.log('selectedAccountId:', selectedAccountId);
-      console.log('total cost:', total);
-      console.log('original assetsPortfolio:', assetsPortfolio);
-      
       let updatedAssetsAccounts = [...(assetsPortfolio.bankAccounts || [])];
       
       // Only deduct money if NOT in stocks-only mode
       if (!stocksOnlyMode) {
         // Find the selected account
         const selectedAccount = updatedAssetsAccounts.find(acc => acc.id === selectedAccountId);
-        console.log('selectedAccount found:', selectedAccount);
-        
         if (!selectedAccount) {
           setTradeError(lang === 'es' ? 'Cuenta no encontrada' : 'Account not found');
           return;
@@ -997,16 +989,12 @@ export default function PortfolioSimulator({
           return;
         }
 
-        console.log('Account before deduction:', selectedAccount.name, selectedAccount.balance);
-        
         // Deduct from the selected account
         const accountIndex = updatedAssetsAccounts.findIndex(acc => acc.id === selectedAccountId);
         updatedAssetsAccounts[accountIndex] = {
           ...selectedAccount,
           balance: selectedAccount.balance - total
         };
-        
-        console.log('Account after deduction:', updatedAssetsAccounts[accountIndex].name, updatedAssetsAccounts[accountIndex].balance);
       }
       
       // Always add the stock to Assets holdings (regardless of mode)
@@ -1038,10 +1026,7 @@ export default function PortfolioSimulator({
         }]
       };
       
-      console.log('updatedAssetsPortfolio:', updatedAssetsPortfolio);
-      console.log('Calling onAssetsPortfolioChange...');
       onAssetsPortfolioChange(updatedAssetsPortfolio);
-      console.log('=== END DEBUGGING ===');
     }
 
     // Also update Portfolio holdings for display in positions
