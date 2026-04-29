@@ -60,10 +60,20 @@ export default function Assets({
     expenses: []
   });
   
+  // Add a key to force re-render when portfolio changes
+  const [renderKey, setRenderKey] = useState(0);
+  
   // Update local state when initialPortfolio changes
   useEffect(() => {
     if (initialPortfolio) {
+      console.log('Assets: Received portfolio update', {
+        bankAccounts: initialPortfolio.bankAccounts?.map(acc => ({
+          name: acc.name,
+          balance: acc.balance
+        }))
+      });
       setPortfolio(initialPortfolio);
+      setRenderKey(prev => prev + 1); // Force re-render
     }
   }, [initialPortfolio]);
   
@@ -739,7 +749,7 @@ export default function Assets({
   const totalAssets = totalBalance + stockValue + physicalAssetsValue;
 
   return (
-    <div className="max-w-7xl mx-auto p-4 space-y-6">
+    <div key={renderKey} className="max-w-7xl mx-auto p-4 space-y-6">
       {/* Header */}
       <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700">
         <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
