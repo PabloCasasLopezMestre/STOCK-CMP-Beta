@@ -997,7 +997,7 @@ export default function PortfolioSimulator({
           return;
         }
 
-        console.log('Account before deduction:', selectedAccount);
+        console.log('Account before deduction:', selectedAccount.name, selectedAccount.balance);
         
         // Deduct from the selected account
         const accountIndex = updatedAssetsAccounts.findIndex(acc => acc.id === selectedAccountId);
@@ -1006,7 +1006,7 @@ export default function PortfolioSimulator({
           balance: selectedAccount.balance - total
         };
         
-        console.log('Account after deduction:', updatedAssetsAccounts[accountIndex]);
+        console.log('Account after deduction:', updatedAssetsAccounts[accountIndex].name, updatedAssetsAccounts[accountIndex].balance);
       }
       
       // Always add the stock to Assets holdings (regardless of mode)

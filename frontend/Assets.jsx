@@ -60,6 +60,17 @@ export default function Assets({
     expenses: []
   };
   
+  // Debug: Log when portfolio changes
+  useEffect(() => {
+    console.log('Assets: initialPortfolio updated:', initialPortfolio);
+    if (initialPortfolio?.bankAccounts) {
+      console.log('Assets: Bank accounts:', initialPortfolio.bankAccounts.map(acc => ({
+        name: acc.name,
+        balance: acc.balance
+      })));
+    }
+  }, [initialPortfolio]);
+  
   const [showBankForm, setShowBankForm] = useState(false);
   const [editingAccount, setEditingAccount] = useState(null);
   const [bankForm, setBankForm] = useState({
