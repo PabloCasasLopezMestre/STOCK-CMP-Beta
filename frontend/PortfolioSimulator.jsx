@@ -757,6 +757,7 @@ export default function PortfolioSimulator({
   const [tradeSymbol, setTradeSymbol] = useState('');
   const [tradeShares, setTradeShares] = useState('');
   const [tradeMode, setTradeMode] = useState('buy');
+  const [selectedAccountId, setSelectedAccountId] = useState('');
   const [tradeError, setTradeError] = useState('');
 
   // Dividend simulation
@@ -941,7 +942,16 @@ export default function PortfolioSimulator({
     setTradeError('');
     const sym = tradeSymbol.trim().toUpperCase();
     const shares = parseFloat(tradeShares);
-    if (!sym || isNaN(shares) || shares <= 0) { setTradeError(t('portfolio_symbol_required', lang)); return; }
+    if (!sym || isNaN(shares) || shares <= 0) { 
+      setTradeError(t('portfolio_symbol_required', lang)); 
+      return; 
+    }
+
+    // Validar cuenta seleccionada cuando NO está en modo stocks-only
+    if (!stocksOnlyMode && (!selectedAccountId || !assetsPortfolio?.bankAccounts?.find(acc => acc.id === selectedAccountId))) {
+      setTradeError(lang === 'es' ? 'Selecciona una cuenta para el pago' : 'Select an account for payment');
+      return;
+    }
 
     let price = prices[sym];
     if (!price) {
@@ -953,7 +963,10 @@ export default function PortfolioSimulator({
         if (price) setPrices((p) => ({ ...p, [sym]: price }));
       } catch {}
     }
-    if (!price) { setTradeError(t('portfolio_could_not_get_price', lang)); return; }
+    if (!price) { 
+      setTradeError(t('portfolio_could_not_get_price', lang)); 
+      return; 
+    }
 
     const total = price * shares;
     
@@ -963,30 +976,19 @@ export default function PortfolioSimulator({
       
       // Only deduct money if NOT in stocks-only mode
       if (!stocksOnlyMode) {
-        // Check if Assets accounts have enough balance
-        const availableCash = updatedAssetsAccounts.reduce((sum, account) => {
-          if (account.type === 'debit') {
-            return sum + Math.max(0, account.balance);
-          }
-          return sum;
-        }, 0);
-        
-        if (total > availableCash) { 
-          setTradeError(`${t('portfolio_insufficient_funds', lang)} ${fmt(total)}. ${lang === 'es' ? 'Disponible en Activos' : 'Available in Assets'}: ${fmt(availableCash)}`); 
-          return; 
+        // Find the selected account
+        const selectedAccount = updatedAssetsAccounts.find(acc => acc.id === selectedAccountId);
+        if (!selectedAccount || selectedAccount.balance < total) {
+          setTradeError(`${t('portfolio_insufficient_funds', lang)} ${fmt(total)}. ${lang === 'es' ? 'Disponible' : 'Available'}: ${fmt(selectedAccount?.balance || 0)}`);
+          return;
         }
 
-        // Deduct from Assets accounts (prioritize debit accounts)
-        let remainingAmount = total;
-        
-        for (let i = 0; i < updatedAssetsAccounts.length && remainingAmount > 0; i++) {
-          const account = updatedAssetsAccounts[i];
-          if (account.type === 'debit' && account.balance > 0) {
-            const deductAmount = Math.min(account.balance, remainingAmount);
-            updatedAssetsAccounts[i] = { ...account, balance: account.balance - deductAmount };
-            remainingAmount -= deductAmount;
-          }
-        }
+        // Deduct from the selected account
+        const accountIndex = updatedAssetsAccounts.findIndex(acc => acc.id === selectedAccountId);
+        updatedAssetsAccounts[accountIndex] = {
+          ...selectedAccount,
+          balance: selectedAccount.balance - total
+        };
       }
       
       // Always add the stock to Assets holdings (regardless of mode)
@@ -1010,6 +1012,7 @@ export default function PortfolioSimulator({
           shares: shares,
           price: price,
           total: total,
+          accountId: stocksOnlyMode ? null : selectedAccountId,
           date: new Date().toISOString(),
           description: stocksOnlyMode 
             ? `${lang === 'es' ? 'Compra gratuita desde Portafolio (Solo Acciones)' : 'Free purchase from Portfolio (Stocks Only)'}: ${shares} ${sym} @ ${fmt(price)}`
@@ -1020,6 +1023,7 @@ export default function PortfolioSimulator({
       onAssetsPortfolioChange(updatedAssetsPortfolio);
     }
 
+    // Also update Portfolio holdings for display in positions
     const existing = portfolio.holdings[sym] ?? { shares: 0, avgCost: 0 };
     const newShares = existing.shares + shares;
     const newAvgCost = (existing.avgCost * existing.shares + price * shares) / newShares;
@@ -1033,13 +1037,17 @@ export default function PortfolioSimulator({
         shares, 
         price, 
         total, 
+        accountId: stocksOnlyMode ? null : selectedAccountId,
         date: new Date().toLocaleString('es-MX'),
         isFree: stocksOnlyMode
       }],
     };
     updatePortfolio(next);
+    
+    // Clear form
     setTradeSymbol('');
     setTradeShares('');
+    setSelectedAccountId('');
   };
 
   // Sell - deposit to Assets accounts or simulate in stocks-only mode
@@ -1286,6 +1294,25 @@ export default function PortfolioSimulator({
           onChange={(e) => setTradeShares(e.target.value)}
         />
         
+        {/* Selector de cuenta bancaria cuando NO está en modo stocks-only */}
+        {!stocksOnlyMode && tradeMode === 'buy' && assetsPortfolio?.bankAccounts?.length > 0 && (
+          <select
+            className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 mb-2"
+            value={selectedAccountId}
+            onChange={(e) => setSelectedAccountId(e.target.value)}
+          >
+            <option value="">{lang === 'es' ? 'Seleccionar cuenta para pago' : 'Select account for payment'}</option>
+            {assetsPortfolio.bankAccounts
+              .filter(acc => acc.type === 'debit' && acc.balance > 0)
+              .map(acc => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.name} - {fmt(acc.balance)} {lang === 'es' ? 'disponible' : 'available'}
+                </option>
+              ))
+            }
+          </select>
+        )}
+        
         {tradeSymbol && prices[tradeSymbol] && (
           <p className="text-slate-400 text-xs mb-2">
             {t('portfolio_current_price_total', lang)}: {fmt(prices[tradeSymbol])} · {t('portfolio_total', lang)}: {fmt(prices[tradeSymbol] * (parseFloat(tradeShares) || 0))}
@@ -1294,7 +1321,10 @@ export default function PortfolioSimulator({
         
         {!stocksOnlyMode && tradeMode === 'buy' && assetsPortfolio?.bankAccounts && (
           <p className="text-slate-400 text-xs mb-2">
-            {lang === 'es' ? 'Disponible en Activos' : 'Available in Assets'}: {fmt(assetsPortfolio.bankAccounts.reduce((sum, acc) => acc.type === 'debit' ? sum + Math.max(0, acc.balance) : sum, 0))}
+            {selectedAccountId 
+              ? `${lang === 'es' ? 'Cuenta seleccionada' : 'Selected account'}: ${assetsPortfolio.bankAccounts.find(acc => acc.id === selectedAccountId)?.name || ''}`
+              : `${lang === 'es' ? 'Total disponible en Activos' : 'Total available in Assets'}: ${fmt(assetsPortfolio.bankAccounts.reduce((sum, acc) => acc.type === 'debit' ? sum + Math.max(0, acc.balance) : sum, 0))}`
+            }
           </p>
         )}
         
