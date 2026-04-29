@@ -939,6 +939,12 @@ export default function PortfolioSimulator({
 
   // Buy - deduct from Assets accounts or simulate in stocks-only mode
   const handleBuy = async () => {
+    console.log('🔍 PURCHASE DEBUG START');
+    console.log('stocksOnlyMode:', stocksOnlyMode);
+    console.log('selectedAccountId:', selectedAccountId);
+    console.log('assetsPortfolio available:', !!assetsPortfolio);
+    console.log('onAssetsPortfolioChange available:', !!onAssetsPortfolioChange);
+    
     setTradeError('');
     const sym = tradeSymbol.trim().toUpperCase();
     const shares = parseFloat(tradeShares);
@@ -949,6 +955,9 @@ export default function PortfolioSimulator({
 
     // Validar cuenta seleccionada cuando NO está en modo stocks-only
     if (!stocksOnlyMode && (!selectedAccountId || !assetsPortfolio?.bankAccounts?.find(acc => acc.id === selectedAccountId))) {
+      console.log('❌ Account validation failed');
+      console.log('selectedAccountId:', selectedAccountId);
+      console.log('available accounts:', assetsPortfolio?.bankAccounts?.map(acc => ({id: acc.id, name: acc.name})));
       setTradeError(lang === 'es' ? 'Selecciona una cuenta para el pago' : 'Select an account for payment');
       return;
     }
@@ -969,32 +978,47 @@ export default function PortfolioSimulator({
     }
 
     const total = price * shares;
+    console.log('💰 Purchase details:', { sym, shares, price, total });
     
     // Always update Assets with stock holdings, but only deduct money if NOT in stocks-only mode
     if (onAssetsPortfolioChange && assetsPortfolio) {
+      console.log('📊 Updating Assets portfolio...');
       let updatedAssetsAccounts = [...(assetsPortfolio.bankAccounts || [])];
       
       // Only deduct money if NOT in stocks-only mode
       if (!stocksOnlyMode) {
+        console.log('💳 Processing payment (normal mode)...');
         // Find the selected account
         const selectedAccount = updatedAssetsAccounts.find(acc => acc.id === selectedAccountId);
+        console.log('Selected account:', selectedAccount ? {name: selectedAccount.name, balance: selectedAccount.balance, type: selectedAccount.type} : 'NOT FOUND');
+        
         if (!selectedAccount) {
+          console.log('❌ Selected account not found');
           setTradeError(lang === 'es' ? 'Cuenta no encontrada' : 'Account not found');
           return;
         }
 
         // Check if account has sufficient funds/credit
         if (selectedAccount.type === 'debit' && selectedAccount.balance < total) {
+          console.log('❌ Insufficient funds:', selectedAccount.balance, '<', total);
           setTradeError(`${t('portfolio_insufficient_funds', lang)} ${fmt(total)}. ${lang === 'es' ? 'Disponible' : 'Available'}: ${fmt(selectedAccount.balance)}`);
           return;
         }
 
+        console.log('✅ Payment validation passed');
+        console.log('Balance before:', selectedAccount.balance);
+        
         // Deduct from the selected account
         const accountIndex = updatedAssetsAccounts.findIndex(acc => acc.id === selectedAccountId);
         updatedAssetsAccounts[accountIndex] = {
           ...selectedAccount,
           balance: selectedAccount.balance - total
         };
+        
+        console.log('Balance after:', updatedAssetsAccounts[accountIndex].balance);
+        console.log('Deduction amount:', total);
+      } else {
+        console.log('🎭 Stocks-only mode - no payment processing');
       }
       
       // Always add the stock to Assets holdings (regardless of mode)
@@ -1026,7 +1050,13 @@ export default function PortfolioSimulator({
         }]
       };
       
+      console.log('📤 Calling onAssetsPortfolioChange with updated portfolio');
+      console.log('Updated accounts summary:', updatedAssetsPortfolio.bankAccounts.map(acc => ({name: acc.name, balance: acc.balance})));
       onAssetsPortfolioChange(updatedAssetsPortfolio);
+    } else {
+      console.log('❌ Assets integration not available');
+      console.log('onAssetsPortfolioChange:', !!onAssetsPortfolioChange);
+      console.log('assetsPortfolio:', !!assetsPortfolio);
     }
 
     // Also update Portfolio holdings for display in positions
@@ -1054,6 +1084,8 @@ export default function PortfolioSimulator({
     setTradeSymbol('');
     setTradeShares('');
     setSelectedAccountId('');
+    
+    console.log('🔍 PURCHASE DEBUG END - SUCCESS');
     
     // Show success message
     const successMessage = stocksOnlyMode 
