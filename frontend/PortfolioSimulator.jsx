@@ -1203,7 +1203,7 @@ export default function PortfolioSimulator({
     <div className="space-y-4">
 
       {/* Stocks-Only Mode Toggle */}
-      <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700">
+      <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700" style={{zIndex: 10}}>
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h3 className="text-white font-semibold mb-1">
