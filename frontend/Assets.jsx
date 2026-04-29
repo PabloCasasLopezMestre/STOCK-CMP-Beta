@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit2, Trash2, DollarSign, TrendingUp, TrendingDown, ShoppingCart } from 'lucide-react';
+import { Plus, Edit2, Trash2, DollarSign, TrendingUp, TrendingDown, ShoppingCart, History, BarChart3, Home } from 'lucide-react';
 import { t } from './i18n';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const WORKER_BASE = 'https://proxy.stockcmp-proxy.workers.dev';
 
@@ -53,7 +54,8 @@ export default function Assets({
     bankAccounts: [],
     deposits: [],
     transactions: [],
-    holdings: {}
+    holdings: {},
+    physicalAssets: [] // New: for cars, houses, land, etc.
   });
   
   const [showBankForm, setShowBankForm] = useState(false);
@@ -79,6 +81,22 @@ export default function Assets({
     shares: '',
     accountId: ''
   });
+  const [showAssetForm, setShowAssetForm] = useState(false);
+  const [assetForm, setAssetForm] = useState({
+    name: '',
+    type: 'house', // house, car, land, other
+    purchasePrice: '',
+    currentValue: '',
+    paymentMethod: 'cash', // cash, installments_with_down, installments_no_down, installments_no_interest, installments_with_interest
+    downPayment: '',
+    installments: '',
+    interestRate: '',
+    interestAfterMonths: '',
+    accountId: ''
+  });
+  const [showTransactionHistory, setShowTransactionHistory] = useState(false);
+  const [showAssetsChart, setShowAssetsChart] = useState(false);
+  const [editingAsset, setEditingAsset] = useState(null);
   const [prices, setPrices] = useState({});
   const [loadingPrices, setLoadingPrices] = useState(false);
 
@@ -101,7 +119,8 @@ export default function Assets({
         bankAccounts: initialPortfolio.bankAccounts || [],
         deposits: initialPortfolio.deposits || [],
         transactions: initialPortfolio.transactions || [],
-        holdings: initialPortfolio.holdings || {}
+        holdings: initialPortfolio.holdings || {},
+        physicalAssets: initialPortfolio.physicalAssets || []
       }));
     }
   }, [initialPortfolio]);
@@ -371,6 +390,151 @@ export default function Assets({
     }
   };
 
+  // Handle physical asset registration
+  const handleAddPhysicalAsset = () => {
+    if (!assetForm.name || !assetForm.purchasePrice || !assetForm.currentValue) return;
+
+    const purchasePrice = parseFloat(assetForm.purchasePrice);
+    const currentValue = parseFloat(assetForm.currentValue);
+    
+    if (isNaN(purchasePrice) || isNaN(currentValue)) return;
+
+    const newPortfolio = { ...portfolio };
+    
+    // Calculate payment details based on method
+    let paymentDetails = {};
+    
+    if (assetForm.paymentMethod === 'cash') {
+      // Cash payment - deduct full amount from account
+      const accountIndex = newPortfolio.bankAccounts.findIndex(a => a.id === assetForm.accountId);
+      if (accountIndex !== -1) {
+        if (newPortfolio.bankAccounts[accountIndex].type === 'debit' && 
+            newPortfolio.bankAccounts[accountIndex].balance < purchasePrice) {
+          alert(lang === 'es' ? 'Saldo insuficiente para pago en efectivo' : 'Insufficient balance for cash payment');
+          return;
+        }
+        newPortfolio.bankAccounts[accountIndex].balance -= purchasePrice;
+      }
+      paymentDetails = { method: 'cash', totalPaid: purchasePrice };
+    } else {
+      // Installment payments
+      const downPayment = parseFloat(assetForm.downPayment) || 0;
+      const installments = parseInt(assetForm.installments) || 1;
+      const interestRate = parseFloat(assetForm.interestRate) || 0;
+      const interestAfterMonths = parseInt(assetForm.interestAfterMonths) || 0;
+      
+      // Deduct down payment if any
+      if (downPayment > 0) {
+        const accountIndex = newPortfolio.bankAccounts.findIndex(a => a.id === assetForm.accountId);
+        if (accountIndex !== -1) {
+          if (newPortfolio.bankAccounts[accountIndex].type === 'debit' && 
+              newPortfolio.bankAccounts[accountIndex].balance < downPayment) {
+            alert(lang === 'es' ? 'Saldo insuficiente para el enganche' : 'Insufficient balance for down payment');
+            return;
+          }
+          newPortfolio.bankAccounts[accountIndex].balance -= downPayment;
+        }
+      }
+      
+      paymentDetails = {
+        method: assetForm.paymentMethod,
+        totalPrice: purchasePrice,
+        downPayment,
+        remainingAmount: purchasePrice - downPayment,
+        installments,
+        interestRate,
+        interestAfterMonths,
+        monthlyPayment: (purchasePrice - downPayment) / installments,
+        paidInstallments: 0,
+        accountId: assetForm.accountId
+      };
+    }
+
+    const asset = {
+      id: editingAsset?.id || Date.now().toString(),
+      name: assetForm.name.trim(),
+      type: assetForm.type,
+      purchasePrice,
+      currentValue,
+      purchaseDate: editingAsset?.purchaseDate || new Date().toISOString(),
+      paymentDetails,
+      createdAt: editingAsset?.createdAt || new Date().toISOString()
+    };
+
+    if (editingAsset) {
+      // Edit existing asset
+      const index = newPortfolio.physicalAssets.findIndex(a => a.id === editingAsset.id);
+      if (index !== -1) {
+        newPortfolio.physicalAssets[index] = asset;
+      }
+    } else {
+      // Add new asset
+      newPortfolio.physicalAssets = [...(newPortfolio.physicalAssets || []), asset];
+    }
+
+    // Add transaction record
+    const transaction = {
+      id: Date.now().toString() + '_asset',
+      type: editingAsset ? 'asset_update' : 'asset_purchase',
+      assetId: asset.id,
+      assetName: asset.name,
+      amount: editingAsset ? 0 : (assetForm.paymentMethod === 'cash' ? purchasePrice : downPayment),
+      date: new Date().toISOString(),
+      description: editingAsset 
+        ? `${lang === 'es' ? 'Actualización de' : 'Update of'} ${asset.name}`
+        : `${lang === 'es' ? 'Compra de' : 'Purchase of'} ${asset.name}`
+    };
+
+    newPortfolio.transactions = [...(newPortfolio.transactions || []), transaction];
+    
+    savePortfolio(newPortfolio);
+    resetAssetForm();
+  };
+
+  const resetAssetForm = () => {
+    setAssetForm({
+      name: '',
+      type: 'house',
+      purchasePrice: '',
+      currentValue: '',
+      paymentMethod: 'cash',
+      downPayment: '',
+      installments: '',
+      interestRate: '',
+      interestAfterMonths: '',
+      accountId: ''
+    });
+    setShowAssetForm(false);
+    setEditingAsset(null);
+  };
+
+  const startEditingAsset = (asset) => {
+    setAssetForm({
+      name: asset.name,
+      type: asset.type,
+      purchasePrice: asset.purchasePrice.toString(),
+      currentValue: asset.currentValue.toString(),
+      paymentMethod: asset.paymentDetails.method,
+      downPayment: asset.paymentDetails.downPayment?.toString() || '',
+      installments: asset.paymentDetails.installments?.toString() || '',
+      interestRate: asset.paymentDetails.interestRate?.toString() || '',
+      interestAfterMonths: asset.paymentDetails.interestAfterMonths?.toString() || '',
+      accountId: asset.paymentDetails.accountId || ''
+    });
+    setEditingAsset(asset);
+    setShowAssetForm(true);
+  };
+
+  const deletePhysicalAsset = (assetId) => {
+    if (!confirm(lang === 'es' ? '¿Eliminar este activo?' : 'Delete this asset?')) return;
+    
+    const newPortfolio = {
+      ...portfolio,
+      physicalAssets: portfolio.physicalAssets.filter(a => a.id !== assetId)
+    };
+    savePortfolio(newPortfolio);
+  };
+
   const handleDeposit = () => {
     if (!depositForm.accountId || !depositForm.amount) return;
 
@@ -431,7 +595,11 @@ export default function Assets({
     return sum + (holding.shares * currentPrice);
   }, 0);
   
-  const totalAssets = totalBalance + stockValue;
+  // Calculate physical assets value
+  const physicalAssets = portfolio.physicalAssets || [];
+  const physicalAssetsValue = physicalAssets.reduce((sum, asset) => sum + asset.currentValue, 0);
+  
+  const totalAssets = totalBalance + stockValue + physicalAssetsValue;
 
   return (
     <div className="max-w-7xl mx-auto p-4 space-y-6">
@@ -462,6 +630,9 @@ export default function Assets({
               </span>
               <span className="text-slate-300">
                 {lang === 'es' ? 'Acciones' : 'Stocks'}: <span className="text-blue-400 font-semibold">{fmtCurrency(stockValue)}</span>
+              </span>
+              <span className="text-slate-300">
+                {lang === 'es' ? 'Activos Físicos' : 'Physical Assets'}: <span className="text-purple-400 font-semibold">{fmtCurrency(physicalAssetsValue)}</span>
               </span>
               {negativeBalance < 0 && (
                 <span className="text-slate-300">
@@ -500,6 +671,27 @@ export default function Assets({
         >
           <ShoppingCart size={16} />
           {lang === 'es' ? 'Registra Compra de Acciones' : 'Register Stock Purchase'}
+        </button>
+        <button
+          onClick={() => setShowAssetForm(true)}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-colors"
+        >
+          <Home size={16} />
+          {lang === 'es' ? 'Registra Activo Físico' : 'Register Physical Asset'}
+        </button>
+        <button
+          onClick={() => setShowTransactionHistory(true)}
+          className="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-colors"
+        >
+          <History size={16} />
+          {lang === 'es' ? 'Historial de Transacciones' : 'Transaction History'}
+        </button>
+        <button
+          onClick={() => setShowAssetsChart(true)}
+          className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-colors"
+        >
+          <BarChart3 size={16} />
+          {lang === 'es' ? 'Gráfica de Activos' : 'Assets Chart'}
         </button>
       </div>
 
@@ -689,6 +881,117 @@ export default function Assets({
                           {gainPercent >= 0 ? '+' : ''}{gainPercent.toFixed(2)}%
                         </div>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Physical Assets */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold text-white">
+          {lang === 'es' ? 'Activos Físicos' : 'Physical Assets'}
+        </h2>
+        
+        {physicalAssets.length === 0 ? (
+          <div className="bg-slate-800/50 rounded-xl p-8 text-center border border-slate-700">
+            <p className="text-slate-400 mb-4">
+              {lang === 'es' 
+                ? 'No tienes activos físicos registrados aún'
+                : 'You don\'t have any physical assets registered yet'
+              }
+            </p>
+            <button
+              onClick={() => setShowAssetForm(true)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-semibold"
+            >
+              {lang === 'es' ? 'Registra Primer Activo' : 'Register First Asset'}
+            </button>
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {physicalAssets.map((asset) => {
+              const gain = asset.currentValue - asset.purchasePrice;
+              const gainPercent = asset.purchasePrice > 0 ? (gain / asset.purchasePrice) * 100 : 0;
+              
+              const assetTypeLabels = {
+                house: lang === 'es' ? 'Casa' : 'House',
+                car: lang === 'es' ? 'Automóvil' : 'Car',
+                land: lang === 'es' ? 'Terreno' : 'Land',
+                other: lang === 'es' ? 'Otro' : 'Other'
+              };
+              
+              return (
+                <div key={asset.id} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h3 className="text-white font-semibold text-lg">{asset.name}</h3>
+                      <p className="text-slate-400 text-sm">
+                        {assetTypeLabels[asset.type]}
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => startEditingAsset(asset)}
+                        className="p-1 text-slate-400 hover:text-white transition-colors"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <button
+                        onClick={() => deletePhysicalAsset(asset.id)}
+                        className="p-1 text-slate-400 hover:text-red-400 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400 text-sm">
+                        {lang === 'es' ? 'Precio de Compra' : 'Purchase Price'}
+                      </span>
+                      <span className="text-slate-300 font-medium">
+                        {fmtCurrency(asset.purchasePrice)}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400 text-sm">
+                        {lang === 'es' ? 'Valor Actual' : 'Current Value'}
+                      </span>
+                      <span className="text-white font-bold">
+                        {fmtCurrency(asset.currentValue)}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400 text-sm">
+                        {lang === 'es' ? 'Ganancia/Pérdida' : 'Gain/Loss'}
+                      </span>
+                      <div className="text-right">
+                        <div className={`font-bold ${gain >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {fmtCurrency(gain)}
+                        </div>
+                        <div className={`text-xs ${gainPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {gainPercent >= 0 ? '+' : ''}{gainPercent.toFixed(2)}%
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400 text-sm">
+                        {lang === 'es' ? 'Método de Pago' : 'Payment Method'}
+                      </span>
+                      <span className="text-slate-300 text-sm">
+                        {asset.paymentDetails.method === 'cash' 
+                          ? (lang === 'es' ? 'Efectivo' : 'Cash')
+                          : (lang === 'es' ? 'A plazos' : 'Installments')
+                        }
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1016,6 +1319,351 @@ export default function Assets({
                   className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg font-semibold transition-colors"
                 >
                   {lang === 'es' ? 'Registrar Compra' : 'Register Purchase'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Physical Asset Form Modal */}
+      {showAssetForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="bg-slate-900 border border-slate-600 rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="bg-gradient-to-r from-indigo-700 to-indigo-500 px-6 py-3 rounded-t-2xl">
+              <h3 className="text-white font-bold text-lg">
+                {editingAsset 
+                  ? (lang === 'es' ? 'Editar Activo Físico' : 'Edit Physical Asset')
+                  : (lang === 'es' ? 'Registra Activo Físico' : 'Register Physical Asset')
+                }
+              </h3>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-slate-300 text-sm font-medium mb-2">
+                  {lang === 'es' ? 'Nombre del activo' : 'Asset name'}
+                </label>
+                <input
+                  type="text"
+                  value={assetForm.name}
+                  onChange={(e) => setAssetForm(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full bg-slate-700 text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder={lang === 'es' ? 'Ej: Casa en Polanco' : 'Ex: House in Downtown'}
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 text-sm font-medium mb-2">
+                  {lang === 'es' ? 'Tipo de activo' : 'Asset type'}
+                </label>
+                <select
+                  value={assetForm.type}
+                  onChange={(e) => setAssetForm(prev => ({ ...prev, type: e.target.value }))}
+                  className="w-full bg-slate-700 text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="house">{lang === 'es' ? 'Casa' : 'House'}</option>
+                  <option value="car">{lang === 'es' ? 'Automóvil' : 'Car'}</option>
+                  <option value="land">{lang === 'es' ? 'Terreno' : 'Land'}</option>
+                  <option value="other">{lang === 'es' ? 'Otro' : 'Other'}</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-slate-300 text-sm font-medium mb-2">
+                    {lang === 'es' ? 'Precio de compra' : 'Purchase price'}
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={assetForm.purchasePrice}
+                    onChange={(e) => setAssetForm(prev => ({ ...prev, purchasePrice: e.target.value }))}
+                    className="w-full bg-slate-700 text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 text-sm font-medium mb-2">
+                    {lang === 'es' ? 'Valor actual' : 'Current value'}
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={assetForm.currentValue}
+                    onChange={(e) => setAssetForm(prev => ({ ...prev, currentValue: e.target.value }))}
+                    className="w-full bg-slate-700 text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 text-sm font-medium mb-2">
+                  {lang === 'es' ? 'Método de pago' : 'Payment method'}
+                </label>
+                <select
+                  value={assetForm.paymentMethod}
+                  onChange={(e) => setAssetForm(prev => ({ ...prev, paymentMethod: e.target.value }))}
+                  className="w-full bg-slate-700 text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="cash">{lang === 'es' ? 'Efectivo' : 'Cash'}</option>
+                  <option value="installments_with_down">{lang === 'es' ? 'A meses con enganche' : 'Installments with down payment'}</option>
+                  <option value="installments_no_down">{lang === 'es' ? 'A meses sin enganche' : 'Installments without down payment'}</option>
+                  <option value="installments_no_interest">{lang === 'es' ? 'A meses sin intereses' : 'Installments without interest'}</option>
+                  <option value="installments_with_interest">{lang === 'es' ? 'A meses con intereses después de X meses' : 'Installments with interest after X months'}</option>
+                </select>
+              </div>
+
+              {assetForm.paymentMethod !== 'cash' && (
+                <>
+                  {(assetForm.paymentMethod === 'installments_with_down') && (
+                    <div>
+                      <label className="block text-slate-300 text-sm font-medium mb-2">
+                        {lang === 'es' ? 'Enganche' : 'Down payment'}
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={assetForm.downPayment}
+                        onChange={(e) => setAssetForm(prev => ({ ...prev, downPayment: e.target.value }))}
+                        className="w-full bg-slate-700 text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="0.00"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-slate-300 text-sm font-medium mb-2">
+                      {lang === 'es' ? 'Número de mensualidades' : 'Number of installments'}
+                    </label>
+                    <input
+                      type="number"
+                      value={assetForm.installments}
+                      onChange={(e) => setAssetForm(prev => ({ ...prev, installments: e.target.value }))}
+                      className="w-full bg-slate-700 text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="12"
+                    />
+                  </div>
+
+                  {assetForm.paymentMethod === 'installments_with_interest' && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-slate-300 text-sm font-medium mb-2">
+                          {lang === 'es' ? 'Tasa de interés anual (%)' : 'Annual interest rate (%)'}
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={assetForm.interestRate}
+                          onChange={(e) => setAssetForm(prev => ({ ...prev, interestRate: e.target.value }))}
+                          className="w-full bg-slate-700 text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="15.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-300 text-sm font-medium mb-2">
+                          {lang === 'es' ? 'Intereses a partir del mes' : 'Interest starts after month'}
+                        </label>
+                        <input
+                          type="number"
+                          value={assetForm.interestAfterMonths}
+                          onChange={(e) => setAssetForm(prev => ({ ...prev, interestAfterMonths: e.target.value }))}
+                          className="w-full bg-slate-700 text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="6"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-slate-300 text-sm font-medium mb-2">
+                      {lang === 'es' ? 'Cuenta para pagos' : 'Account for payments'}
+                    </label>
+                    <select
+                      value={assetForm.accountId}
+                      onChange={(e) => setAssetForm(prev => ({ ...prev, accountId: e.target.value }))}
+                      className="w-full bg-slate-700 text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">{lang === 'es' ? 'Seleccionar cuenta' : 'Select account'}</option>
+                      {bankAccounts.map(account => (
+                        <option key={account.id} value={account.id}>
+                          {account.name} ({fmtCurrency(account.balance)})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {assetForm.paymentMethod === 'cash' && (
+                <div>
+                  <label className="block text-slate-300 text-sm font-medium mb-2">
+                    {lang === 'es' ? 'Cuenta para pago' : 'Account for payment'}
+                  </label>
+                  <select
+                    value={assetForm.accountId}
+                    onChange={(e) => setAssetForm(prev => ({ ...prev, accountId: e.target.value }))}
+                    className="w-full bg-slate-700 text-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">{lang === 'es' ? 'Seleccionar cuenta' : 'Select account'}</option>
+                    {bankAccounts.map(account => (
+                      <option key={account.id} value={account.id}>
+                        {account.name} ({fmtCurrency(account.balance)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={resetAssetForm}
+                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg font-semibold transition-colors"
+                >
+                  {lang === 'es' ? 'Cancelar' : 'Cancel'}
+                </button>
+                <button
+                  onClick={handleAddPhysicalAsset}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg font-semibold transition-colors"
+                >
+                  {editingAsset 
+                    ? (lang === 'es' ? 'Guardar' : 'Save')
+                    : (lang === 'es' ? 'Registrar Activo' : 'Register Asset')
+                  }
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transaction History Modal */}
+      {showTransactionHistory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="bg-slate-900 border border-slate-600 rounded-2xl w-full max-w-4xl shadow-2xl max-h-[90vh] overflow-hidden">
+            <div className="bg-gradient-to-r from-slate-700 to-slate-500 px-6 py-3 rounded-t-2xl">
+              <h3 className="text-white font-bold text-lg">
+                {lang === 'es' ? 'Historial de Transacciones' : 'Transaction History'}
+              </h3>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              {portfolio.transactions && portfolio.transactions.length > 0 ? (
+                <div className="space-y-3">
+                  {portfolio.transactions
+                    .sort((a, b) => new Date(b.date) - new Date(a.date))
+                    .map((transaction) => (
+                    <div key={transaction.id} className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-white font-medium">{transaction.description}</p>
+                          <p className="text-slate-400 text-sm">
+                            {new Date(transaction.date).toLocaleDateString(lang === 'es' ? 'es-MX' : 'en-US')}
+                          </p>
+                          {transaction.symbol && (
+                            <p className="text-slate-300 text-sm">
+                              {transaction.symbol} - {transaction.shares} {lang === 'es' ? 'acciones' : 'shares'}
+                            </p>
+                          )}
+                          {transaction.assetName && (
+                            <p className="text-slate-300 text-sm">{transaction.assetName}</p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <p className={`font-bold ${
+                            transaction.type === 'deposit' || transaction.type === 'buy' || transaction.type === 'asset_purchase'
+                              ? 'text-red-400' 
+                              : transaction.type === 'withdraw' 
+                              ? 'text-green-400'
+                              : 'text-slate-300'
+                          }`}>
+                            {transaction.amount ? fmtCurrency(transaction.amount) : '—'}
+                          </p>
+                          <p className="text-slate-400 text-xs capitalize">
+                            {transaction.type.replace('_', ' ')}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-slate-400">
+                    {lang === 'es' ? 'No hay transacciones registradas' : 'No transactions recorded'}
+                  </p>
+                </div>
+              )}
+              <div className="flex justify-end pt-4">
+                <button
+                  onClick={() => setShowTransactionHistory(false)}
+                  className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+                >
+                  {lang === 'es' ? 'Cerrar' : 'Close'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assets Chart Modal */}
+      {showAssetsChart && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="bg-slate-900 border border-slate-600 rounded-2xl w-full max-w-6xl shadow-2xl max-h-[90vh] overflow-hidden">
+            <div className="bg-gradient-to-r from-teal-700 to-teal-500 px-6 py-3 rounded-t-2xl">
+              <h3 className="text-white font-bold text-lg">
+                {lang === 'es' ? 'Gráfica de Valor de Activos' : 'Assets Value Chart'}
+              </h3>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-slate-800/50 rounded-lg p-4 text-center">
+                  <p className="text-slate-400 text-sm">{lang === 'es' ? 'Efectivo' : 'Cash'}</p>
+                  <p className="text-green-400 font-bold text-lg">{fmtCurrency(positiveBalance)}</p>
+                </div>
+                <div className="bg-slate-800/50 rounded-lg p-4 text-center">
+                  <p className="text-slate-400 text-sm">{lang === 'es' ? 'Acciones' : 'Stocks'}</p>
+                  <p className="text-blue-400 font-bold text-lg">{fmtCurrency(stockValue)}</p>
+                </div>
+                <div className="bg-slate-800/50 rounded-lg p-4 text-center">
+                  <p className="text-slate-400 text-sm">{lang === 'es' ? 'Activos Físicos' : 'Physical Assets'}</p>
+                  <p className="text-purple-400 font-bold text-lg">{fmtCurrency(physicalAssetsValue)}</p>
+                </div>
+                <div className="bg-slate-800/50 rounded-lg p-4 text-center">
+                  <p className="text-slate-400 text-sm">{lang === 'es' ? 'Total' : 'Total'}</p>
+                  <p className="text-white font-bold text-lg">{fmtCurrency(totalAssets)}</p>
+                </div>
+              </div>
+              
+              <div className="h-80 bg-slate-800/30 rounded-lg p-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={[
+                    { name: lang === 'es' ? 'Efectivo' : 'Cash', value: positiveBalance },
+                    { name: lang === 'es' ? 'Acciones' : 'Stocks', value: stockValue },
+                    { name: lang === 'es' ? 'Activos Físicos' : 'Physical Assets', value: physicalAssetsValue }
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis dataKey="name" stroke="#9CA3AF" />
+                    <YAxis stroke="#9CA3AF" />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#1F2937', 
+                        border: '1px solid #374151',
+                        borderRadius: '8px'
+                      }}
+                      formatter={(value) => [fmtCurrency(value), '']}
+                    />
+                    <Line type="monotone" dataKey="value" stroke="#10B981" strokeWidth={3} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              
+              <div className="flex justify-end pt-4">
+                <button
+                  onClick={() => setShowAssetsChart(false)}
+                  className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+                >
+                  {lang === 'es' ? 'Cerrar' : 'Close'}
                 </button>
               </div>
             </div>
