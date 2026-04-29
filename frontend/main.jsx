@@ -479,7 +479,7 @@ function App() {
         </div>
       )}
       {tab === 'assets' && (
-        <Assets {...sharedProps} initialPortfolio={initialPortfolio} onPortfolioChange={onPortfolioChange} />
+        <Assets {...sharedProps} initialPortfolio={initialPortfolio} onPortfolioChange={onPortfolioChange} comparatorStocks={tickerSymbols} />
       )}
       {tab === 'community' && (
         <Community lang={lang} prefill={communityPrefill} onPrefillConsumed={consumeCommunityPrefill} />
