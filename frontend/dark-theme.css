@@ -62,16 +62,33 @@ body.dark-theme .text-slate-500 {
   color: #aaaaaa !important;
 }
 
-/* Buttons */
+/* Selected buttons (active state) */
 body.dark-theme .bg-blue-600 {
+  background-color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+  color: #000000 !important;
+}
+
+body.dark-theme .bg-blue-600:hover,
+body.dark-theme .hover\:bg-blue-700:hover {
+  background-color: #f0f0f0 !important;
+  color: #000000 !important;
+}
+
+/* Non-selected buttons (default state) */
+body.dark-theme .bg-slate-700,
+body.dark-theme .bg-slate-800 {
   background-color: #000000 !important;
   border: 2px solid #ffffff !important;
   color: #ffffff !important;
 }
 
-body.dark-theme .bg-blue-600:hover,
-body.dark-theme .hover\:bg-blue-700:hover {
+body.dark-theme .bg-slate-700:hover,
+body.dark-theme .bg-slate-800:hover,
+body.dark-theme .hover\:bg-slate-600:hover,
+body.dark-theme .hover\:bg-slate-700:hover {
   background-color: #333333 !important;
+  color: #ffffff !important;
 }
 
 body.dark-theme .bg-green-600 {
@@ -129,4 +146,70 @@ body.dark-theme [class*="border-"] {
 body.dark-theme [class*="bg-slate-"] {
   background-color: #000000 !important;
   border-color: #ffffff !important;
+}
+
+/* Specific overrides for selected states */
+body.dark-theme .bg-blue-600\/20 {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+}
+
+body.dark-theme .border-blue-500 {
+  border-color: #ffffff !important;
+}
+
+/* Tab buttons selected */
+body.dark-theme button.bg-blue-600 {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #ffffff !important;
+}
+
+/* Tab buttons not selected */
+body.dark-theme button.bg-slate-700 {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+}
+
+/* Time range buttons and company buttons */
+body.dark-theme .bg-blue-600.text-white {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+body.dark-theme .bg-slate-700.text-slate-300 {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+}
+
+/* Sector cards selected */
+body.dark-theme .border-blue-500.bg-blue-600\/20 {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #ffffff !important;
+}
+
+/* Sector cards not selected */
+body.dark-theme .border-slate-600.bg-slate-700\/50 {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+}
+
+/* Override any text colors in selected elements */
+body.dark-theme .bg-blue-600 * {
+  color: #000000 !important;
+}
+
+body.dark-theme .bg-blue-600\/20 * {
+  color: #000000 !important;
+}
+
+/* Ensure non-selected elements have white text */
+body.dark-theme .bg-slate-700 *,
+body.dark-theme .bg-slate-800 * {
+  color: #ffffff !important;
 }
