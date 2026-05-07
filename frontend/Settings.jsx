@@ -4,6 +4,106 @@ import CommunityProfileSettings from './CommunityProfileSettings';
 import AuthEmailPanel from './AuthEmailPanel';
 import { clearAllData } from './syncService';
 
+// Color palettes definition
+export const COLOR_PALETTES = [
+  {
+    id: 'default',
+    name: { es: 'Azul (Actual)', en: 'Blue (Current)' },
+    colors: {
+      primary: 'blue',
+      primaryHex: '#3b82f6',
+      secondary: 'slate',
+      accent: 'blue-600',
+      background: 'slate-900',
+      surface: 'slate-800'
+    }
+  },
+  {
+    id: 'blackwhite',
+    name: { es: 'Negro y Blanco', en: 'Black and White' },
+    colors: {
+      primary: 'gray',
+      primaryHex: '#6b7280',
+      secondary: 'gray',
+      accent: 'gray-600',
+      background: 'black',
+      surface: 'gray-900'
+    }
+  },
+  {
+    id: 'pinkblue',
+    name: { es: 'Rosa y Azul', en: 'Pink and Blue' },
+    colors: {
+      primary: 'pink',
+      primaryHex: '#ec4899',
+      secondary: 'blue',
+      accent: 'pink-600',
+      background: 'slate-900',
+      surface: 'slate-800'
+    }
+  },
+  {
+    id: 'redblue',
+    name: { es: 'Roja y Azul', en: 'Red and Blue' },
+    colors: {
+      primary: 'red',
+      primaryHex: '#ef4444',
+      secondary: 'blue',
+      accent: 'red-600',
+      background: 'slate-900',
+      surface: 'slate-800'
+    }
+  },
+  {
+    id: 'brownwhite',
+    name: { es: 'Café y Blanco', en: 'Brown and White' },
+    colors: {
+      primary: 'amber',
+      primaryHex: '#d97706',
+      secondary: 'stone',
+      accent: 'amber-700',
+      background: 'stone-900',
+      surface: 'stone-800'
+    }
+  },
+  {
+    id: 'creamblack',
+    name: { es: 'Crema y Negro', en: 'Cream and Black' },
+    colors: {
+      primary: 'yellow',
+      primaryHex: '#eab308',
+      secondary: 'stone',
+      accent: 'yellow-600',
+      background: 'stone-900',
+      surface: 'stone-800'
+    }
+  },
+  {
+    id: 'blackyellow',
+    name: { es: 'Negro y Amarillo', en: 'Black and Yellow' },
+    colors: {
+      primary: 'yellow',
+      primaryHex: '#facc15',
+      secondary: 'gray',
+      accent: 'yellow-500',
+      background: 'black',
+      surface: 'gray-900'
+    }
+  },
+  {
+    id: 'whiteblack',
+    name: { es: 'Blanco y Negro (Default)', en: 'White and Black (Default)' },
+    colors: {
+      primary: 'slate',
+      primaryHex: '#64748b',
+      secondary: 'gray',
+      accent: 'slate-600',
+      background: 'white',
+      surface: 'gray-100'
+    }
+  }
+];
+
 export const ALL_CURRENCIES = [
   { code: 'USD', label: 'Dólar estadounidense', symbol: '$',   flag: '🇺🇸' },
   { code: 'EUR', label: 'Euro',                  symbol: '€',   flag: '🇪🇺' },
@@ -71,6 +171,9 @@ export default function Settings({
   tickerInput = '', setTickerInput,
   accountCreated = null,
   dataResetAt = null,
+  // New theme props
+  colorPalette = 'whiteblack',
+  setColorPalette,
 }) {
   const [tzSearch, setTzSearch] = useState('');
 
@@ -110,6 +213,18 @@ export default function Settings({
 
   const currentTz = TIMEZONES.find((t) => t.tz === userTimezone);
 
+  // Color palette functions
+  const selectColorPalette = (paletteId) => {
+    if (setColorPalette) {
+      setColorPalette(paletteId);
+      try { 
+        localStorage.setItem('colorPalette', paletteId); 
+      } catch {}
+    }
+  };
+
+  const currentPalette = COLOR_PALETTES.find(p => p.id === colorPalette) || COLOR_PALETTES.find(p => p.id === 'whiteblack');
+
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">
       <div className="flex items-start justify-between flex-wrap gap-3">
@@ -127,6 +242,7 @@ export default function Settings({
             if (setMaxStocks) setMaxStocks(8);
             if (setTickerAutoScroll) setTickerAutoScroll(true);
             if (setDefaultTimeRange) setDefaultTimeRange('1month');
+            if (setColorPalette) setColorPalette('whiteblack');
             if (setEnabledFeatures) setEnabledFeatures({
               fundamentals: true, technicalIndicators: true, patternRecognition: true,
               backtesting: true, comparativeAnalysis: true, comparatorNews: true,
@@ -138,6 +254,7 @@ export default function Settings({
               localStorage.setItem('enabledCurrencies', JSON.stringify(['USD', 'MXN', 'EUR']));
               localStorage.setItem('userTimezone', 'America/New_York');
               localStorage.setItem('maxStocks', '8');
+              localStorage.setItem('colorPalette', 'whiteblack');
               localStorage.removeItem('enabledFeatures');
               localStorage.removeItem('tickerAutoScroll');
               localStorage.removeItem('visibleTimeRanges');
@@ -167,6 +284,55 @@ export default function Settings({
               <span className="text-xl">{flag}</span>
               <span className="text-sm font-medium">{label}</span>
               {lang === code && <span className="ml-auto w-2 h-2 rounded-full bg-blue-500" />}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Color Palettes */}
+      <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+        <h2 className="text-white font-semibold mb-1">
+          {lang === 'es' ? 'Paleta de Colores' : 'Color Palette'}
+        </h2>
+        <p className="text-slate-400 text-sm mb-3">
+          {lang === 'es' ? 'Selecciona la paleta de colores para la interfaz.' : 'Select the color palette for the interface.'}
+        </p>
+        <div className="flex items-center gap-2 mb-4 bg-slate-700/50 rounded-lg px-3 py-2 border border-slate-600">
+          <div 
+            className="w-4 h-4 rounded-full" 
+            style={{ backgroundColor: currentPalette.colors.primaryHex }}
+          />
+          <span className="text-white text-sm font-medium">
+            {currentPalette.name[lang] || currentPalette.name.es}
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {COLOR_PALETTES.map((palette) => (
+            <button
+              key={palette.id}
+              onClick={() => selectColorPalette(palette.id)}
+              className={`flex items-center gap-3 px-3 py-3 rounded-lg border transition-all text-left ${
+                colorPalette === palette.id
+                  ? 'bg-blue-600/20 border-blue-500 text-white'
+                  : 'bg-slate-700/50 border-slate-600 text-slate-300 hover:border-blue-400'
+              }`}
+            >
+              <div className="flex gap-1">
+                <div 
+                  className="w-3 h-3 rounded-full" 
+                  style={{ backgroundColor: palette.colors.primaryHex }}
+                />
+                <div 
+                  className="w-3 h-3 rounded-full opacity-60" 
+                  style={{ backgroundColor: palette.id === 'blackwhite' || palette.id === 'whiteblack' ? '#ffffff' : '#64748b' }}
+                />
+              </div>
+              <span className="text-sm font-medium flex-1">
+                {palette.name[lang] || palette.name.es}
+              </span>
+              {colorPalette === palette.id && (
+                <span className="w-2 h-2 rounded-full bg-blue-500" />
+              )}
             </button>
           ))}
         </div>

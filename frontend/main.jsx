@@ -89,6 +89,16 @@ function App() {
   const [lang, setLang] = useState(() => {
     try { return localStorage.getItem('lang') || 'es'; } catch { return 'es'; }
   });
+  
+  // Color palette state
+  const [colorPalette, setColorPalette] = useState(() => {
+    try { return localStorage.getItem('colorPalette') || 'whiteblack'; } catch { return 'whiteblack'; }
+  });
+  
+  const setColorPalettePersist = (palette) => {
+    setColorPalette(palette);
+    try { localStorage.setItem('colorPalette', palette); } catch {}
+  };
 
   // Portfolio state lifted from PortfolioSimulator so syncService can seed it
   const [initialPortfolio, setInitialPortfolio] = useState(null);
@@ -505,6 +515,8 @@ function App() {
           setTickerInput={setTickerInput}
           accountCreated={accountCreated}
           dataResetAt={dataResetAt}
+          colorPalette={colorPalette}
+          setColorPalette={setColorPalettePersist}
         />
       )}
 
