@@ -10,6 +10,8 @@ import { t } from './i18n';
 import * as syncService from './syncService';
 import TickerBar from './TickerBar';
 import { getSupabase } from './supabaseClient';
+import { useTheme } from './useTheme';
+import './theme.css';
 
 // Error boundary component
 class ErrorBoundary extends React.Component {
@@ -99,6 +101,9 @@ function App() {
     setColorPalette(palette);
     try { localStorage.setItem('colorPalette', palette); } catch {}
   };
+
+  // Apply theme
+  useTheme(colorPalette);
 
   // Portfolio state lifted from PortfolioSimulator so syncService can seed it
   const [initialPortfolio, setInitialPortfolio] = useState(null);
