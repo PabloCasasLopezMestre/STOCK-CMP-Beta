@@ -162,6 +162,43 @@
   border-color: var(--color-border) !important;
 }
 
+/* Wells theme specific overrides */
+.theme-wells {
+  /* Wells beige theme specific styles */
+}
+
+.theme-wells .bg-slate-900 {
+  background-color: var(--color-background) !important;
+}
+
+.theme-wells .bg-slate-800 {
+  background-color: var(--color-surface) !important;
+}
+
+.theme-wells .bg-slate-700 {
+  background-color: var(--color-surface-light) !important;
+}
+
+.theme-wells .text-white {
+  color: var(--color-text) !important;
+}
+
+.theme-wells .text-slate-400 {
+  color: var(--color-text-secondary) !important;
+}
+
+.theme-wells .text-slate-300 {
+  color: var(--color-text-muted) !important;
+}
+
+.theme-wells .border-slate-700 {
+  border-color: var(--color-border) !important;
+}
+
+.theme-wells .border-slate-600 {
+  border-color: var(--color-border) !important;
+}
+
 /* Button color overrides for all themes */
 .bg-blue-600 {
   background-color: var(--color-primary) !important;

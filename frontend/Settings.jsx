@@ -101,6 +101,18 @@ export const COLOR_PALETTES = [
       background: 'white',
       surface: 'gray-100'
     }
+  },
+  {
+    id: 'wells',
+    name: { es: 'Wells Beige', en: 'Wells Beige' },
+    colors: {
+      primary: 'stone',
+      primaryHex: '#78716c',
+      secondary: 'neutral',
+      accent: 'stone-600',
+      background: '#e7ddd7',
+      surface: '#f0e6e0'
+    }
   }
 ];
 

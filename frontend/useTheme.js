@@ -139,6 +139,25 @@ const getThemeVariables = (paletteId) => {
         '--color-warning': '#f59e0b'
       };
       
+    case 'wells': // Wells Beige
+      return {
+        '--color-primary': '#78716c',
+        '--color-primary-dark': '#57534e',
+        '--color-primary-light': '#a8a29e',
+        '--color-secondary': '#737373',
+        '--color-accent': '#78716c',
+        '--color-background': '#e7ddd7',
+        '--color-surface': '#f0e6e0',
+        '--color-surface-light': '#f5f1ed',
+        '--color-text': '#1c1917',
+        '--color-text-secondary': '#44403c',
+        '--color-text-muted': '#78716c',
+        '--color-border': '#d6d3d1',
+        '--color-success': '#10b981',
+        '--color-error': '#ef4444',
+        '--color-warning': '#f59e0b'
+      };
+      
     case 'whiteblack': // Blanco y Gris (más agradable)
     default:
       return {
