@@ -20,7 +20,7 @@ export const COLOR_PALETTES = [
   },
   {
     id: 'blackwhite',
-    name: { es: 'Negro y Blanco', en: 'Black and White' },
+    name: { es: 'Negro y Blanco (Default)', en: 'Black and White (Default)' },
     colors: {
       primary: 'gray',
       primaryHex: '#6b7280',
@@ -92,7 +92,7 @@ export const COLOR_PALETTES = [
   },
   {
     id: 'whiteblack',
-    name: { es: 'Blanco y Negro (Default)', en: 'White and Black (Default)' },
+    name: { es: 'Blanco y Gris', en: 'White and Gray' },
     colors: {
       primary: 'slate',
       primaryHex: '#64748b',
@@ -172,7 +172,7 @@ export default function Settings({
   accountCreated = null,
   dataResetAt = null,
   // New theme props
-  colorPalette = 'whiteblack',
+  colorPalette = 'blackwhite',
   setColorPalette,
 }) {
   const [tzSearch, setTzSearch] = useState('');
@@ -223,7 +223,7 @@ export default function Settings({
     }
   };
 
-  const currentPalette = COLOR_PALETTES.find(p => p.id === colorPalette) || COLOR_PALETTES.find(p => p.id === 'whiteblack');
+  const currentPalette = COLOR_PALETTES.find(p => p.id === colorPalette) || COLOR_PALETTES.find(p => p.id === 'blackwhite');
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">
@@ -242,7 +242,7 @@ export default function Settings({
             if (setMaxStocks) setMaxStocks(8);
             if (setTickerAutoScroll) setTickerAutoScroll(true);
             if (setDefaultTimeRange) setDefaultTimeRange('1month');
-            if (setColorPalette) setColorPalette('whiteblack');
+            if (setColorPalette) setColorPalette('blackwhite');
             if (setEnabledFeatures) setEnabledFeatures({
               fundamentals: true, technicalIndicators: true, patternRecognition: true,
               backtesting: true, comparativeAnalysis: true, comparatorNews: true,
@@ -254,7 +254,7 @@ export default function Settings({
               localStorage.setItem('enabledCurrencies', JSON.stringify(['USD', 'MXN', 'EUR']));
               localStorage.setItem('userTimezone', 'America/New_York');
               localStorage.setItem('maxStocks', '8');
-              localStorage.setItem('colorPalette', 'whiteblack');
+              localStorage.setItem('colorPalette', 'blackwhite');
               localStorage.removeItem('enabledFeatures');
               localStorage.removeItem('tickerAutoScroll');
               localStorage.removeItem('visibleTimeRanges');

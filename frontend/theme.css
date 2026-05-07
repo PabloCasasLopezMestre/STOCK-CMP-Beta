@@ -1,18 +1,18 @@
 /* Theme CSS Variables - Applied dynamically by useTheme hook */
 :root {
-  /* Default theme variables (whiteblack) */
-  --color-primary: #64748b;
-  --color-primary-dark: #475569;
-  --color-primary-light: #94a3b8;
+  /* Default theme variables (blackwhite) */
+  --color-primary: #6b7280;
+  --color-primary-dark: #4b5563;
+  --color-primary-light: #9ca3af;
   --color-secondary: #6b7280;
-  --color-accent: #64748b;
-  --color-background: #ffffff;
-  --color-surface: #f8fafc;
-  --color-surface-light: #f1f5f9;
-  --color-text: #0f172a;
-  --color-text-secondary: #475569;
-  --color-text-muted: #64748b;
-  --color-border: #e2e8f0;
+  --color-accent: #6b7280;
+  --color-background: #000000;
+  --color-surface: #111827;
+  --color-surface-light: #1f2937;
+  --color-text: #ffffff;
+  --color-text-secondary: #d1d5db;
+  --color-text-muted: #9ca3af;
+  --color-border: #374151;
   --color-success: #10b981;
   --color-error: #ef4444;
   --color-warning: #f59e0b;

@@ -94,7 +94,7 @@ function App() {
   
   // Color palette state
   const [colorPalette, setColorPalette] = useState(() => {
-    try { return localStorage.getItem('colorPalette') || 'whiteblack'; } catch { return 'whiteblack'; }
+    try { return localStorage.getItem('colorPalette') || 'blackwhite'; } catch { return 'blackwhite'; }
   });
   
   const setColorPalettePersist = (palette) => {

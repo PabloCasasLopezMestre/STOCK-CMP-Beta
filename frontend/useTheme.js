@@ -3,7 +3,7 @@ import { COLOR_PALETTES } from './Settings';
 
 // CSS variables mapping for each palette
 const getThemeVariables = (paletteId) => {
-  const palette = COLOR_PALETTES.find(p => p.id === paletteId) || COLOR_PALETTES.find(p => p.id === 'whiteblack');
+  const palette = COLOR_PALETTES.find(p => p.id === paletteId) || COLOR_PALETTES.find(p => p.id === 'blackwhite');
   
   switch (paletteId) {
     case 'default': // Azul (Actual)
@@ -139,21 +139,21 @@ const getThemeVariables = (paletteId) => {
         '--color-warning': '#f59e0b'
       };
       
-    case 'whiteblack': // Blanco y Negro (Default)
+    case 'whiteblack': // Blanco y Gris (más agradable)
     default:
       return {
-        '--color-primary': '#64748b',
-        '--color-primary-dark': '#475569',
-        '--color-primary-light': '#94a3b8',
-        '--color-secondary': '#6b7280',
-        '--color-accent': '#64748b',
+        '--color-primary': '#3b82f6',
+        '--color-primary-dark': '#2563eb',
+        '--color-primary-light': '#60a5fa',
+        '--color-secondary': '#64748b',
+        '--color-accent': '#3b82f6',
         '--color-background': '#ffffff',
         '--color-surface': '#f8fafc',
-        '--color-surface-light': '#f1f5f9',
-        '--color-text': '#0f172a',
-        '--color-text-secondary': '#475569',
-        '--color-text-muted': '#64748b',
-        '--color-border': '#e2e8f0',
+        '--color-surface-light': '#e2e8f0',
+        '--color-text': '#1e293b',
+        '--color-text-secondary': '#64748b',
+        '--color-text-muted': '#94a3b8',
+        '--color-border': '#cbd5e1',
         '--color-success': '#10b981',
         '--color-error': '#ef4444',
         '--color-warning': '#f59e0b'
