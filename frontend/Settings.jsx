@@ -71,6 +71,9 @@ export default function Settings({
   tickerInput = '', setTickerInput,
   accountCreated = null,
   dataResetAt = null,
+  // Theme props
+  darkTheme = false,
+  setDarkTheme,
 }) {
   const [tzSearch, setTzSearch] = useState('');
 
@@ -127,6 +130,7 @@ export default function Settings({
             if (setMaxStocks) setMaxStocks(8);
             if (setTickerAutoScroll) setTickerAutoScroll(true);
             if (setDefaultTimeRange) setDefaultTimeRange('1month');
+            if (setDarkTheme) setDarkTheme(false);
             if (setEnabledFeatures) setEnabledFeatures({
               fundamentals: true, technicalIndicators: true, patternRecognition: true,
               backtesting: true, comparativeAnalysis: true, comparatorNews: true,
@@ -138,6 +142,7 @@ export default function Settings({
               localStorage.setItem('enabledCurrencies', JSON.stringify(['USD', 'MXN', 'EUR']));
               localStorage.setItem('userTimezone', 'America/New_York');
               localStorage.setItem('maxStocks', '8');
+              localStorage.setItem('darkTheme', 'false');
               localStorage.removeItem('enabledFeatures');
               localStorage.removeItem('tickerAutoScroll');
               localStorage.removeItem('visibleTimeRanges');
@@ -173,6 +178,56 @@ export default function Settings({
       </div>
 
       <AuthEmailPanel lang={lang} />
+
+      {/* Theme Selection */}
+      <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+        <h2 className="text-white font-semibold mb-1">
+          {lang === 'es' ? 'Tema' : 'Theme'}
+        </h2>
+        <p className="text-slate-400 text-sm mb-4">
+          {lang === 'es' ? 'Selecciona el tema de la interfaz.' : 'Select the interface theme.'}
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setDarkTheme && setDarkTheme(false)}
+            className={`flex-1 px-4 py-3 rounded-lg border transition-all text-left ${
+              !darkTheme
+                ? 'bg-blue-600/20 border-blue-500 text-white'
+                : 'bg-slate-700/50 border-slate-600 text-slate-300 hover:border-blue-400'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex gap-1">
+                <div className="w-3 h-3 rounded-full bg-blue-500" />
+                <div className="w-3 h-3 rounded-full bg-slate-600" />
+              </div>
+              <span className="text-sm font-medium">
+                {lang === 'es' ? 'Azul (Default)' : 'Blue (Default)'}
+              </span>
+              {!darkTheme && <span className="ml-auto w-2 h-2 rounded-full bg-blue-500" />}
+            </div>
+          </button>
+          <button
+            onClick={() => setDarkTheme && setDarkTheme(true)}
+            className={`flex-1 px-4 py-3 rounded-lg border transition-all text-left ${
+              darkTheme
+                ? 'bg-blue-600/20 border-blue-500 text-white'
+                : 'bg-slate-700/50 border-slate-600 text-slate-300 hover:border-blue-400'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex gap-1">
+                <div className="w-3 h-3 rounded-full bg-black border border-white" />
+                <div className="w-3 h-3 rounded-full bg-white" />
+              </div>
+              <span className="text-sm font-medium">
+                {lang === 'es' ? 'Negro y Blanco' : 'Black and White'}
+              </span>
+              {darkTheme && <span className="ml-auto w-2 h-2 rounded-full bg-blue-500" />}
+            </div>
+          </button>
+        </div>
+      </div>
 
       {/* Timezone */}
       <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">

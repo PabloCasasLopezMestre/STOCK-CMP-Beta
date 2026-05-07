@@ -1,0 +1,132 @@
+/* Dark Theme CSS */
+body.dark-theme {
+  background-color: #000000 !important;
+}
+
+/* Main container background */
+body.dark-theme .min-h-screen {
+  background: #000000 !important;
+  background-image: none !important;
+}
+
+body.dark-theme .bg-gradient-to-br {
+  background: #000000 !important;
+  background-image: none !important;
+}
+
+/* Navigation bar */
+body.dark-theme .bg-slate-900\/90,
+body.dark-theme [class*="bg-slate-900/90"] {
+  background-color: #000000 !important;
+  border-color: #ffffff !important;
+}
+
+/* Cards and surfaces */
+body.dark-theme .bg-slate-800,
+body.dark-theme .bg-slate-800\/50 {
+  background-color: #000000 !important;
+  border-color: #ffffff !important;
+}
+
+body.dark-theme .bg-slate-700,
+body.dark-theme .bg-slate-700\/50 {
+  background-color: #000000 !important;
+  border-color: #ffffff !important;
+}
+
+body.dark-theme .bg-slate-900 {
+  background-color: #000000 !important;
+  border-color: #ffffff !important;
+}
+
+/* Borders */
+body.dark-theme .border-slate-700,
+body.dark-theme .border-slate-600 {
+  border-color: #ffffff !important;
+}
+
+/* Text colors */
+body.dark-theme .text-white {
+  color: #ffffff !important;
+}
+
+body.dark-theme .text-slate-400 {
+  color: #cccccc !important;
+}
+
+body.dark-theme .text-slate-300 {
+  color: #dddddd !important;
+}
+
+body.dark-theme .text-slate-500 {
+  color: #aaaaaa !important;
+}
+
+/* Buttons */
+body.dark-theme .bg-blue-600 {
+  background-color: #000000 !important;
+  border: 2px solid #ffffff !important;
+  color: #ffffff !important;
+}
+
+body.dark-theme .bg-blue-600:hover,
+body.dark-theme .hover\:bg-blue-700:hover {
+  background-color: #333333 !important;
+}
+
+body.dark-theme .bg-green-600 {
+  background-color: #000000 !important;
+  border: 2px solid #ffffff !important;
+  color: #ffffff !important;
+}
+
+body.dark-theme .bg-green-600:hover {
+  background-color: #333333 !important;
+}
+
+/* Input fields */
+body.dark-theme input,
+body.dark-theme textarea,
+body.dark-theme select {
+  background-color: #000000 !important;
+  border-color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+body.dark-theme input:focus,
+body.dark-theme textarea:focus,
+body.dark-theme select:focus {
+  border-color: #ffffff !important;
+  box-shadow: 0 0 0 1px #ffffff !important;
+}
+
+/* Ticker bar */
+body.dark-theme .bg-slate-900\/95 {
+  background-color: #000000 !important;
+  border-color: #ffffff !important;
+}
+
+/* Dropdown menus */
+body.dark-theme .bg-slate-800 {
+  background-color: #000000 !important;
+  border-color: #ffffff !important;
+}
+
+/* Charts and graphs backgrounds */
+body.dark-theme .bg-slate-900,
+body.dark-theme .bg-slate-800,
+body.dark-theme .bg-slate-700 {
+  background-color: #000000 !important;
+  border-color: #ffffff !important;
+}
+
+/* Ensure all containers have white borders */
+body.dark-theme [class*="border-"] {
+  border-color: #ffffff !important;
+}
+
+/* Override any remaining slate backgrounds */
+body.dark-theme [class*="bg-slate-"] {
+  background-color: #000000 !important;
+  border-color: #ffffff !important;
+}

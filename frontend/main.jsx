@@ -10,6 +10,7 @@ import { t } from './i18n';
 import * as syncService from './syncService';
 import TickerBar from './TickerBar';
 import { getSupabase } from './supabaseClient';
+import './dark-theme.css';
 
 // Error boundary component
 class ErrorBoundary extends React.Component {
@@ -89,6 +90,32 @@ function App() {
   const [lang, setLang] = useState(() => {
     try { return localStorage.getItem('lang') || 'es'; } catch { return 'es'; }
   });
+
+  // Dark theme state
+  const [darkTheme, setDarkTheme] = useState(() => {
+    try { return localStorage.getItem('darkTheme') === 'true'; } catch { return false; }
+  });
+
+  const setDarkThemePersist = (isDark) => {
+    setDarkTheme(isDark);
+    try { localStorage.setItem('darkTheme', String(isDark)); } catch {}
+    
+    // Apply theme to body
+    if (isDark) {
+      document.body.classList.add('dark-theme');
+    } else {
+      document.body.classList.remove('dark-theme');
+    }
+  };
+
+  // Apply theme on mount
+  useEffect(() => {
+    if (darkTheme) {
+      document.body.classList.add('dark-theme');
+    } else {
+      document.body.classList.remove('dark-theme');
+    }
+  }, [darkTheme]);
 
   // Portfolio state lifted from PortfolioSimulator so syncService can seed it
   const [initialPortfolio, setInitialPortfolio] = useState(null);
@@ -505,6 +532,8 @@ function App() {
           setTickerInput={setTickerInput}
           accountCreated={accountCreated}
           dataResetAt={dataResetAt}
+          darkTheme={darkTheme}
+          setDarkTheme={setDarkThemePersist}
         />
       )}
 
