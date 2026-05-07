@@ -8,7 +8,7 @@ import { clearAllData } from './syncService';
 export const COLOR_PALETTES = [
   {
     id: 'default',
-    name: { es: 'Azul (Actual)', en: 'Blue (Current)' },
+    name: { es: 'Azul', en: 'Blue' },
     colors: {
       primary: 'blue',
       primaryHex: '#3b82f6',
@@ -20,7 +20,7 @@ export const COLOR_PALETTES = [
   },
   {
     id: 'blackwhite',
-    name: { es: 'Negro y Blanco (Default)', en: 'Black and White (Default)' },
+    name: { es: 'Negro y Blanco', en: 'Black and White' },
     colors: {
       primary: 'gray',
       primaryHex: '#6b7280',
