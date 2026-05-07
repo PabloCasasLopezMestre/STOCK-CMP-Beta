@@ -165,6 +165,28 @@
 /* Wells theme specific overrides */
 .theme-wells {
   /* Wells beige theme specific styles */
+  background-color: var(--color-background) !important;
+}
+
+/* Main background gradient override */
+.theme-wells .bg-gradient-to-br {
+  background: var(--color-background) !important;
+}
+
+.theme-wells .from-slate-900 {
+  background: var(--color-background) !important;
+}
+
+.theme-wells .via-slate-800 {
+  background: var(--color-background) !important;
+}
+
+.theme-wells .to-slate-900 {
+  background: var(--color-background) !important;
+}
+
+.theme-wells .min-h-screen {
+  background-color: var(--color-background) !important;
 }
 
 .theme-wells .bg-slate-900 {
@@ -197,6 +219,15 @@
 
 .theme-wells .border-slate-600 {
   border-color: var(--color-border) !important;
+}
+
+/* Navigation bar overrides */
+.theme-wells .bg-slate-900\\/90 {
+  background-color: var(--color-surface) !important;
+}
+
+.theme-wells .backdrop-blur {
+  background-color: var(--color-surface) !important;
 }
 
 /* Button color overrides for all themes */
@@ -251,4 +282,14 @@
 
 .bg-yellow-600 {
   background-color: var(--color-warning) !important;
+}
+/* Global body override for Wells theme */
+body.theme-wells {
+  background-color: var(--color-background) !important;
+}
+
+/* Override the main container gradient specifically for Wells theme */
+.theme-wells > div.min-h-screen.bg-gradient-to-br {
+  background: var(--color-background) !important;
+  background-image: none !important;
 }
