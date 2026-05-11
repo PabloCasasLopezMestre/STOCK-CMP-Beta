@@ -979,6 +979,27 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
                   </div>
                 </div>
               )}
+
+              {/* AI watchlist display */}
+              {settings.watchlistType === 'ai' && (
+                <div className="space-y-2">
+                  <p className="text-slate-400 text-xs font-medium">
+                    {lang === 'es' ? 'Lista optimizada del AI:' : 'AI optimized list:'}
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {AI_SELECTED_WATCHLIST.map(symbol => (
+                      <span key={symbol} className="bg-purple-600 text-white text-xs px-2 py-1 rounded font-medium">
+                        {symbol}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-slate-500 text-xs mt-2">
+                    {lang === 'es' 
+                      ? 'Seleccionadas por capitalización de mercado, volumen y volatilidad óptima para trading automático.'
+                      : 'Selected by market cap, volume and optimal volatility for automated trading.'}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Advanced Analysis Toggle */}
