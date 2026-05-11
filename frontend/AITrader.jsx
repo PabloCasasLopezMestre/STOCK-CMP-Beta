@@ -13,14 +13,8 @@ const TRADING_STRATEGIES = {
     stopLoss: 0.05, // 5% stop loss
     takeProfit: 0.10, // 10% take profit
     tradingFrequency: 300000, // 5 minutes
-  },
-  aggressive: {
-    name: { es: 'Agresivo', en: 'Aggressive' },
-    description: { es: 'Estrategia de alto riesgo y alta recompensa', en: 'High-risk, high-reward strategy' },
-    maxPositionSize: 0.25, // Max 25% per stock
-    stopLoss: 0.08, // 8% stop loss
-    takeProfit: 0.15, // 15% take profit
-    tradingFrequency: 120000, // 2 minutes
+    maxPositions: 5,
+    riskThreshold: 3,
   },
   balanced: {
     name: { es: 'Balanceado', en: 'Balanced' },
@@ -29,6 +23,48 @@ const TRADING_STRATEGIES = {
     stopLoss: 0.06, // 6% stop loss
     takeProfit: 0.12, // 12% take profit
     tradingFrequency: 180000, // 3 minutes
+    maxPositions: 5,
+    riskThreshold: 2,
+  },
+  aggressive: {
+    name: { es: 'Agresivo', en: 'Aggressive' },
+    description: { es: 'Estrategia de alto riesgo y alta recompensa', en: 'High-risk, high-reward strategy' },
+    maxPositionSize: 0.25, // Max 25% per stock
+    stopLoss: 0.08, // 8% stop loss
+    takeProfit: 0.15, // 15% take profit
+    tradingFrequency: 120000, // 2 minutes
+    maxPositions: 6,
+    riskThreshold: 1.5,
+  },
+  extreme: {
+    name: { es: 'Extremo', en: 'Extreme' },
+    description: { es: 'Máximo riesgo - Potencial +/-15% diario', en: 'Maximum risk - Potential +/-15% daily' },
+    maxPositionSize: 0.40, // Max 40% per stock
+    stopLoss: 0.12, // 12% stop loss
+    takeProfit: 0.25, // 25% take profit
+    tradingFrequency: 60000, // 1 minute
+    maxPositions: 3,
+    riskThreshold: 1,
+  },
+  yolo: {
+    name: { es: 'YOLO', en: 'YOLO' },
+    description: { es: 'All-in - Potencial +/-30% diario o más', en: 'All-in - Potential +/-30% daily or more' },
+    maxPositionSize: 0.80, // Max 80% per stock
+    stopLoss: 0.20, // 20% stop loss
+    takeProfit: 0.50, // 50% take profit
+    tradingFrequency: 30000, // 30 seconds
+    maxPositions: 2,
+    riskThreshold: 0.5,
+  },
+  scalping: {
+    name: { es: 'Scalping', en: 'Scalping' },
+    description: { es: 'Trading ultra rápido - Muchas operaciones pequeñas', en: 'Ultra-fast trading - Many small operations' },
+    maxPositionSize: 0.30, // Max 30% per stock
+    stopLoss: 0.03, // 3% stop loss
+    takeProfit: 0.05, // 5% take profit
+    tradingFrequency: 15000, // 15 seconds
+    maxPositions: 8,
+    riskThreshold: 0.8,
   }
 };
 
@@ -39,6 +75,13 @@ const AI_SELECTED_WATCHLIST = [
   'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'NVDA', 'META', 'NFLX',
   'BRK-B', 'UNH', 'JNJ', 'V', 'PG', 'JPM', 'HD', 'MA',
   'AVGO', 'PFE', 'ABBV', 'KO', 'PEP', 'COST', 'TMO', 'MRK'
+];
+
+// High volatility watchlist for extreme strategies
+const EXTREME_VOLATILITY_WATCHLIST = [
+  'TSLA', 'NVDA', 'AMD', 'PLTR', 'COIN', 'ROKU', 'SNAP', 'TWTR',
+  'GME', 'AMC', 'SPCE', 'RIOT', 'MARA', 'TLRY', 'SNDL', 'BB',
+  'NOK', 'CLOV', 'WISH', 'SOFI', 'HOOD', 'RBLX', 'UPST', 'DKNG'
 ];
 
 // Technical indicators calculations
@@ -169,7 +212,7 @@ const backtestStrategy = (historicalData, strategy) => {
 };
 
 // Advanced signal generation
-const generateAdvancedSignal = (indicators, currentPrice, strategy) => {
+const generateAdvancedSignal = (indicators, currentPrice, strategyName) => {
   const { rsi, sma20, sma50, bollinger, patterns } = indicators;
   
   if (!rsi || !sma20 || !sma50 || !bollinger) return 'hold';
@@ -177,9 +220,21 @@ const generateAdvancedSignal = (indicators, currentPrice, strategy) => {
   let bullishSignals = 0;
   let bearishSignals = 0;
   
-  // RSI signals
-  if (rsi < 30) bullishSignals += 2; // Oversold
-  if (rsi > 70) bearishSignals += 2; // Overbought
+  // Get strategy config
+  const strategy = TRADING_STRATEGIES[strategyName];
+  const riskThreshold = strategy?.riskThreshold || 2;
+  
+  // RSI signals (more aggressive for extreme strategies)
+  if (strategyName === 'yolo' || strategyName === 'extreme') {
+    if (rsi < 40) bullishSignals += 2; // Less oversold threshold
+    if (rsi > 60) bearishSignals += 2; // Less overbought threshold
+  } else if (strategyName === 'scalping') {
+    if (rsi < 45) bullishSignals += 1; // Very quick signals
+    if (rsi > 55) bearishSignals += 1;
+  } else {
+    if (rsi < 30) bullishSignals += 2; // Oversold
+    if (rsi > 70) bearishSignals += 2; // Overbought
+  }
   
   // Moving average signals
   if (currentPrice > sma20 && sma20 > sma50) bullishSignals += 1;
@@ -189,17 +244,23 @@ const generateAdvancedSignal = (indicators, currentPrice, strategy) => {
   if (currentPrice < bollinger.lower) bullishSignals += 1;
   if (currentPrice > bollinger.upper) bearishSignals += 1;
   
-  // Pattern signals
+  // Pattern signals (amplified for extreme strategies)
   patterns.forEach(pattern => {
-    if (pattern.type.includes('bullish')) bullishSignals += pattern.strength;
-    if (pattern.type.includes('bearish')) bearishSignals += pattern.strength;
+    const multiplier = (strategyName === 'yolo' || strategyName === 'extreme') ? 2 : 1;
+    if (pattern.type.includes('bullish')) bullishSignals += pattern.strength * multiplier;
+    if (pattern.type.includes('bearish')) bearishSignals += pattern.strength * multiplier;
   });
   
-  // Strategy-specific thresholds
-  const threshold = strategy === 'aggressive' ? 1.5 : strategy === 'conservative' ? 3 : 2;
+  // Momentum signals for extreme strategies
+  if (strategyName === 'yolo' || strategyName === 'extreme') {
+    // Add momentum-based signals for more aggressive trading
+    const momentum = (currentPrice - sma20) / sma20;
+    if (momentum > 0.02) bullishSignals += 1; // 2% above SMA20
+    if (momentum < -0.02) bearishSignals += 1; // 2% below SMA20
+  }
   
-  if (bullishSignals >= threshold && bullishSignals > bearishSignals) return 'buy';
-  if (bearishSignals >= threshold && bearishSignals > bullishSignals) return 'sell';
+  if (bullishSignals >= riskThreshold && bullishSignals > bearishSignals) return 'buy';
+  if (bearishSignals >= riskThreshold && bearishSignals > bullishSignals) return 'sell';
   
   return 'hold';
 };
@@ -295,10 +356,18 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
     setAiStatus(prev => ({ ...prev, isAnalyzing: true }));
 
     try {
-      // Get current watchlist
-      const currentWatchlist = settings.watchlistType === 'ai' 
-        ? AI_SELECTED_WATCHLIST 
-        : settings.userWatchlist;
+      // Get current watchlist based on strategy and type
+      let currentWatchlist;
+      if (settings.watchlistType === 'ai') {
+        // Use high volatility watchlist for extreme strategies
+        if (settings.strategy === 'yolo' || settings.strategy === 'extreme') {
+          currentWatchlist = EXTREME_VOLATILITY_WATCHLIST;
+        } else {
+          currentWatchlist = AI_SELECTED_WATCHLIST;
+        }
+      } else {
+        currentWatchlist = settings.userWatchlist;
+      }
 
       // Get current prices for watchlist
       const pricePromises = currentWatchlist.map(symbol => 
@@ -385,7 +454,7 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
       else {
         const positionCount = Object.keys(currentPortfolio.positions).length;
         
-        if (positionCount < traderSettings.maxPositions) {
+        if (positionCount < strategy.maxPositions) {
           const buySignal = generateAdvancedSignal(indicators, currentPrice, traderSettings.strategy);
           
           if (buySignal === 'buy') {
@@ -864,6 +933,43 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
                     </option>
                   ))}
                 </select>
+                
+                {/* Risk Warnings for Extreme Strategies */}
+                {(settings.strategy === 'extreme' || settings.strategy === 'yolo' || settings.strategy === 'scalping') && (
+                  <div className={`mt-2 p-2 rounded text-xs ${
+                    settings.strategy === 'yolo' 
+                      ? 'bg-red-900/50 border border-red-700 text-red-300'
+                      : 'bg-amber-900/50 border border-amber-700 text-amber-300'
+                  }`}>
+                    {settings.strategy === 'yolo' && (
+                      <div>
+                        <p className="font-semibold">⚠️ MÁXIMO RIESGO</p>
+                        <p>{lang === 'es' 
+                          ? 'Potencial +/-30% o más por día. Puede perder todo el capital rápidamente.'
+                          : 'Potential +/-30% or more per day. Can lose all capital quickly.'
+                        }</p>
+                      </div>
+                    )}
+                    {settings.strategy === 'extreme' && (
+                      <div>
+                        <p className="font-semibold">⚠️ ALTO RIESGO</p>
+                        <p>{lang === 'es' 
+                          ? 'Potencial +/-15% por día. Trading muy agresivo.'
+                          : 'Potential +/-15% per day. Very aggressive trading.'
+                        }</p>
+                      </div>
+                    )}
+                    {settings.strategy === 'scalping' && (
+                      <div>
+                        <p className="font-semibold">⚡ ULTRA RÁPIDO</p>
+                        <p>{lang === 'es' 
+                          ? 'Operaciones cada 15 segundos. Muchas transacciones pequeñas.'
+                          : 'Operations every 15 seconds. Many small transactions.'
+                        }</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Watchlist Type - Compact */}
@@ -1011,8 +1117,8 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
                       ? `Lista actual: ${(settings.userWatchlist || []).slice(0, 4).join(', ')}${(settings.userWatchlist || []).length > 4 ? '...' : ''}`
                       : `Current list: ${(settings.userWatchlist || []).slice(0, 4).join(', ')}${(settings.userWatchlist || []).length > 4 ? '...' : ''}`)
                   : (lang === 'es'
-                      ? `AI usa 24 acciones optimizadas por capitalización y volatilidad`
-                      : `AI uses 24 stocks optimized by market cap and volatility`)
+                      ? `AI usa ${settings.strategy === 'yolo' || settings.strategy === 'extreme' ? '24 acciones de alta volatilidad (TSLA, NVDA, GME, etc.)' : '24 acciones optimizadas por capitalización y volatilidad'}`
+                      : `AI uses ${settings.strategy === 'yolo' || settings.strategy === 'extreme' ? '24 high volatility stocks (TSLA, NVDA, GME, etc.)' : '24 stocks optimized by market cap and volatility'}`)
                 }
               </div>
               
@@ -1060,16 +1166,25 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
                     {lang === 'es' ? 'Lista optimizada del AI:' : 'AI optimized list:'}
                   </p>
                   <div className="flex flex-wrap gap-1">
-                    {AI_SELECTED_WATCHLIST.map(symbol => (
-                      <span key={symbol} className="bg-purple-600 text-white text-xs px-2 py-1 rounded font-medium">
+                    {(settings.strategy === 'yolo' || settings.strategy === 'extreme' ? EXTREME_VOLATILITY_WATCHLIST : AI_SELECTED_WATCHLIST).map(symbol => (
+                      <span key={symbol} className={`text-white text-xs px-2 py-1 rounded font-medium ${
+                        settings.strategy === 'yolo' || settings.strategy === 'extreme' 
+                          ? 'bg-red-600' 
+                          : 'bg-purple-600'
+                      }`}>
                         {symbol}
                       </span>
                     ))}
                   </div>
                   <p className="text-slate-500 text-xs mt-2">
                     {lang === 'es' 
-                      ? 'Seleccionadas por capitalización de mercado, volumen y volatilidad óptima para trading automático.'
-                      : 'Selected by market cap, volume and optimal volatility for automated trading.'}
+                      ? (settings.strategy === 'yolo' || settings.strategy === 'extreme'
+                          ? 'Acciones de máxima volatilidad seleccionadas para trading extremo: meme stocks, criptos relacionadas y acciones de alta beta.'
+                          : 'Seleccionadas por capitalización de mercado, volumen y volatilidad óptima para trading automático.')
+                      : (settings.strategy === 'yolo' || settings.strategy === 'extreme'
+                          ? 'Maximum volatility stocks selected for extreme trading: meme stocks, crypto-related and high beta stocks.'
+                          : 'Selected by market cap, volume and optimal volatility for automated trading.')
+                    }
                   </p>
                 </div>
               )}
