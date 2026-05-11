@@ -225,43 +225,93 @@ const generateAdvancedSignal = (indicators, currentPrice, strategyName) => {
   const strategy = TRADING_STRATEGIES[strategyName];
   const riskThreshold = strategy?.riskThreshold || 2;
   
-  // RSI signals (more aggressive for extreme strategies)
+  // Much more sensitive RSI signals for aggressive strategies
   if (strategyName === 'yolo' || strategyName === 'extreme') {
-    if (rsi < 40) bullishSignals += 2; // Less oversold threshold
-    if (rsi > 60) bearishSignals += 2; // Less overbought threshold
-  } else if (strategyName === 'scalping') {
-    if (rsi < 45) bullishSignals += 1; // Very quick signals
+    if (rsi < 50) bullishSignals += 2; // Much less oversold threshold
+    if (rsi > 50) bearishSignals += 2; // Much less overbought threshold
+    // Add momentum signals
+    if (rsi < 45) bullishSignals += 1;
     if (rsi > 55) bearishSignals += 1;
+  } else if (strategyName === 'scalping') {
+    if (rsi < 52) bullishSignals += 1; // Very sensitive for scalping
+    if (rsi > 48) bearishSignals += 1;
+    // Scalping loves any movement
+    if (Math.abs(rsi - 50) > 2) {
+      if (rsi > 50) bullishSignals += 0.5;
+      else bearishSignals += 0.5;
+    }
+  } else if (strategyName === 'aggressive') {
+    if (rsi < 45) bullishSignals += 2;
+    if (rsi > 55) bearishSignals += 2;
   } else {
     if (rsi < 30) bullishSignals += 2; // Oversold
     if (rsi > 70) bearishSignals += 2; // Overbought
   }
   
-  // Moving average signals
-  if (currentPrice > sma20 && sma20 > sma50) bullishSignals += 1;
-  if (currentPrice < sma20 && sma20 < sma50) bearishSignals += 1;
+  // More sensitive moving average signals for aggressive strategies
+  if (strategyName === 'yolo' || strategyName === 'extreme' || strategyName === 'scalping') {
+    // Any price above SMA20 is bullish for aggressive strategies
+    if (currentPrice > sma20) bullishSignals += 1;
+    if (currentPrice < sma20) bearishSignals += 1;
+    
+    // Add trend signals
+    if (sma20 > sma50) bullishSignals += 0.5;
+    if (sma20 < sma50) bearishSignals += 0.5;
+  } else {
+    if (currentPrice > sma20 && sma20 > sma50) bullishSignals += 1;
+    if (currentPrice < sma20 && sma20 < sma50) bearishSignals += 1;
+  }
   
-  // Bollinger bands
-  if (currentPrice < bollinger.lower) bullishSignals += 1;
-  if (currentPrice > bollinger.upper) bearishSignals += 1;
+  // More sensitive Bollinger bands for aggressive strategies
+  if (strategyName === 'yolo' || strategyName === 'extreme') {
+    // Any approach to bands triggers signal
+    const bandDistance = (bollinger.upper - bollinger.lower) / bollinger.middle;
+    if (currentPrice < bollinger.middle + (bandDistance * 0.3)) bullishSignals += 1;
+    if (currentPrice > bollinger.middle - (bandDistance * 0.3)) bearishSignals += 1;
+  } else {
+    if (currentPrice < bollinger.lower) bullishSignals += 1;
+    if (currentPrice > bollinger.upper) bearishSignals += 1;
+  }
   
   // Pattern signals (amplified for extreme strategies)
   patterns.forEach(pattern => {
-    const multiplier = (strategyName === 'yolo' || strategyName === 'extreme') ? 2 : 1;
+    const multiplier = (strategyName === 'yolo' || strategyName === 'extreme') ? 3 : 
+                     (strategyName === 'scalping') ? 2 : 1;
     if (pattern.type.includes('bullish')) bullishSignals += pattern.strength * multiplier;
     if (pattern.type.includes('bearish')) bearishSignals += pattern.strength * multiplier;
   });
   
-  // Momentum signals for extreme strategies
+  // Super sensitive momentum signals for extreme strategies
   if (strategyName === 'yolo' || strategyName === 'extreme') {
-    // Add momentum-based signals for more aggressive trading
     const momentum = (currentPrice - sma20) / sma20;
-    if (momentum > 0.02) bullishSignals += 1; // 2% above SMA20
-    if (momentum < -0.02) bearishSignals += 1; // 2% below SMA20
+    if (momentum > 0.005) bullishSignals += 1; // 0.5% above SMA20
+    if (momentum < -0.005) bearishSignals += 1; // 0.5% below SMA20
+    
+    // Add volatility signals - high volatility = more signals
+    const volatility = Math.abs(momentum);
+    if (volatility > 0.01) { // 1% volatility
+      bullishSignals += volatility * 50; // Amplify signals based on volatility
+      bearishSignals += volatility * 50;
+    }
   }
   
-  if (bullishSignals >= riskThreshold && bullishSignals > bearishSignals) return 'buy';
-  if (bearishSignals >= riskThreshold && bearishSignals > bullishSignals) return 'sell';
+  // Scalping gets signals from any small movement
+  if (strategyName === 'scalping') {
+    const smallMomentum = (currentPrice - sma20) / sma20;
+    if (Math.abs(smallMomentum) > 0.002) { // 0.2% movement
+      if (smallMomentum > 0) bullishSignals += 0.5;
+      else bearishSignals += 0.5;
+    }
+  }
+  
+  // Much lower thresholds for aggressive strategies
+  const adjustedThreshold = strategyName === 'yolo' ? 0.5 : 
+                           strategyName === 'extreme' ? 0.8 : 
+                           strategyName === 'scalping' ? 0.3 :
+                           strategyName === 'aggressive' ? 1.0 : riskThreshold;
+  
+  if (bullishSignals >= adjustedThreshold && bullishSignals > bearishSignals) return 'buy';
+  if (bearishSignals >= adjustedThreshold && bearishSignals > bullishSignals) return 'sell';
   
   return 'hold';
 };
@@ -391,7 +441,6 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
         await updateMarketData();
       }
 
-    try {
       // Get current watchlist based on strategy and type
       let currentWatchlist;
       if (settings.watchlistType === 'smart') {
@@ -443,7 +492,7 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
     } finally {
       setAiStatus(prev => ({ ...prev, isAnalyzing: false }));
     }
-  }, [isActive, settings, portfolio]);
+  }, [isActive, settings, portfolio, updateMarketData, aiStatus.smartWatchlist, aiStatus.marketSentiment]);
 
   // Advanced AI decision making with technical analysis and market sentiment
   const makeAdvancedTradeDecisions = async (prices, currentPortfolio, strategy, traderSettings, marketSentiment) => {
@@ -475,20 +524,39 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
         const currentValue = position.shares * currentPrice;
         const returnPercent = (currentValue - position.totalCost) / position.totalCost;
         
-        // Advanced sell signals
+        // Advanced sell signals with strategy-specific sensitivity
         const sellSignal = generateAdvancedSignal(indicators, currentPrice, traderSettings.strategy);
         
-        if (sellSignal === 'sell' || 
-            returnPercent >= strategy.takeProfit || 
-            returnPercent <= -strategy.stopLoss) {
-          
+        // More aggressive sell conditions for extreme strategies
+        let shouldSell = false;
+        
+        if (sellSignal === 'sell') {
+          shouldSell = true;
+        } else if (traderSettings.strategy === 'yolo') {
+          // YOLO sells on any 3% gain or 5% loss
+          shouldSell = returnPercent >= 0.03 || returnPercent <= -0.05;
+        } else if (traderSettings.strategy === 'extreme') {
+          // Extreme sells on 5% gain or 8% loss  
+          shouldSell = returnPercent >= 0.05 || returnPercent <= -0.08;
+        } else if (traderSettings.strategy === 'scalping') {
+          // Scalping sells on tiny movements
+          shouldSell = returnPercent >= 0.01 || returnPercent <= -0.02;
+        } else if (traderSettings.strategy === 'aggressive') {
+          // Aggressive sells on 8% gain or 6% loss
+          shouldSell = returnPercent >= 0.08 || returnPercent <= -0.06;
+        } else {
+          // Conservative/Balanced use original strategy limits
+          shouldSell = returnPercent >= strategy.takeProfit || returnPercent <= -strategy.stopLoss;
+        }
+        
+        if (shouldSell) {
           decisions.push({
             type: 'sell',
             symbol,
             shares: position.shares,
             price: currentPrice,
             reason: sellSignal === 'sell' ? 'technical_signal' : 
-                   (returnPercent >= strategy.takeProfit ? 'take_profit' : 'stop_loss'),
+                   (returnPercent >= 0 ? 'take_profit' : 'stop_loss'),
             indicators: indicators
           });
         }
@@ -521,13 +589,44 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
               traderSettings.strategy
             );
             
-            // Adjust backtest requirements based on market sentiment
-            const requiredWinRate = marketSentiment?.sentiment === 'bullish' ? 0.45 : 0.5;
-            const requiredReturn = marketSentiment?.sentiment === 'bullish' ? -0.5 : 0;
+            // Adjust backtest requirements based on market sentiment and strategy
+            let requiredWinRate = 0.5;
+            let requiredReturn = 0;
+            
+            // Much more lenient requirements for aggressive strategies
+            if (traderSettings.strategy === 'yolo') {
+              requiredWinRate = 0.2; // Only 20% win rate needed
+              requiredReturn = -5; // Allow up to -5% expected return
+            } else if (traderSettings.strategy === 'extreme') {
+              requiredWinRate = 0.3; // 30% win rate
+              requiredReturn = -3; // Allow up to -3% expected return
+            } else if (traderSettings.strategy === 'scalping') {
+              requiredWinRate = 0.4; // 40% win rate for scalping
+              requiredReturn = -1; // Allow small losses
+            } else if (traderSettings.strategy === 'aggressive') {
+              requiredWinRate = 0.45; // 45% win rate
+              requiredReturn = -1;
+            }
+            
+            // Further adjust based on market sentiment
+            if (marketSentiment?.sentiment === 'bullish') {
+              requiredWinRate -= 0.1; // Even more lenient in bullish market
+              requiredReturn -= 1;
+            }
             
             // Only buy if backtest shows positive results (adjusted for sentiment)
             if (backtestResult.winRate > requiredWinRate && backtestResult.totalReturn > requiredReturn) {
-              const baseInvestment = currentPortfolio.cash * strategy.maxPositionSize;
+              let baseInvestment = currentPortfolio.cash * strategy.maxPositionSize;
+              
+              // Aggressive strategies use smaller positions to trade more frequently
+              if (traderSettings.strategy === 'scalping') {
+                baseInvestment = currentPortfolio.cash * 0.1; // Only 10% per trade for scalping
+              } else if (traderSettings.strategy === 'yolo') {
+                baseInvestment = currentPortfolio.cash * 0.3; // 30% per trade for YOLO
+              } else if (traderSettings.strategy === 'extreme') {
+                baseInvestment = currentPortfolio.cash * 0.2; // 20% per trade for extreme
+              }
+              
               const adjustedInvestment = baseInvestment * sentimentMultiplier;
               const maxInvestment = Math.min(adjustedInvestment, currentPortfolio.cash * 0.9); // Never use more than 90%
               const shares = Math.floor(maxInvestment / currentPrice);
