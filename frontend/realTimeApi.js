@@ -52,7 +52,7 @@ class RealTimeApiService {
         };
       }
     } catch (error) {
-      console.warn('Real-time API failed, using fallback:', error);
+      console.warn('Real-time API not available yet, using fallback:', error);
     }
 
     // Fallback to existing chart data (15min delay)
