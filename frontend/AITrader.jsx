@@ -84,6 +84,20 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
     }
   }, []);
 
+  // Initialize portfolio with correct initial cash on first load
+  useEffect(() => {
+    if (portfolio.cash === 10000 && portfolio.totalValue === 10000 && Object.keys(portfolio.positions).length === 0) {
+      // This looks like a default portfolio, update it with current settings
+      if (settings.initialCash !== 10000) {
+        setPortfolio(prev => ({
+          ...prev,
+          cash: settings.initialCash,
+          totalValue: settings.initialCash
+        }));
+      }
+    }
+  }, [settings.initialCash, portfolio.cash, portfolio.totalValue, portfolio.positions]);
+
   // Save data when it changes
   useEffect(() => {
     try {
@@ -318,14 +332,16 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
 
   const resetPortfolio = () => {
     if (confirm(lang === 'es' ? '¿Estás seguro de que quieres resetear el portafolio de AI?' : 'Are you sure you want to reset the AI portfolio?')) {
-      setPortfolio({
+      const newPortfolio = {
         cash: settings.initialCash,
         positions: {},
         transactions: [],
         totalValue: settings.initialCash,
         totalReturn: 0,
         totalReturnPercent: 0
-      });
+      };
+      
+      setPortfolio(newPortfolio);
       
       setAiStatus(prev => ({
         ...prev,
@@ -562,8 +578,69 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
           {/* Strategy Settings */}
           <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
             <h2 className="text-white font-semibold mb-4">
-              ⚙️ {lang === 'es' ? 'Estrategia' : 'Strategy'}
+              ⚙️ {lang === 'es' ? 'Configuración' : 'Settings'}
             </h2>
+            
+            {/* Initial Cash Setting */}
+            <div className="mb-6">
+              <label className="block text-slate-400 text-xs font-medium uppercase tracking-wide mb-2">
+                {lang === 'es' ? 'Capital Inicial' : 'Initial Capital'}
+              </label>
+              
+              {/* Quick presets */}
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                {[5000, 10000, 25000, 50000, 100000, 250000].map(amount => (
+                  <button
+                    key={amount}
+                    onClick={() => setSettings(prev => ({ ...prev, initialCash: amount }))}
+                    disabled={isActive}
+                    className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                      settings.initialCash === amount
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    } ${isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    ${amount.toLocaleString()}
+                  </button>
+                ))}
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="1000"
+                  max="1000000"
+                  step="1000"
+                  value={settings.initialCash}
+                  onChange={(e) => {
+                    const newCash = parseInt(e.target.value) || 10000;
+                    setSettings(prev => ({ ...prev, initialCash: newCash }));
+                  }}
+                  disabled={isActive}
+                  className="flex-1 bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+                />
+                <span className="text-slate-400 text-sm">{currency}</span>
+              </div>
+              <p className="text-slate-500 text-xs mt-1">
+                {lang === 'es' 
+                  ? 'Rango: $1,000 - $1,000,000'
+                  : 'Range: $1,000 - $1,000,000'}
+              </p>
+              {isActive && (
+                <p className="text-yellow-400 text-xs mt-1">
+                  {lang === 'es' 
+                    ? 'Detén el AI para cambiar el capital'
+                    : 'Stop AI to change capital'}
+                </p>
+              )}
+            </div>
+
+            {/* Strategy Selection */}
+            <div className="mb-4">
+              <label className="block text-slate-400 text-xs font-medium uppercase tracking-wide mb-2">
+                {lang === 'es' ? 'Estrategia de Trading' : 'Trading Strategy'}
+              </label>
+            </div>
             
             <div className="space-y-3">
               {Object.entries(TRADING_STRATEGIES).map(([key, strategy]) => (
@@ -583,12 +660,20 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
               ))}
             </div>
             
-            {isActive && (
-              <p className="text-yellow-400 text-xs mt-3">
-                {lang === 'es' 
-                  ? 'Detén el AI para cambiar la estrategia'
-                  : 'Stop AI to change strategy'}
-              </p>
+            {/* Apply Settings Button */}
+            {!isActive && (portfolio.cash !== settings.initialCash || Object.keys(portfolio.positions).length > 0) && (
+              <button
+                onClick={() => {
+                  if (confirm(lang === 'es' 
+                    ? '¿Aplicar nueva configuración? Esto reseteará el portafolio.'
+                    : 'Apply new settings? This will reset the portfolio.')) {
+                    resetPortfolio();
+                  }
+                }}
+                className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+              >
+                {lang === 'es' ? 'Aplicar Configuración' : 'Apply Settings'}
+              </button>
             )}
           </div>
         </div>
