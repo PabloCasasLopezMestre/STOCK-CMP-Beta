@@ -902,58 +902,54 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
             </div>
 
             {/* Watchlist Type Selection */}
-            <div className="mb-6 p-4 bg-yellow-900/20 border border-yellow-600 rounded-lg">
-              <label className="block text-yellow-300 text-sm font-bold uppercase tracking-wide mb-3">
-                🎯 {lang === 'es' ? 'LISTA DE ACCIONES' : 'STOCK WATCHLIST'}
+            <div className="mb-6">
+              <label className="block text-slate-400 text-xs font-medium uppercase tracking-wide mb-2">
+                {lang === 'es' ? 'Lista de Acciones' : 'Stock Watchlist'}
               </label>
               
-              <div className="grid grid-cols-1 gap-3 mb-4">
+              <div className="grid grid-cols-2 gap-2 mb-3">
                 <button
                   onClick={() => setSettings(prev => ({ ...prev, watchlistType: 'user' }))}
                   disabled={isActive}
-                  className={`px-4 py-3 rounded-lg text-sm font-bold transition-colors border-2 ${
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
                     settings.watchlistType === 'user'
-                      ? 'bg-blue-600 border-blue-400 text-white'
-                      : 'bg-slate-700 border-slate-500 text-slate-300 hover:bg-slate-600 hover:border-blue-400'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                   } ${isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  👤 {lang === 'es' ? 'ELEGIDA POR USUARIO' : 'USER SELECTED'}
+                  👤 {lang === 'es' ? 'Elegida por Usuario' : 'User Selected'}
                 </button>
                 <button
                   onClick={() => setSettings(prev => ({ ...prev, watchlistType: 'ai' }))}
                   disabled={isActive}
-                  className={`px-4 py-3 rounded-lg text-sm font-bold transition-colors border-2 ${
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
                     settings.watchlistType === 'ai'
-                      ? 'bg-purple-600 border-purple-400 text-white'
-                      : 'bg-slate-700 border-slate-500 text-slate-300 hover:bg-slate-600 hover:border-purple-400'
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                   } ${isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  🤖 {lang === 'es' ? 'ELEGIDA POR AI' : 'AI SELECTED'}
+                  🤖 {lang === 'es' ? 'Elegida por AI' : 'AI Selected'}
                 </button>
               </div>
               
-              <div className="text-sm text-yellow-200 mb-3 p-2 bg-slate-800 rounded">
-                <strong>{lang === 'es' ? 'Actual:' : 'Current:'}</strong> {' '}
+              <div className="text-xs text-slate-400 mb-2">
                 {settings.watchlistType === 'user' 
                   ? (lang === 'es' 
-                      ? `Usuario: ${settings.userWatchlist.slice(0, 4).join(', ')}${settings.userWatchlist.length > 4 ? '...' : ''}`
-                      : `User: ${settings.userWatchlist.slice(0, 4).join(', ')}${settings.userWatchlist.length > 4 ? '...' : ''}`)
+                      ? `Lista actual: ${settings.userWatchlist.slice(0, 4).join(', ')}${settings.userWatchlist.length > 4 ? '...' : ''}`
+                      : `Current list: ${settings.userWatchlist.slice(0, 4).join(', ')}${settings.userWatchlist.length > 4 ? '...' : ''}`)
                   : (lang === 'es'
-                      ? `AI: 24 acciones optimizadas`
-                      : `AI: 24 optimized stocks`)
+                      ? `AI usa 24 acciones optimizadas por capitalización y volatilidad`
+                      : `AI uses 24 stocks optimized by market cap and volatility`)
                 }
               </div>
               
               {/* Custom watchlist input for user mode */}
               {settings.watchlistType === 'user' && !isActive && (
-                <div className="space-y-3 p-3 bg-slate-800 rounded-lg">
-                  <p className="text-yellow-300 text-xs font-semibold">
-                    {lang === 'es' ? 'PERSONALIZAR LISTA:' : 'CUSTOMIZE LIST:'}
-                  </p>
+                <div className="space-y-2">
                   <input
                     type="text"
                     placeholder={lang === 'es' ? 'Agregar símbolo (ej: AAPL)' : 'Add symbol (e.g. AAPL)'}
-                    className="w-full bg-slate-700 border border-yellow-500 text-white rounded px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         const symbol = e.target.value.toUpperCase().trim();
@@ -967,16 +963,16 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
                       }
                     }}
                   />
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1">
                     {settings.userWatchlist.map(symbol => (
-                      <span key={symbol} className="flex items-center gap-1 bg-blue-600 text-white text-xs px-2 py-1 rounded font-semibold">
+                      <span key={symbol} className="flex items-center gap-1 bg-slate-600 text-slate-200 text-xs px-2 py-1 rounded">
                         {symbol}
                         <button
                           onClick={() => setSettings(prev => ({
                             ...prev,
                             userWatchlist: prev.userWatchlist.filter(s => s !== symbol)
                           }))}
-                          className="text-blue-200 hover:text-red-300 font-bold"
+                          className="text-slate-400 hover:text-red-400"
                         >×</button>
                       </span>
                     ))}
