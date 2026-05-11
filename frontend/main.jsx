@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import StockComparisonApp from './StockComparisonApp';
 import PortfolioSimulator from './PortfolioSimulator';
-import Assets from './Assets';
 import Community from './Community';
 import About from './About';
 import Settings, { ALL_CURRENCIES } from './Settings';
@@ -409,12 +408,6 @@ function App() {
               {t('nav_portfolio', lang)}
             </button>
             <button
-              onClick={() => setTab('assets')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${tab === 'assets' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
-            >
-              {lang === 'es' ? 'Activos' : 'Assets'}
-            </button>
-            <button
               onClick={() => setTab('community')}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${tab === 'community' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
             >
@@ -450,8 +443,8 @@ function App() {
           </div>
         </div>
 
-        {/* Row 2: currency + update + alerts (only on compare/portfolio/assets) */}
-        {(tab === 'compare' || tab === 'portfolio' || tab === 'assets') && (
+        {/* Row 2: currency + update + alerts (only on compare/portfolio) */}
+        {(tab === 'compare' || tab === 'portfolio') && (
           <div className="flex items-center gap-2 mt-1.5">
             <button
               onClick={nextCurrency}
@@ -495,9 +488,6 @@ function App() {
           </div>
           <PortfolioSimulator {...sharedProps} onOpenCommunityIdea={openCommunityIdea} initialPortfolio={initialPortfolio} onPortfolioChange={onPortfolioChange} refreshTrigger={refreshTrigger} showAlertsPanel={showAlertsPanel} setShowAlertsPanel={setShowAlertsPanel} comparatorStocks={tickerSymbols} enabledFeatures={enabledFeatures} visibleTimeRanges={visibleTimeRanges} defaultTimeRange={defaultTimeRange} accountCreated={accountCreated} dataResetAt={dataResetAt} assetsPortfolio={initialPortfolio} onAssetsPortfolioChange={onPortfolioChange} />
         </div>
-      )}
-      {tab === 'assets' && (
-        <Assets {...sharedProps} initialPortfolio={initialPortfolio} onPortfolioChange={onPortfolioChange} comparatorStocks={tickerSymbols} />
       )}
       {tab === 'community' && (
         <Community lang={lang} prefill={communityPrefill} onPrefillConsumed={consumeCommunityPrefill} />
