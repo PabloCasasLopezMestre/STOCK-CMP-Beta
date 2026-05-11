@@ -622,7 +622,7 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-bold text-white mb-1 flex items-center gap-3">
-              🤖 {lang === 'es' ? 'Modo AI Trading' : 'AI Trading Mode'}
+              {lang === 'es' ? 'Modo AI Trading' : 'AI Trading Mode'}
               <div className={`w-3 h-3 rounded-full ${isActive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
             </h1>
             <p className="text-slate-400 text-sm">
@@ -738,7 +738,7 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
           {/* AI Status */}
           <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
             <h2 className="text-white font-semibold mb-4 flex items-center gap-2">
-              🧠 {lang === 'es' ? 'Estado del AI' : 'AI Status'}
+              {lang === 'es' ? 'Estado del AI' : 'AI Status'}
             </h2>
             
             <div className="space-y-4">
@@ -773,7 +773,6 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
                     {lang === 'es' ? 'Última Acción' : 'Last Action'}
                   </p>
                   <p className="text-white text-sm">
-                    {aiStatus.lastAction.type === 'buy' ? '📈' : '📉'} {' '}
                     {aiStatus.lastAction.type.toUpperCase()} {aiStatus.lastAction.symbol}
                   </p>
                   <p className="text-slate-400 text-xs">
@@ -807,7 +806,7 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
           {/* Performance Stats */}
           <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
             <h2 className="text-white font-semibold mb-4">
-              📊 {lang === 'es' ? 'Estadísticas' : 'Performance'}
+              {lang === 'es' ? 'Estadísticas' : 'Performance'}
             </h2>
             
             <div className="space-y-3">
@@ -844,7 +843,7 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
           {/* Strategy Settings */}
           <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
             <h2 className="text-white font-semibold mb-4">
-              ⚙️ {lang === 'es' ? 'Configuración' : 'Settings'}
+              {lang === 'es' ? 'Configuración' : 'Settings'}
             </h2>
             
             {/* Initial Cash Setting */}
@@ -917,7 +916,7 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
                       : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                   } ${isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  👤 {lang === 'es' ? 'Elegida por Usuario' : 'User Selected'}
+                  {lang === 'es' ? 'Elegida por Usuario' : 'User Selected'}
                 </button>
                 <button
                   onClick={() => setSettings(prev => ({ ...prev, watchlistType: 'ai' }))}
@@ -928,7 +927,7 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
                       : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                   } ${isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  🤖 {lang === 'es' ? 'Elegida por AI' : 'AI Selected'}
+                  {lang === 'es' ? 'Elegida por AI' : 'AI Selected'}
                 </button>
               </div>
               
@@ -1032,12 +1031,12 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
               {settings.useAdvancedAnalysis && (
                 <div className="mt-3 p-3 bg-slate-700/30 rounded-lg">
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="text-green-400">✓ RSI & MACD</div>
-                    <div className="text-green-400">✓ Bollinger Bands</div>
-                    <div className="text-green-400">✓ Moving Averages</div>
-                    <div className="text-green-400">✓ Pattern Recognition</div>
-                    <div className="text-green-400">✓ Strategy Backtesting</div>
-                    <div className="text-green-400">✓ Volume Analysis</div>
+                    <div className="text-green-400">RSI & MACD</div>
+                    <div className="text-green-400">Bollinger Bands</div>
+                    <div className="text-green-400">Moving Averages</div>
+                    <div className="text-green-400">Pattern Recognition</div>
+                    <div className="text-green-400">Strategy Backtesting</div>
+                    <div className="text-green-400">Volume Analysis</div>
                   </div>
                 </div>
               )}
