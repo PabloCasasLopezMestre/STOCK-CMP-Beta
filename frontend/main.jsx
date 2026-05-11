@@ -5,6 +5,7 @@ import PortfolioSimulator from './PortfolioSimulator';
 import Community from './Community';
 import About from './About';
 import Settings, { ALL_CURRENCIES } from './Settings';
+import AITrader from './AITrader';
 import { t } from './i18n';
 import * as syncService from './syncService';
 import TickerBar from './TickerBar';
@@ -419,6 +420,12 @@ function App() {
               {t('nav_portfolio', lang)}
             </button>
             <button
+              onClick={() => setTab('ai-mode')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1 ${tab === 'ai-mode' ? 'bg-purple-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+            >
+              🤖 {lang === 'es' ? 'AI Mode' : 'AI Mode'}
+            </button>
+            <button
               onClick={() => setTab('community')}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${tab === 'community' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
             >
@@ -457,8 +464,8 @@ function App() {
           </div>
         </div>
 
-        {/* Row 2: currency + update + alerts (only on compare/portfolio) */}
-        {(tab === 'compare' || tab === 'portfolio') && (
+        {/* Row 2: currency + update + alerts (only on compare/portfolio/ai-mode) */}
+        {(tab === 'compare' || tab === 'portfolio' || tab === 'ai-mode') && (
           <div className="flex items-center gap-2 mt-1.5">
             <button
               onClick={nextCurrency}
@@ -502,6 +509,9 @@ function App() {
           </div>
           <PortfolioSimulator {...sharedProps} onOpenCommunityIdea={openCommunityIdea} initialPortfolio={initialPortfolio} onPortfolioChange={onPortfolioChange} refreshTrigger={refreshTrigger} showAlertsPanel={showAlertsPanel} setShowAlertsPanel={setShowAlertsPanel} comparatorStocks={tickerSymbols} enabledFeatures={enabledFeatures} visibleTimeRanges={visibleTimeRanges} defaultTimeRange={defaultTimeRange} accountCreated={accountCreated} dataResetAt={dataResetAt} assetsPortfolio={initialPortfolio} onAssetsPortfolioChange={onPortfolioChange} />
         </div>
+      )}
+      {tab === 'ai-mode' && (
+        <AITrader lang={lang} currency={currency} rates={rates} />
       )}
       {tab === 'community' && (
         <Community lang={lang} prefill={communityPrefill} onPrefillConsumed={consumeCommunityPrefill} />
