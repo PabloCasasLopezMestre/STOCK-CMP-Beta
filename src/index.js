@@ -5,9 +5,9 @@ const FINNHUB_API_KEY    = 'd7c9avpr01qsv375otd0d7c9avpr01qsv375otdg';
 const FINNHUB_BASE       = 'https://finnhub.io/api/v1';
 
 // New real-time APIs
-const ALPHA_VANTAGE_API_KEY = 'demo'; // Replace with actual key
+const ALPHA_VANTAGE_API_KEY = '9VCPU2QGDHJ8KFZW';
 const ALPHA_VANTAGE_BASE = 'https://www.alphavantage.co/query';
-const TWELVE_DATA_API_KEY = 'demo'; // Replace with actual key  
+const TWELVE_DATA_API_KEY = 'ed5e6725518743c2bd5f9937c6318d34';
 const TWELVE_DATA_BASE = 'https://api.twelvedata.com';
 
 // Rate limiting counters
