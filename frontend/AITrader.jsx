@@ -849,8 +849,8 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
             
             {/* Initial Cash Setting */}
             <div className="mb-6">
-              <label className="block text-red-400 text-lg font-bold uppercase tracking-wide mb-2">
-                🚨 CAPITAL INICIAL - PRUEBA DE CAMBIO 🚨
+              <label className="block text-slate-400 text-xs font-medium uppercase tracking-wide mb-2">
+                {lang === 'es' ? 'Capital Inicial' : 'Initial Capital'}
               </label>
               
               {/* Quick presets */}
@@ -901,36 +901,88 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
               )}
             </div>
 
-            {/* TEST SECTION - SHOULD BE VISIBLE */}
-            <div className="mb-6 p-6 bg-red-500 border-4 border-white rounded-lg">
-              <h3 className="text-white text-xl font-bold mb-4">
-                🚨 SECCIÓN DE PRUEBA - ¿PUEDES VER ESTO?
-              </h3>
-              <p className="text-white text-lg">
-                Si puedes ver esta sección roja, el problema está en otra parte.
-              </p>
-            </div>
-
-            {/* Watchlist Type Selection - MOVED HERE TO BE MORE VISIBLE */}
+            {/* Watchlist Type Selection */}
             <div className="mb-6 p-4 bg-yellow-900/20 border border-yellow-600 rounded-lg">
               <label className="block text-yellow-300 text-sm font-bold uppercase tracking-wide mb-3">
-                🎯 LISTA DE ACCIONES
+                🎯 {lang === 'es' ? 'LISTA DE ACCIONES' : 'STOCK WATCHLIST'}
               </label>
               
               <div className="grid grid-cols-1 gap-3 mb-4">
                 <button
                   onClick={() => setSettings(prev => ({ ...prev, watchlistType: 'user' }))}
-                  className="px-4 py-3 rounded-lg text-sm font-bold bg-blue-600 border-blue-400 text-white border-2"
+                  disabled={isActive}
+                  className={`px-4 py-3 rounded-lg text-sm font-bold transition-colors border-2 ${
+                    settings.watchlistType === 'user'
+                      ? 'bg-blue-600 border-blue-400 text-white'
+                      : 'bg-slate-700 border-slate-500 text-slate-300 hover:bg-slate-600 hover:border-blue-400'
+                  } ${isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  👤 ELEGIDA POR USUARIO
+                  👤 {lang === 'es' ? 'ELEGIDA POR USUARIO' : 'USER SELECTED'}
                 </button>
                 <button
                   onClick={() => setSettings(prev => ({ ...prev, watchlistType: 'ai' }))}
-                  className="px-4 py-3 rounded-lg text-sm font-bold bg-purple-600 border-purple-400 text-white border-2"
+                  disabled={isActive}
+                  className={`px-4 py-3 rounded-lg text-sm font-bold transition-colors border-2 ${
+                    settings.watchlistType === 'ai'
+                      ? 'bg-purple-600 border-purple-400 text-white'
+                      : 'bg-slate-700 border-slate-500 text-slate-300 hover:bg-slate-600 hover:border-purple-400'
+                  } ${isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  🤖 ELEGIDA POR AI
+                  🤖 {lang === 'es' ? 'ELEGIDA POR AI' : 'AI SELECTED'}
                 </button>
               </div>
+              
+              <div className="text-sm text-yellow-200 mb-3 p-2 bg-slate-800 rounded">
+                <strong>{lang === 'es' ? 'Actual:' : 'Current:'}</strong> {' '}
+                {settings.watchlistType === 'user' 
+                  ? (lang === 'es' 
+                      ? `Usuario: ${settings.userWatchlist.slice(0, 4).join(', ')}${settings.userWatchlist.length > 4 ? '...' : ''}`
+                      : `User: ${settings.userWatchlist.slice(0, 4).join(', ')}${settings.userWatchlist.length > 4 ? '...' : ''}`)
+                  : (lang === 'es'
+                      ? `AI: 24 acciones optimizadas`
+                      : `AI: 24 optimized stocks`)
+                }
+              </div>
+              
+              {/* Custom watchlist input for user mode */}
+              {settings.watchlistType === 'user' && !isActive && (
+                <div className="space-y-3 p-3 bg-slate-800 rounded-lg">
+                  <p className="text-yellow-300 text-xs font-semibold">
+                    {lang === 'es' ? 'PERSONALIZAR LISTA:' : 'CUSTOMIZE LIST:'}
+                  </p>
+                  <input
+                    type="text"
+                    placeholder={lang === 'es' ? 'Agregar símbolo (ej: AAPL)' : 'Add symbol (e.g. AAPL)'}
+                    className="w-full bg-slate-700 border border-yellow-500 text-white rounded px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-yellow-400"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const symbol = e.target.value.toUpperCase().trim();
+                        if (symbol && !settings.userWatchlist.includes(symbol)) {
+                          setSettings(prev => ({
+                            ...prev,
+                            userWatchlist: [...prev.userWatchlist, symbol]
+                          }));
+                          e.target.value = '';
+                        }
+                      }
+                    }}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    {settings.userWatchlist.map(symbol => (
+                      <span key={symbol} className="flex items-center gap-1 bg-blue-600 text-white text-xs px-2 py-1 rounded font-semibold">
+                        {symbol}
+                        <button
+                          onClick={() => setSettings(prev => ({
+                            ...prev,
+                            userWatchlist: prev.userWatchlist.filter(s => s !== symbol)
+                          }))}
+                          className="text-blue-200 hover:text-red-300 font-bold"
+                        >×</button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Advanced Analysis Toggle */}
