@@ -47,7 +47,7 @@ const TRADING_STRATEGIES = {
     riskThreshold: 1,
   },
   yolo: {
-    name: { es: 'YOLO', en: 'YOLO' },
+    name: { es: 'M', en: 'M' },
     description: { es: 'All-in - Potencial +/-30% diario o más', en: 'All-in - Potential +/-30% daily or more' },
     maxPositionSize: 0.80, // Max 80% per stock
     stopLoss: 0.20, // 20% stop loss
