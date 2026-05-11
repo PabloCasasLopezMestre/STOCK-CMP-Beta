@@ -935,8 +935,8 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
               <div className="text-xs text-slate-400 mb-2">
                 {settings.watchlistType === 'user' 
                   ? (lang === 'es' 
-                      ? `Lista actual: ${settings.userWatchlist.slice(0, 4).join(', ')}${settings.userWatchlist.length > 4 ? '...' : ''}`
-                      : `Current list: ${settings.userWatchlist.slice(0, 4).join(', ')}${settings.userWatchlist.length > 4 ? '...' : ''}`)
+                      ? `Lista actual: ${(settings.userWatchlist || []).slice(0, 4).join(', ')}${(settings.userWatchlist || []).length > 4 ? '...' : ''}`
+                      : `Current list: ${(settings.userWatchlist || []).slice(0, 4).join(', ')}${(settings.userWatchlist || []).length > 4 ? '...' : ''}`)
                   : (lang === 'es'
                       ? `AI usa 24 acciones optimizadas por capitalización y volatilidad`
                       : `AI uses 24 stocks optimized by market cap and volatility`)
@@ -953,10 +953,10 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         const symbol = e.target.value.toUpperCase().trim();
-                        if (symbol && !settings.userWatchlist.includes(symbol)) {
+                        if (symbol && !(settings.userWatchlist || []).includes(symbol)) {
                           setSettings(prev => ({
                             ...prev,
-                            userWatchlist: [...prev.userWatchlist, symbol]
+                            userWatchlist: [...(prev.userWatchlist || []), symbol]
                           }));
                           e.target.value = '';
                         }
@@ -964,13 +964,13 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
                     }}
                   />
                   <div className="flex flex-wrap gap-1">
-                    {settings.userWatchlist.map(symbol => (
+                    {(settings.userWatchlist || []).map(symbol => (
                       <span key={symbol} className="flex items-center gap-1 bg-slate-600 text-slate-200 text-xs px-2 py-1 rounded">
                         {symbol}
                         <button
                           onClick={() => setSettings(prev => ({
                             ...prev,
-                            userWatchlist: prev.userWatchlist.filter(s => s !== symbol)
+                            userWatchlist: (prev.userWatchlist || []).filter(s => s !== symbol)
                           }))}
                           className="text-slate-400 hover:text-red-400"
                         >×</button>
