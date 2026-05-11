@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { realTimeApi } from './realTimeApi';
+import { marketDataAPI } from './marketDataApi';
 
 const AI_TRADER_STORAGE_KEY = 'aiTraderData';
 const AI_SETTINGS_STORAGE_KEY = 'aiTraderSettings';
@@ -279,7 +280,7 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
   const [settings, setSettings] = useState({
     strategy: 'balanced',
     initialCash: 10000,
-    watchlistType: 'user', // 'user' or 'ai'
+    watchlistType: 'user', // 'user', 'ai', or 'smart'
     userWatchlist: DEFAULT_WATCHLIST,
     riskLevel: 0.02,
     maxPositions: 5,
@@ -292,6 +293,8 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
     nextActionIn: 0,
     isAnalyzing: false,
     currentPrices: {},
+    marketSentiment: null,
+    smartWatchlist: [],
     performance: {
       totalTrades: 0,
       winningTrades: 0,
@@ -349,6 +352,33 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
     }
   }, [settings]);
 
+  // Update market sentiment and smart watchlist
+  const updateMarketData = useCallback(async () => {
+    if (!isActive || settings.watchlistType !== 'smart') return;
+
+    try {
+      console.log('🔍 Updating market sentiment and smart watchlist...');
+      
+      const [sentiment, smartStocks] = await Promise.all([
+        marketDataAPI.getMarketSentiment(),
+        marketDataAPI.getSmartStockSelection(settings.strategy, 20)
+      ]);
+
+      if (sentiment) {
+        setAiStatus(prev => ({
+          ...prev,
+          marketSentiment: sentiment,
+          smartWatchlist: smartStocks.length > 0 ? smartStocks : prev.smartWatchlist
+        }));
+        
+        console.log('📊 Market sentiment:', sentiment.sentiment, 'Strength:', sentiment.strength.toFixed(2));
+        console.log('🎯 Smart watchlist updated:', smartStocks.slice(0, 5).join(', '), '...');
+      }
+    } catch (error) {
+      console.error('Error updating market data:', error);
+    }
+  }, [isActive, settings.watchlistType, settings.strategy]);
+
   // AI Trading Logic with advanced analysis
   const analyzeMarket = useCallback(async () => {
     if (!isActive) return;
@@ -356,9 +386,23 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
     setAiStatus(prev => ({ ...prev, isAnalyzing: true }));
 
     try {
+      // Update market data for smart watchlist
+      if (settings.watchlistType === 'smart') {
+        await updateMarketData();
+      }
+
+    try {
       // Get current watchlist based on strategy and type
       let currentWatchlist;
-      if (settings.watchlistType === 'ai') {
+      if (settings.watchlistType === 'smart') {
+        // Use smart AI selection based on real market data
+        if (aiStatus.smartWatchlist.length > 0) {
+          currentWatchlist = aiStatus.smartWatchlist;
+        } else {
+          // Fallback to default if smart watchlist not loaded yet
+          currentWatchlist = settings.userWatchlist;
+        }
+      } else if (settings.watchlistType === 'ai') {
         // Use high volatility watchlist for extreme strategies
         if (settings.strategy === 'yolo' || settings.strategy === 'extreme') {
           currentWatchlist = EXTREME_VOLATILITY_WATCHLIST;
@@ -385,9 +429,9 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
 
       setAiStatus(prev => ({ ...prev, currentPrices }));
 
-      // Advanced AI decision making with technical analysis
+      // Advanced AI decision making with technical analysis and market sentiment
       const strategy = TRADING_STRATEGIES[settings.strategy];
-      const decisions = await makeAdvancedTradeDecisions(currentPrices, portfolio, strategy, settings);
+      const decisions = await makeAdvancedTradeDecisions(currentPrices, portfolio, strategy, settings, aiStatus.marketSentiment);
       
       // Execute trades
       if (decisions.length > 0) {
@@ -401,8 +445,8 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
     }
   }, [isActive, settings, portfolio]);
 
-  // Advanced AI decision making with technical analysis
-  const makeAdvancedTradeDecisions = async (prices, currentPortfolio, strategy, traderSettings) => {
+  // Advanced AI decision making with technical analysis and market sentiment
+  const makeAdvancedTradeDecisions = async (prices, currentPortfolio, strategy, traderSettings, marketSentiment) => {
     const decisions = [];
     
     for (const [symbol, priceData] of Object.entries(prices)) {
@@ -458,6 +502,16 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
           const buySignal = generateAdvancedSignal(indicators, currentPrice, traderSettings.strategy);
           
           if (buySignal === 'buy') {
+            // Market sentiment filter
+            let sentimentMultiplier = 1;
+            if (marketSentiment) {
+              if (marketSentiment.sentiment === 'bullish' && marketSentiment.strength > 2) {
+                sentimentMultiplier = 1.2; // Boost confidence in bullish market
+              } else if (marketSentiment.sentiment === 'bearish' && marketSentiment.strength > 3) {
+                sentimentMultiplier = 0.7; // Reduce confidence in strong bearish market
+              }
+            }
+            
             // Backtest this specific setup
             const backtestResult = backtestStrategy(
               generateMockHistoricalData(currentPrice, 100).map((price, i) => ({
@@ -467,9 +521,15 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
               traderSettings.strategy
             );
             
-            // Only buy if backtest shows positive results
-            if (backtestResult.winRate > 0.5 && backtestResult.totalReturn > 0) {
-              const maxInvestment = currentPortfolio.cash * strategy.maxPositionSize;
+            // Adjust backtest requirements based on market sentiment
+            const requiredWinRate = marketSentiment?.sentiment === 'bullish' ? 0.45 : 0.5;
+            const requiredReturn = marketSentiment?.sentiment === 'bullish' ? -0.5 : 0;
+            
+            // Only buy if backtest shows positive results (adjusted for sentiment)
+            if (backtestResult.winRate > requiredWinRate && backtestResult.totalReturn > requiredReturn) {
+              const baseInvestment = currentPortfolio.cash * strategy.maxPositionSize;
+              const adjustedInvestment = baseInvestment * sentimentMultiplier;
+              const maxInvestment = Math.min(adjustedInvestment, currentPortfolio.cash * 0.9); // Never use more than 90%
               const shares = Math.floor(maxInvestment / currentPrice);
               
               if (shares > 0 && shares * currentPrice <= currentPortfolio.cash) {
@@ -478,9 +538,11 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
                   symbol,
                   shares,
                   price: currentPrice,
-                  reason: 'advanced_technical_analysis',
+                  reason: marketSentiment ? 'smart_ai_with_sentiment' : 'advanced_technical_analysis',
                   indicators: indicators,
-                  backtest: backtestResult
+                  backtest: backtestResult,
+                  marketSentiment: marketSentiment?.sentiment,
+                  sentimentStrength: marketSentiment?.strength
                 });
               }
             }
@@ -615,6 +677,13 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
     setPortfolio(newPortfolio);
   };
 
+  // Load market data when Smart AI is selected
+  useEffect(() => {
+    if (settings.watchlistType === 'smart' && !aiStatus.marketSentiment) {
+      updateMarketData();
+    }
+  }, [settings.watchlistType, updateMarketData, aiStatus.marketSentiment]);
+
   // AI Trading Timer
   useEffect(() => {
     let interval;
@@ -643,7 +712,7 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isActive, analyzeMarket, settings.strategy]);
+  }, [isActive, analyzeMarket, settings.strategy, updateMarketData]);
 
   const resetPortfolio = () => {
     if (confirm(lang === 'es' ? '¿Estás seguro de que quieres resetear el portafolio de AI?' : 'Are you sure you want to reset the AI portfolio?')) {
@@ -852,6 +921,12 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
                       {lang === 'es' ? 'Razón:' : 'Reason:'} {aiStatus.lastAction.reason.replace(/_/g, ' ')}
                     </p>
                   )}
+                  {aiStatus.lastAction.marketSentiment && (
+                    <p className="text-slate-500 text-xs">
+                      {lang === 'es' ? 'Sentimiento:' : 'Sentiment:'} {aiStatus.lastAction.marketSentiment} 
+                      {aiStatus.lastAction.sentimentStrength && ` (${aiStatus.lastAction.sentimentStrength.toFixed(1)}%)`}
+                    </p>
+                  )}
                   {aiStatus.lastAction.indicators && settings.useAdvancedAnalysis && (
                     <div className="mt-2 p-2 bg-slate-800/50 rounded text-xs">
                       <p className="text-slate-400 font-medium mb-1">
@@ -977,7 +1052,7 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
                 <label className="block text-slate-400 text-xs font-medium uppercase tracking-wide mb-2">
                   {lang === 'es' ? 'Lista de Acciones' : 'Stock List'}
                 </label>
-                <div className="grid grid-cols-2 gap-1">
+                <div className="grid grid-cols-3 gap-1">
                   <button
                     onClick={() => setSettings(prev => ({ ...prev, watchlistType: 'user' }))}
                     disabled={isActive}
@@ -999,6 +1074,17 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
                     } ${isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     AI
+                  </button>
+                  <button
+                    onClick={() => setSettings(prev => ({ ...prev, watchlistType: 'smart' }))}
+                    disabled={isActive}
+                    className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                      settings.watchlistType === 'smart'
+                        ? 'bg-green-600 text-white'
+                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    } ${isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {lang === 'es' ? 'Smart' : 'Smart'}
                   </button>
                 </div>
               </div>
@@ -1086,7 +1172,7 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
                 {lang === 'es' ? 'Lista de Acciones' : 'Stock Watchlist'}
               </label>
               
-              <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="grid grid-cols-3 gap-2 mb-3">
                 <button
                   onClick={() => setSettings(prev => ({ ...prev, watchlistType: 'user' }))}
                   disabled={isActive}
@@ -1096,7 +1182,7 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
                       : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                   } ${isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  {lang === 'es' ? 'Elegida por Usuario' : 'User Selected'}
+                  {lang === 'es' ? 'Usuario' : 'User'}
                 </button>
                 <button
                   onClick={() => setSettings(prev => ({ ...prev, watchlistType: 'ai' }))}
@@ -1107,7 +1193,18 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
                       : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                   } ${isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  {lang === 'es' ? 'Elegida por AI' : 'AI Selected'}
+                  AI
+                </button>
+                <button
+                  onClick={() => setSettings(prev => ({ ...prev, watchlistType: 'smart' }))}
+                  disabled={isActive}
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    settings.watchlistType === 'smart'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  } ${isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {lang === 'es' ? 'Smart AI' : 'Smart AI'}
                 </button>
               </div>
               
@@ -1116,9 +1213,13 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
                   ? (lang === 'es' 
                       ? `Lista actual: ${(settings.userWatchlist || []).slice(0, 4).join(', ')}${(settings.userWatchlist || []).length > 4 ? '...' : ''}`
                       : `Current list: ${(settings.userWatchlist || []).slice(0, 4).join(', ')}${(settings.userWatchlist || []).length > 4 ? '...' : ''}`)
-                  : (lang === 'es'
-                      ? `AI usa ${settings.strategy === 'yolo' || settings.strategy === 'extreme' ? '24 acciones de alta volatilidad (TSLA, NVDA, GME, etc.)' : '24 acciones optimizadas por capitalización y volatilidad'}`
-                      : `AI uses ${settings.strategy === 'yolo' || settings.strategy === 'extreme' ? '24 high volatility stocks (TSLA, NVDA, GME, etc.)' : '24 stocks optimized by market cap and volatility'}`)
+                  : settings.watchlistType === 'smart'
+                    ? (lang === 'es'
+                        ? `Smart AI usa datos en tiempo real: most active, gainers, losers según condiciones de mercado`
+                        : `Smart AI uses real-time data: most active, gainers, losers based on market conditions`)
+                    : (lang === 'es'
+                        ? `AI usa ${settings.strategy === 'yolo' || settings.strategy === 'extreme' ? '24 acciones de alta volatilidad (TSLA, NVDA, GME, etc.)' : '24 acciones optimizadas por capitalización y volatilidad'}`
+                        : `AI uses ${settings.strategy === 'yolo' || settings.strategy === 'extreme' ? '24 high volatility stocks (TSLA, NVDA, GME, etc.)' : '24 stocks optimized by market cap and volatility'}`)
                 }
               </div>
               
@@ -1185,6 +1286,58 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
                           ? 'Maximum volatility stocks selected for extreme trading: meme stocks, crypto-related and high beta stocks.'
                           : 'Selected by market cap, volume and optimal volatility for automated trading.')
                     }
+                  </p>
+                </div>
+              )}
+
+              {/* Smart AI watchlist display */}
+              {settings.watchlistType === 'smart' && (
+                <div className="space-y-2">
+                  <p className="text-slate-400 text-xs font-medium">
+                    {lang === 'es' ? 'Smart AI - Datos en tiempo real:' : 'Smart AI - Real-time data:'}
+                  </p>
+                  
+                  {/* Market Sentiment Indicator */}
+                  {aiStatus.marketSentiment && (
+                    <div className={`p-2 rounded text-xs ${
+                      aiStatus.marketSentiment.sentiment === 'bullish' 
+                        ? 'bg-green-900/30 border border-green-700 text-green-300'
+                        : 'bg-red-900/30 border border-red-700 text-red-300'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold">
+                          {aiStatus.marketSentiment.sentiment === 'bullish' ? '📈' : '📉'} 
+                          {lang === 'es' ? 'Sentimiento:' : 'Sentiment:'} {aiStatus.marketSentiment.sentiment.toUpperCase()}
+                        </span>
+                        <span>
+                          {lang === 'es' ? 'Fuerza:' : 'Strength:'} {aiStatus.marketSentiment.strength.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="text-xs mt-1 opacity-80">
+                        {lang === 'es' ? 'Ganadores:' : 'Gainers:'} {aiStatus.marketSentiment.totalGainers} | 
+                        {lang === 'es' ? ' Perdedores:' : ' Losers:'} {aiStatus.marketSentiment.totalLosers}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Smart Watchlist */}
+                  <div className="flex flex-wrap gap-1">
+                    {aiStatus.smartWatchlist.length > 0 ? (
+                      aiStatus.smartWatchlist.map(symbol => (
+                        <span key={symbol} className="bg-green-600 text-white text-xs px-2 py-1 rounded font-medium">
+                          {symbol}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-slate-500 text-xs">
+                        {lang === 'es' ? 'Cargando datos de mercado...' : 'Loading market data...'}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-slate-500 text-xs mt-2">
+                    {lang === 'es' 
+                      ? 'Selección inteligente basada en most active, gainers/losers y condiciones de mercado actuales usando APIs de Financial Modeling Prep y Alpaca.'
+                      : 'Smart selection based on most active, gainers/losers and current market conditions using Financial Modeling Prep and Alpaca APIs.'}
                   </p>
                 </div>
               )}
