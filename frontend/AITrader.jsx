@@ -655,9 +655,9 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="space-y-6">
         {/* Portfolio Overview */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="space-y-6">
           {/* Performance Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
@@ -733,8 +733,8 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
           </div>
         </div>
 
-        {/* AI Status & Settings */}
-        <div className="space-y-6">
+        {/* AI Status & Settings - Horizontal Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* AI Status */}
           <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
             <h2 className="text-white font-semibold mb-4 flex items-center gap-2">
@@ -840,14 +840,95 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
             </div>
           </div>
 
-          {/* Strategy Settings */}
+          {/* Quick Settings */}
           <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
             <h2 className="text-white font-semibold mb-4">
-              {lang === 'es' ? 'Configuración' : 'Settings'}
+              {lang === 'es' ? 'Configuración Rápida' : 'Quick Settings'}
             </h2>
             
+            <div className="space-y-4">
+              {/* Strategy Selection - Compact */}
+              <div>
+                <label className="block text-slate-400 text-xs font-medium uppercase tracking-wide mb-2">
+                  {lang === 'es' ? 'Estrategia' : 'Strategy'}
+                </label>
+                <select
+                  value={settings.strategy}
+                  onChange={(e) => setSettings(prev => ({ ...prev, strategy: e.target.value }))}
+                  disabled={isActive}
+                  className="w-full bg-slate-700 text-white rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+                >
+                  {Object.entries(TRADING_STRATEGIES).map(([key, strategy]) => (
+                    <option key={key} value={key}>
+                      {strategy.name[lang]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Watchlist Type - Compact */}
+              <div>
+                <label className="block text-slate-400 text-xs font-medium uppercase tracking-wide mb-2">
+                  {lang === 'es' ? 'Lista de Acciones' : 'Stock List'}
+                </label>
+                <div className="grid grid-cols-2 gap-1">
+                  <button
+                    onClick={() => setSettings(prev => ({ ...prev, watchlistType: 'user' }))}
+                    disabled={isActive}
+                    className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                      settings.watchlistType === 'user'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    } ${isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {lang === 'es' ? 'Usuario' : 'User'}
+                  </button>
+                  <button
+                    onClick={() => setSettings(prev => ({ ...prev, watchlistType: 'ai' }))}
+                    disabled={isActive}
+                    className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                      settings.watchlistType === 'ai'
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    } ${isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    AI
+                  </button>
+                </div>
+              </div>
+
+              {/* Advanced Analysis Toggle - Compact */}
+              <div className="flex items-center justify-between">
+                <label className="text-slate-400 text-xs font-medium uppercase tracking-wide">
+                  {lang === 'es' ? 'Análisis Avanzado' : 'Advanced'}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setSettings(prev => ({ ...prev, useAdvancedAnalysis: !prev.useAdvancedAnalysis }))}
+                  disabled={isActive}
+                  className={`w-10 h-5 rounded-full relative transition-colors ${
+                    settings.useAdvancedAnalysis ? 'bg-green-500' : 'bg-slate-600'
+                  } ${isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${
+                    settings.useAdvancedAnalysis ? 'left-5' : 'left-0.5'
+                  }`} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Detailed Configuration - Full Width */}
+        <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+          <h2 className="text-white font-semibold mb-4">
+            {lang === 'es' ? 'Configuración Detallada' : 'Detailed Configuration'}
+          </h2>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
             {/* Initial Cash Setting */}
-            <div className="mb-6">
+            <div>
               <label className="block text-slate-400 text-xs font-medium uppercase tracking-wide mb-2">
                 {lang === 'es' ? 'Capital Inicial' : 'Initial Capital'}
               </label>
@@ -891,17 +972,10 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
                   ? 'Rango: $1,000 - $1,000,000'
                   : 'Range: $1,000 - $1,000,000'}
               </p>
-              {isActive && (
-                <p className="text-yellow-400 text-xs mt-1">
-                  {lang === 'es' 
-                    ? 'Detén el AI para cambiar el capital'
-                    : 'Stop AI to change capital'}
-                </p>
-              )}
             </div>
 
             {/* Watchlist Type Selection */}
-            <div className="mb-6">
+            <div>
               <label className="block text-slate-400 text-xs font-medium uppercase tracking-wide mb-2">
                 {lang === 'es' ? 'Lista de Acciones' : 'Stock Watchlist'}
               </label>
@@ -1002,8 +1076,8 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
             </div>
 
             {/* Advanced Analysis Toggle */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-3">
                 <div>
                   <label className="block text-slate-400 text-xs font-medium uppercase tracking-wide">
                     {lang === 'es' ? 'Análisis Avanzado' : 'Advanced Analysis'}
@@ -1029,7 +1103,7 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
               </div>
               
               {settings.useAdvancedAnalysis && (
-                <div className="mt-3 p-3 bg-slate-700/30 rounded-lg">
+                <div className="p-3 bg-slate-700/30 rounded-lg">
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="text-green-400">RSI & MACD</div>
                     <div className="text-green-400">Bollinger Bands</div>
@@ -1041,47 +1115,6 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
                 </div>
               )}
             </div>
-            
-            {/* Strategy Selection */}
-            <div className="mb-4">
-              <label className="block text-slate-400 text-xs font-medium uppercase tracking-wide mb-2">
-                {lang === 'es' ? 'Estrategia de Trading' : 'Trading Strategy'}
-              </label>
-            </div>
-            
-            <div className="space-y-3">
-              {Object.entries(TRADING_STRATEGIES).map(([key, strategy]) => (
-                <button
-                  key={key}
-                  onClick={() => setSettings(prev => ({ ...prev, strategy: key }))}
-                  disabled={isActive}
-                  className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                    settings.strategy === key
-                      ? 'bg-blue-600/20 border-blue-500 text-white'
-                      : 'bg-slate-700/50 border-slate-600 text-slate-300 hover:border-blue-400'
-                  } ${isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <p className="font-semibold text-sm">{strategy.name[lang]}</p>
-                  <p className="text-xs opacity-75">{strategy.description[lang]}</p>
-                </button>
-              ))}
-            </div>
-            
-            {/* Apply Settings Button */}
-            {!isActive && (portfolio.cash !== settings.initialCash || Object.keys(portfolio.positions).length > 0) && (
-              <button
-                onClick={() => {
-                  if (confirm(lang === 'es' 
-                    ? '¿Aplicar nueva configuración? Esto reseteará el portafolio.'
-                    : 'Apply new settings? This will reset the portfolio.')) {
-                    resetPortfolio();
-                  }
-                }}
-                className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
-              >
-                {lang === 'es' ? 'Aplicar Configuración' : 'Apply Settings'}
-              </button>
-            )}
           </div>
         </div>
       </div>
