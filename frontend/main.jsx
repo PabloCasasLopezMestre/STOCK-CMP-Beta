@@ -9,6 +9,7 @@ import { t } from './i18n';
 import * as syncService from './syncService';
 import TickerBar from './TickerBar';
 import { getSupabase } from './supabaseClient';
+import ApiStatusIndicator from './ApiStatusIndicator';
 import './dark-theme.css';
 
 // Error boundary component
@@ -426,6 +427,9 @@ function App() {
             {navDisplayName && (
               <span className="text-slate-400 text-xs font-medium px-2 hidden sm:block truncate max-w-[100px]">{navDisplayName}</span>
             )}
+            <div className="hidden md:block">
+              <ApiStatusIndicator lang={lang} />
+            </div>
             <button
               onClick={() => setTab('settings')}
               className={`p-1.5 rounded-lg transition-colors ${tab === 'settings' ? 'bg-slate-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'}`}

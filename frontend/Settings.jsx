@@ -229,6 +229,74 @@ export default function Settings({
         </div>
       </div>
 
+      {/* API Status */}
+      <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+        <h2 className="text-white font-semibold mb-1">
+          {lang === 'es' ? 'Estado de APIs de Datos' : 'Data APIs Status'}
+        </h2>
+        <p className="text-slate-400 text-sm mb-4">
+          {lang === 'es' 
+            ? 'Sistema de múltiples APIs para datos en tiempo real con fallback automático.'
+            : 'Multi-API system for real-time data with automatic fallback.'}
+        </p>
+        
+        <div className="space-y-3">
+          <div className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-3 h-3 rounded-full bg-green-500" />
+              <div>
+                <p className="text-white text-sm font-medium">Alpha Vantage</p>
+                <p className="text-slate-400 text-xs">
+                  {lang === 'es' ? 'Tiempo real • 60 llamadas/minuto' : 'Real-time • 60 calls/minute'}
+                </p>
+              </div>
+            </div>
+            <span className="text-xs text-slate-300">
+              {lang === 'es' ? 'Prioridad 1' : 'Priority 1'}
+            </span>
+          </div>
+          
+          <div className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-3 h-3 rounded-full bg-blue-500" />
+              <div>
+                <p className="text-white text-sm font-medium">Twelve Data</p>
+                <p className="text-slate-400 text-xs">
+                  {lang === 'es' ? 'Tiempo real • 800 llamadas/día' : 'Real-time • 800 calls/day'}
+                </p>
+              </div>
+            </div>
+            <span className="text-xs text-slate-300">
+              {lang === 'es' ? 'Prioridad 2' : 'Priority 2'}
+            </span>
+          </div>
+          
+          <div className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-3 h-3 rounded-full bg-yellow-500" />
+              <div>
+                <p className="text-white text-sm font-medium">Yahoo Finance</p>
+                <p className="text-slate-400 text-xs">
+                  {lang === 'es' ? 'Retraso de 15 minutos • Ilimitado' : '15-minute delay • Unlimited'}
+                </p>
+              </div>
+            </div>
+            <span className="text-xs text-slate-300">
+              {lang === 'es' ? 'Fallback' : 'Fallback'}
+            </span>
+          </div>
+        </div>
+        
+        <div className="mt-4 p-3 bg-blue-900/20 border border-blue-700/50 rounded-lg">
+          <p className="text-blue-300 text-xs">
+            <strong>{lang === 'es' ? 'Nota:' : 'Note:'}</strong> {' '}
+            {lang === 'es' 
+              ? 'El sistema cambia automáticamente entre APIs según disponibilidad. Los datos en tiempo real se usan cuando están disponibles.'
+              : 'The system automatically switches between APIs based on availability. Real-time data is used when available.'}
+          </p>
+        </div>
+      </div>
+
       {/* Timezone */}
       <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
         <h2 className="text-white font-semibold mb-1">{t('settings_timezone', lang)}</h2>
