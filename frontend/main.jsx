@@ -108,6 +108,16 @@ function App() {
     }
   };
 
+  // API preference state
+  const [useRealTimeApis, setUseRealTimeApis] = useState(() => {
+    try { return localStorage.getItem('useRealTimeApis') !== 'false'; } catch { return true; }
+  });
+
+  const setUseRealTimeApisPersist = (useRealTime) => {
+    setUseRealTimeApis(useRealTime);
+    try { localStorage.setItem('useRealTimeApis', String(useRealTime)); } catch {}
+  };
+
   // Apply theme on mount
   useEffect(() => {
     if (darkTheme) {
@@ -528,6 +538,8 @@ function App() {
           dataResetAt={dataResetAt}
           darkTheme={darkTheme}
           setDarkTheme={setDarkThemePersist}
+          useRealTimeApis={useRealTimeApis}
+          setUseRealTimeApis={setUseRealTimeApisPersist}
         />
       )}
 

@@ -74,6 +74,9 @@ export default function Settings({
   // Theme props
   darkTheme = false,
   setDarkTheme,
+  // API preference props
+  useRealTimeApis = true,
+  setUseRealTimeApis,
 }) {
   const [tzSearch, setTzSearch] = useState('');
 
@@ -131,6 +134,7 @@ export default function Settings({
             if (setTickerAutoScroll) setTickerAutoScroll(true);
             if (setDefaultTimeRange) setDefaultTimeRange('1month');
             if (setDarkTheme) setDarkTheme(false);
+            if (setUseRealTimeApis) setUseRealTimeApis(true);
             if (setEnabledFeatures) setEnabledFeatures({
               fundamentals: true, technicalIndicators: true, patternRecognition: true,
               backtesting: true, comparativeAnalysis: true, comparatorNews: true,
@@ -143,6 +147,7 @@ export default function Settings({
               localStorage.setItem('userTimezone', 'America/New_York');
               localStorage.setItem('maxStocks', '8');
               localStorage.setItem('darkTheme', 'false');
+              localStorage.setItem('useRealTimeApis', 'true');
               localStorage.removeItem('enabledFeatures');
               localStorage.removeItem('tickerAutoScroll');
               localStorage.removeItem('visibleTimeRanges');
@@ -226,6 +231,68 @@ export default function Settings({
               {darkTheme && <span className="ml-auto w-2 h-2 rounded-full bg-blue-500" />}
             </div>
           </button>
+        </div>
+      </div>
+
+      {/* API Preference */}
+      <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+        <h2 className="text-white font-semibold mb-1">
+          {lang === 'es' ? 'Preferencia de Datos' : 'Data Preference'}
+        </h2>
+        <p className="text-slate-400 text-sm mb-4">
+          {lang === 'es' 
+            ? 'Elige entre datos en tiempo real (limitados) o datos con retraso (ilimitados).'
+            : 'Choose between real-time data (limited) or delayed data (unlimited).'}
+        </p>
+        
+        <div className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg">
+          <div>
+            <p className="text-white text-sm font-medium mb-1">
+              {useRealTimeApis 
+                ? (lang === 'es' ? 'Datos en Tiempo Real' : 'Real-Time Data')
+                : (lang === 'es' ? 'Datos con Retraso' : 'Delayed Data')
+              }
+            </p>
+            <p className="text-slate-400 text-xs">
+              {useRealTimeApis 
+                ? (lang === 'es' 
+                    ? 'Alpha Vantage + Twelve Data • Limitado pero instantáneo'
+                    : 'Alpha Vantage + Twelve Data • Limited but instant')
+                : (lang === 'es' 
+                    ? 'Yahoo Finance • Ilimitado con retraso de 15 minutos'
+                    : 'Yahoo Finance • Unlimited with 15-minute delay')
+              }
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setUseRealTimeApis && setUseRealTimeApis(!useRealTimeApis)}
+            className={`w-12 h-6 rounded-full relative transition-colors shrink-0 ml-4 ${
+              useRealTimeApis ? 'bg-green-500' : 'bg-blue-500'
+            }`}
+          >
+            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${
+              useRealTimeApis ? 'left-6' : 'left-0.5'
+            }`} />
+          </button>
+        </div>
+        
+        <div className="mt-3 p-3 bg-slate-900/30 border border-slate-600 rounded-lg">
+          <div className="flex items-start gap-2">
+            <svg className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+            <div>
+              <p className="text-slate-300 text-xs font-medium mb-1">
+                {lang === 'es' ? 'Recomendación:' : 'Recommendation:'}
+              </p>
+              <p className="text-slate-400 text-xs leading-relaxed">
+                {lang === 'es' 
+                  ? 'Usa tiempo real para trading activo. Usa datos con retraso para análisis general sin límites.'
+                  : 'Use real-time for active trading. Use delayed data for general analysis without limits.'}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 

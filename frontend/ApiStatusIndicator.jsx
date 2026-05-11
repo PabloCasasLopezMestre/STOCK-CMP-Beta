@@ -4,6 +4,13 @@ import { realTimeApi } from './realTimeApi';
 export default function ApiStatusIndicator({ lang = 'es' }) {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [useRealTimeApis, setUseRealTimeApis] = useState(true);
+
+  useEffect(() => {
+    // Check user preference
+    const preference = localStorage.getItem('useRealTimeApis') !== 'false';
+    setUseRealTimeApis(preference);
+  }, []);
 
   useEffect(() => {
     const checkStatus = async () => {
@@ -25,11 +32,32 @@ export default function ApiStatusIndicator({ lang = 'es' }) {
     return () => clearInterval(interval);
   }, []);
 
+  // Listen for preference changes
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const preference = localStorage.getItem('useRealTimeApis') !== 'false';
+      setUseRealTimeApis(preference);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-xs text-slate-400">
         <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
         <span>{lang === 'es' ? 'Verificando APIs...' : 'Checking APIs...'}</span>
+      </div>
+    );
+  }
+
+  // If user prefers Yahoo Finance
+  if (!useRealTimeApis) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-slate-300">
+        <div className="w-2 h-2 rounded-full bg-blue-500" />
+        <span>{lang === 'es' ? 'Yahoo (15min, ilimitado)' : 'Yahoo (15min, unlimited)'}</span>
       </div>
     );
   }

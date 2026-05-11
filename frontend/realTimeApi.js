@@ -40,6 +40,14 @@ class RealTimeApiService {
   }
 
   async getRealTimePrice(symbol) {
+    // Check user preference
+    const useRealTimeApis = localStorage.getItem('useRealTimeApis') !== 'false';
+    
+    if (!useRealTimeApis) {
+      // User prefers Yahoo Finance (unlimited with delay)
+      return this.getFallbackPrice(symbol);
+    }
+
     try {
       // Try new real-time endpoint first
       const response = await fetch(`${WORKER_BASE}/api/price/${symbol}`);
