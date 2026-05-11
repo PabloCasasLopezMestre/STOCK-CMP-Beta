@@ -423,7 +423,7 @@ function App() {
               onClick={() => setTab('ai-mode')}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1 ${tab === 'ai-mode' ? 'bg-purple-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
             >
-              🤖 {lang === 'es' ? 'AI Mode' : 'AI Mode'}
+              {lang === 'es' ? 'AI Mode' : 'AI Mode'}
             </button>
             <button
               onClick={() => setTab('community')}
