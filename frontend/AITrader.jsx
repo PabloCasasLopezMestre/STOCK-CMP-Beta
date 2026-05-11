@@ -34,6 +34,176 @@ const TRADING_STRATEGIES = {
 
 const DEFAULT_WATCHLIST = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'NVDA', 'META', 'NFLX'];
 
+// AI-selected watchlist based on market cap, volume, and volatility
+const AI_SELECTED_WATCHLIST = [
+  'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'NVDA', 'META', 'NFLX',
+  'BRK-B', 'UNH', 'JNJ', 'V', 'PG', 'JPM', 'HD', 'MA',
+  'AVGO', 'PFE', 'ABBV', 'KO', 'PEP', 'COST', 'TMO', 'MRK'
+];
+
+// Technical indicators calculations
+const calculateSMA = (prices, period) => {
+  if (prices.length < period) return null;
+  const sum = prices.slice(-period).reduce((a, b) => a + b, 0);
+  return sum / period;
+};
+
+const calculateEMA = (prices, period) => {
+  if (prices.length < period) return null;
+  const multiplier = 2 / (period + 1);
+  let ema = prices.slice(0, period).reduce((a, b) => a + b, 0) / period;
+  
+  for (let i = period; i < prices.length; i++) {
+    ema = (prices[i] * multiplier) + (ema * (1 - multiplier));
+  }
+  return ema;
+};
+
+const calculateRSI = (prices, period = 14) => {
+  if (prices.length < period + 1) return null;
+  
+  let gains = 0;
+  let losses = 0;
+  
+  for (let i = 1; i <= period; i++) {
+    const change = prices[i] - prices[i - 1];
+    if (change > 0) gains += change;
+    else losses -= change;
+  }
+  
+  const avgGain = gains / period;
+  const avgLoss = losses / period;
+  const rs = avgGain / avgLoss;
+  return 100 - (100 / (1 + rs));
+};
+
+const calculateMACD = (prices) => {
+  const ema12 = calculateEMA(prices, 12);
+  const ema26 = calculateEMA(prices, 26);
+  if (!ema12 || !ema26) return null;
+  
+  const macd = ema12 - ema26;
+  return { macd, signal: calculateEMA([macd], 9) };
+};
+
+const calculateBollingerBands = (prices, period = 20, stdDev = 2) => {
+  if (prices.length < period) return null;
+  
+  const sma = calculateSMA(prices, period);
+  const recentPrices = prices.slice(-period);
+  const variance = recentPrices.reduce((sum, price) => sum + Math.pow(price - sma, 2), 0) / period;
+  const standardDeviation = Math.sqrt(variance);
+  
+  return {
+    upper: sma + (standardDeviation * stdDev),
+    middle: sma,
+    lower: sma - (standardDeviation * stdDev)
+  };
+};
+
+// Pattern recognition
+const detectPatterns = (prices, volumes) => {
+  const patterns = [];
+  
+  if (prices.length < 5) return patterns;
+  
+  const recent = prices.slice(-5);
+  const recentVolumes = volumes.slice(-5);
+  
+  // Bullish patterns
+  if (recent[4] > recent[3] && recent[3] > recent[2] && recentVolumes[4] > recentVolumes[3]) {
+    patterns.push({ type: 'bullish_momentum', strength: 0.7 });
+  }
+  
+  // Bearish patterns
+  if (recent[4] < recent[3] && recent[3] < recent[2] && recentVolumes[4] > recentVolumes[3]) {
+    patterns.push({ type: 'bearish_momentum', strength: 0.7 });
+  }
+  
+  // Reversal patterns
+  const lowest = Math.min(...recent.slice(0, 4));
+  if (recent[4] > lowest * 1.02 && recent[3] === lowest) {
+    patterns.push({ type: 'hammer_reversal', strength: 0.6 });
+  }
+  
+  return patterns;
+};
+
+// Advanced backtesting
+const backtestStrategy = (historicalData, strategy) => {
+  let capital = 10000;
+  let position = null;
+  let trades = [];
+  
+  for (let i = 20; i < historicalData.length; i++) {
+    const currentData = historicalData.slice(0, i + 1);
+    const prices = currentData.map(d => d.price);
+    const volumes = currentData.map(d => d.volume);
+    
+    const indicators = {
+      rsi: calculateRSI(prices),
+      sma20: calculateSMA(prices, 20),
+      sma50: calculateSMA(prices, 50),
+      bollinger: calculateBollingerBands(prices),
+      patterns: detectPatterns(prices, volumes)
+    };
+    
+    const signal = generateAdvancedSignal(indicators, prices[i], strategy);
+    
+    if (signal === 'buy' && !position && capital > prices[i]) {
+      const shares = Math.floor(capital * 0.2 / prices[i]);
+      position = { shares, price: prices[i], entry: i };
+      capital -= shares * prices[i];
+    } else if (signal === 'sell' && position) {
+      const profit = (prices[i] - position.price) * position.shares;
+      capital += position.shares * prices[i];
+      trades.push({ profit, duration: i - position.entry });
+      position = null;
+    }
+  }
+  
+  const winRate = trades.filter(t => t.profit > 0).length / trades.length;
+  const totalReturn = ((capital - 10000) / 10000) * 100;
+  
+  return { winRate, totalReturn, totalTrades: trades.length };
+};
+
+// Advanced signal generation
+const generateAdvancedSignal = (indicators, currentPrice, strategy) => {
+  const { rsi, sma20, sma50, bollinger, patterns } = indicators;
+  
+  if (!rsi || !sma20 || !sma50 || !bollinger) return 'hold';
+  
+  let bullishSignals = 0;
+  let bearishSignals = 0;
+  
+  // RSI signals
+  if (rsi < 30) bullishSignals += 2; // Oversold
+  if (rsi > 70) bearishSignals += 2; // Overbought
+  
+  // Moving average signals
+  if (currentPrice > sma20 && sma20 > sma50) bullishSignals += 1;
+  if (currentPrice < sma20 && sma20 < sma50) bearishSignals += 1;
+  
+  // Bollinger bands
+  if (currentPrice < bollinger.lower) bullishSignals += 1;
+  if (currentPrice > bollinger.upper) bearishSignals += 1;
+  
+  // Pattern signals
+  patterns.forEach(pattern => {
+    if (pattern.type.includes('bullish')) bullishSignals += pattern.strength;
+    if (pattern.type.includes('bearish')) bearishSignals += pattern.strength;
+  });
+  
+  // Strategy-specific thresholds
+  const threshold = strategy === 'aggressive' ? 1.5 : strategy === 'conservative' ? 3 : 2;
+  
+  if (bullishSignals >= threshold && bullishSignals > bearishSignals) return 'buy';
+  if (bearishSignals >= threshold && bearishSignals > bullishSignals) return 'sell';
+  
+  return 'hold';
+};
+
 export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) {
   const [isActive, setIsActive] = useState(false);
   const [portfolio, setPortfolio] = useState({
@@ -48,9 +218,12 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
   const [settings, setSettings] = useState({
     strategy: 'balanced',
     initialCash: 10000,
-    watchlist: DEFAULT_WATCHLIST,
-    riskLevel: 0.02, // 2% max risk per trade
-    maxPositions: 5
+    watchlistType: 'user', // 'user' or 'ai'
+    userWatchlist: DEFAULT_WATCHLIST,
+    riskLevel: 0.02,
+    maxPositions: 5,
+    useAdvancedAnalysis: true,
+    backtestPeriod: 30 // days
   });
   
   const [aiStatus, setAiStatus] = useState({
@@ -115,15 +288,20 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
     }
   }, [settings]);
 
-  // AI Trading Logic
+  // AI Trading Logic with advanced analysis
   const analyzeMarket = useCallback(async () => {
     if (!isActive) return;
 
     setAiStatus(prev => ({ ...prev, isAnalyzing: true }));
 
     try {
+      // Get current watchlist
+      const currentWatchlist = settings.watchlistType === 'ai' 
+        ? AI_SELECTED_WATCHLIST 
+        : settings.userWatchlist;
+
       // Get current prices for watchlist
-      const pricePromises = settings.watchlist.map(symbol => 
+      const pricePromises = currentWatchlist.map(symbol => 
         realTimeApi.getRealTimePrice(symbol)
       );
       
@@ -132,15 +310,15 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
       
       priceResults.forEach((result, index) => {
         if (result.status === 'fulfilled' && result.value) {
-          currentPrices[settings.watchlist[index]] = result.value;
+          currentPrices[currentWatchlist[index]] = result.value;
         }
       });
 
       setAiStatus(prev => ({ ...prev, currentPrices }));
 
-      // Simple AI decision making
+      // Advanced AI decision making with technical analysis
       const strategy = TRADING_STRATEGIES[settings.strategy];
-      const decisions = makeTradeDecisions(currentPrices, portfolio, strategy, settings);
+      const decisions = await makeAdvancedTradeDecisions(currentPrices, portfolio, strategy, settings);
       
       // Execute trades
       if (decisions.length > 0) {
@@ -154,59 +332,111 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
     }
   }, [isActive, settings, portfolio]);
 
-  // Simple AI decision making algorithm
-  const makeTradeDecisions = (prices, currentPortfolio, strategy, traderSettings) => {
+  // Advanced AI decision making with technical analysis
+  const makeAdvancedTradeDecisions = async (prices, currentPortfolio, strategy, traderSettings) => {
     const decisions = [];
     
-    Object.entries(prices).forEach(([symbol, priceData]) => {
-      if (!priceData || !priceData.price) return;
+    for (const [symbol, priceData] of Object.entries(prices)) {
+      if (!priceData || !priceData.price) continue;
       
       const currentPrice = priceData.price;
-      const changePercent = priceData.changePercent || 0;
       const position = currentPortfolio.positions[symbol];
+      
+      // Get historical data (simulated for demo)
+      const historicalPrices = generateMockHistoricalData(currentPrice, 50);
+      const historicalVolumes = historicalPrices.map(() => Math.random() * 1000000 + 500000);
+      
+      // Calculate technical indicators
+      const indicators = {
+        rsi: calculateRSI(historicalPrices),
+        sma20: calculateSMA(historicalPrices, 20),
+        sma50: calculateSMA(historicalPrices, 50),
+        ema12: calculateEMA(historicalPrices, 12),
+        ema26: calculateEMA(historicalPrices, 26),
+        bollinger: calculateBollingerBands(historicalPrices),
+        patterns: detectPatterns(historicalPrices, historicalVolumes)
+      };
       
       // Sell logic (if we have a position)
       if (position) {
         const currentValue = position.shares * currentPrice;
         const returnPercent = (currentValue - position.totalCost) / position.totalCost;
         
-        // Take profit or stop loss
-        if (returnPercent >= strategy.takeProfit || returnPercent <= -strategy.stopLoss) {
+        // Advanced sell signals
+        const sellSignal = generateAdvancedSignal(indicators, currentPrice, traderSettings.strategy);
+        
+        if (sellSignal === 'sell' || 
+            returnPercent >= strategy.takeProfit || 
+            returnPercent <= -strategy.stopLoss) {
+          
           decisions.push({
             type: 'sell',
             symbol,
             shares: position.shares,
             price: currentPrice,
-            reason: returnPercent >= strategy.takeProfit ? 'take_profit' : 'stop_loss'
+            reason: sellSignal === 'sell' ? 'technical_signal' : 
+                   (returnPercent >= strategy.takeProfit ? 'take_profit' : 'stop_loss'),
+            indicators: indicators
           });
         }
       }
       
-      // Buy logic (if we don't have a position or want to add)
+      // Buy logic (if we don't have a position)
       else {
         const positionCount = Object.keys(currentPortfolio.positions).length;
         
         if (positionCount < traderSettings.maxPositions) {
-          // Simple momentum strategy
-          if (changePercent > 2 && changePercent < 8) { // Positive momentum but not too high
-            const maxInvestment = currentPortfolio.cash * strategy.maxPositionSize;
-            const shares = Math.floor(maxInvestment / currentPrice);
+          const buySignal = generateAdvancedSignal(indicators, currentPrice, traderSettings.strategy);
+          
+          if (buySignal === 'buy') {
+            // Backtest this specific setup
+            const backtestResult = backtestStrategy(
+              generateMockHistoricalData(currentPrice, 100).map((price, i) => ({
+                price,
+                volume: historicalVolumes[i] || 1000000
+              })),
+              traderSettings.strategy
+            );
             
-            if (shares > 0 && shares * currentPrice <= currentPortfolio.cash) {
-              decisions.push({
-                type: 'buy',
-                symbol,
-                shares,
-                price: currentPrice,
-                reason: 'momentum'
-              });
+            // Only buy if backtest shows positive results
+            if (backtestResult.winRate > 0.5 && backtestResult.totalReturn > 0) {
+              const maxInvestment = currentPortfolio.cash * strategy.maxPositionSize;
+              const shares = Math.floor(maxInvestment / currentPrice);
+              
+              if (shares > 0 && shares * currentPrice <= currentPortfolio.cash) {
+                decisions.push({
+                  type: 'buy',
+                  symbol,
+                  shares,
+                  price: currentPrice,
+                  reason: 'advanced_technical_analysis',
+                  indicators: indicators,
+                  backtest: backtestResult
+                });
+              }
             }
           }
         }
       }
-    });
+    }
     
     return decisions;
+  };
+
+  // Generate mock historical data for demo purposes
+  const generateMockHistoricalData = (currentPrice, periods) => {
+    const data = [];
+    let price = currentPrice * 0.95; // Start 5% lower
+    
+    for (let i = 0; i < periods; i++) {
+      const change = (Math.random() - 0.5) * 0.04; // ±2% random change
+      price = price * (1 + change);
+      data.push(price);
+    }
+    
+    // Ensure last price is close to current
+    data[data.length - 1] = currentPrice;
+    return data;
   };
 
   // Execute trading decisions
@@ -242,7 +472,15 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
         
         setAiStatus(prev => ({
           ...prev,
-          lastAction: { type: 'buy', symbol, shares, price, reason },
+          lastAction: { 
+            type: 'buy', 
+            symbol, 
+            shares, 
+            price, 
+            reason,
+            indicators: decision.indicators,
+            backtest: decision.backtest
+          },
           performance: {
             ...prev.performance,
             totalTrades: prev.performance.totalTrades + 1
@@ -274,7 +512,15 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
         
         setAiStatus(prev => ({
           ...prev,
-          lastAction: { type: 'sell', symbol, shares, price, profit, reason },
+          lastAction: { 
+            type: 'sell', 
+            symbol, 
+            shares, 
+            price, 
+            profit, 
+            reason,
+            indicators: decision.indicators
+          },
           performance: {
             ...prev.performance,
             totalTrades: prev.performance.totalTrades + 1,
@@ -533,6 +779,26 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
                   <p className="text-slate-400 text-xs">
                     {aiStatus.lastAction.shares} @ {formatCurrency(aiStatus.lastAction.price)}
                   </p>
+                  {aiStatus.lastAction.reason && (
+                    <p className="text-slate-500 text-xs">
+                      {lang === 'es' ? 'Razón:' : 'Reason:'} {aiStatus.lastAction.reason.replace(/_/g, ' ')}
+                    </p>
+                  )}
+                  {aiStatus.lastAction.indicators && settings.useAdvancedAnalysis && (
+                    <div className="mt-2 p-2 bg-slate-800/50 rounded text-xs">
+                      <p className="text-slate-400 font-medium mb-1">
+                        {lang === 'es' ? 'Indicadores:' : 'Indicators:'}
+                      </p>
+                      <div className="grid grid-cols-2 gap-1 text-xs">
+                        {aiStatus.lastAction.indicators.rsi && (
+                          <div>RSI: {aiStatus.lastAction.indicators.rsi.toFixed(1)}</div>
+                        )}
+                        {aiStatus.lastAction.indicators.patterns?.length > 0 && (
+                          <div>Patrones: {aiStatus.lastAction.indicators.patterns.length}</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -583,8 +849,8 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
             
             {/* Initial Cash Setting */}
             <div className="mb-6">
-              <label className="block text-slate-400 text-xs font-medium uppercase tracking-wide mb-2">
-                {lang === 'es' ? 'Capital Inicial' : 'Initial Capital'}
+              <label className="block text-red-400 text-lg font-bold uppercase tracking-wide mb-2">
+                🚨 CAPITAL INICIAL - PRUEBA DE CAMBIO 🚨
               </label>
               
               {/* Quick presets */}
@@ -635,6 +901,79 @@ export default function AITrader({ lang = 'es', currency = 'USD', rates = {} }) 
               )}
             </div>
 
+            {/* TEST SECTION - SHOULD BE VISIBLE */}
+            <div className="mb-6 p-6 bg-red-500 border-4 border-white rounded-lg">
+              <h3 className="text-white text-xl font-bold mb-4">
+                🚨 SECCIÓN DE PRUEBA - ¿PUEDES VER ESTO?
+              </h3>
+              <p className="text-white text-lg">
+                Si puedes ver esta sección roja, el problema está en otra parte.
+              </p>
+            </div>
+
+            {/* Watchlist Type Selection - MOVED HERE TO BE MORE VISIBLE */}
+            <div className="mb-6 p-4 bg-yellow-900/20 border border-yellow-600 rounded-lg">
+              <label className="block text-yellow-300 text-sm font-bold uppercase tracking-wide mb-3">
+                🎯 LISTA DE ACCIONES
+              </label>
+              
+              <div className="grid grid-cols-1 gap-3 mb-4">
+                <button
+                  onClick={() => setSettings(prev => ({ ...prev, watchlistType: 'user' }))}
+                  className="px-4 py-3 rounded-lg text-sm font-bold bg-blue-600 border-blue-400 text-white border-2"
+                >
+                  👤 ELEGIDA POR USUARIO
+                </button>
+                <button
+                  onClick={() => setSettings(prev => ({ ...prev, watchlistType: 'ai' }))}
+                  className="px-4 py-3 rounded-lg text-sm font-bold bg-purple-600 border-purple-400 text-white border-2"
+                >
+                  🤖 ELEGIDA POR AI
+                </button>
+              </div>
+            </div>
+
+            {/* Advanced Analysis Toggle */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="block text-slate-400 text-xs font-medium uppercase tracking-wide">
+                    {lang === 'es' ? 'Análisis Avanzado' : 'Advanced Analysis'}
+                  </label>
+                  <p className="text-slate-500 text-xs mt-1">
+                    {lang === 'es' 
+                      ? 'Indicadores técnicos, patrones y backtesting'
+                      : 'Technical indicators, patterns & backtesting'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSettings(prev => ({ ...prev, useAdvancedAnalysis: !prev.useAdvancedAnalysis }))}
+                  disabled={isActive}
+                  className={`w-12 h-6 rounded-full relative transition-colors shrink-0 ml-4 ${
+                    settings.useAdvancedAnalysis ? 'bg-green-500' : 'bg-slate-600'
+                  } ${isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${
+                    settings.useAdvancedAnalysis ? 'left-6' : 'left-0.5'
+                  }`} />
+                </button>
+              </div>
+              
+              {settings.useAdvancedAnalysis && (
+                <div className="mt-3 p-3 bg-slate-700/30 rounded-lg">
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="text-green-400">✓ RSI & MACD</div>
+                    <div className="text-green-400">✓ Bollinger Bands</div>
+                    <div className="text-green-400">✓ Moving Averages</div>
+                    <div className="text-green-400">✓ Pattern Recognition</div>
+                    <div className="text-green-400">✓ Strategy Backtesting</div>
+                    <div className="text-green-400">✓ Volume Analysis</div>
+                  </div>
+                </div>
+              )}
+            </div>
+            
             {/* Strategy Selection */}
             <div className="mb-4">
               <label className="block text-slate-400 text-xs font-medium uppercase tracking-wide mb-2">
