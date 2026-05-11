@@ -150,6 +150,87 @@ export default function About({ lang = 'es' }) {
         </Term>
       </Section>
 
+      <Section query={query} title={s('AI Mode — Variables y Configuración', 'AI Mode — Variables & Configuration')}>
+        <Term term={s('Capital Inicial', 'Initial Capital')}>
+          {s('El monto de dinero virtual que el AI usará para trading automático. Rango: $1,000 - $1,000,000. Este capital es completamente independiente del portafolio manual. Presets disponibles: $5K, $10K, $25K, $50K, $100K, $250K.', 'The amount of virtual money the AI will use for automated trading. Range: $1,000 - $1,000,000. This capital is completely independent from the manual portfolio. Available presets: $5K, $10K, $25K, $50K, $100K, $250K.')}
+        </Term>
+        <Term term={s('Estrategia de Trading', 'Trading Strategy')}>
+          {s('Conservador: máximo 15% del capital por acción, stop loss 5%, take profit 10%, frecuencia 5 minutos. Balanceado: máximo 20%, stop loss 6%, take profit 12%, frecuencia 3 minutos. Agresivo: máximo 25%, stop loss 8%, take profit 15%, frecuencia 2 minutos.', 'Conservative: max 15% of capital per stock, 5% stop loss, 10% take profit, 5-minute frequency. Balanced: max 20%, 6% stop loss, 12% take profit, 3-minute frequency. Aggressive: max 25%, 8% stop loss, 15% take profit, 2-minute frequency.')}
+        </Term>
+        <Term term={s('Watchlist del Usuario vs AI', 'User vs AI Watchlist')}>
+          {s('Usuario: lista personalizable donde puedes agregar/quitar símbolos manualmente. Empieza con 8 acciones predeterminadas (AAPL, MSFT, GOOGL, AMZN, TSLA, NVDA, META, NFLX). AI: lista fija de 24 acciones optimizadas por capitalización de mercado, volumen y volatilidad óptima para trading automático.', 'User: customizable list where you can manually add/remove symbols. Starts with 8 default stocks (AAPL, MSFT, GOOGL, AMZN, TSLA, NVDA, META, NFLX). AI: fixed list of 24 stocks optimized by market cap, volume and optimal volatility for automated trading.')}
+        </Term>
+        <Term term={s('Análisis Avanzado', 'Advanced Analysis')}>
+          {s('Cuando está activado, el AI usa indicadores técnicos (RSI, MACD, Bollinger Bands, SMA/EMA), reconocimiento de patrones (momentum alcista/bajista, reversión martillo) y backtesting automático. Cada decisión de compra se valida con simulación histórica antes de ejecutarse.', 'When enabled, the AI uses technical indicators (RSI, MACD, Bollinger Bands, SMA/EMA), pattern recognition (bullish/bearish momentum, hammer reversal) and automatic backtesting. Each buy decision is validated with historical simulation before execution.')}
+        </Term>
+        <Term term={s('Máximo de Posiciones', 'Maximum Positions')}>
+          {s('Número máximo de acciones diferentes que el AI puede tener simultáneamente. Valor predeterminado: 5 posiciones. Esto evita la sobre-diversificación y mantiene el portafolio enfocado en las mejores oportunidades.', 'Maximum number of different stocks the AI can hold simultaneously. Default value: 5 positions. This prevents over-diversification and keeps the portfolio focused on the best opportunities.')}
+        </Term>
+        <Term term={s('Nivel de Riesgo', 'Risk Level')}>
+          {s('Porcentaje del capital que el AI está dispuesto a arriesgar por operación. Valor predeterminado: 2% (0.02). Este parámetro influye en el tamaño de las posiciones y la gestión de riesgo general del sistema.', 'Percentage of capital the AI is willing to risk per trade. Default value: 2% (0.02). This parameter influences position sizing and overall risk management of the system.')}
+        </Term>
+      </Section>
+
+      <Section query={query} title={s('AI Mode — Indicadores Técnicos', 'AI Mode — Technical Indicators')}>
+        <Term term="RSI (Relative Strength Index)">
+          {s('El AI usa RSI con período de 14. Valores < 30 indican sobreventa (señal de compra potencial), valores > 70 indican sobrecompra (señal de venta potencial). El AI combina RSI con otros indicadores para confirmar señales.', 'The AI uses RSI with a 14-period. Values < 30 indicate oversold (potential buy signal), values > 70 indicate overbought (potential sell signal). The AI combines RSI with other indicators to confirm signals.')}
+        </Term>
+        <Term term="MACD (Moving Average Convergence Divergence)">
+          {s('Diferencia entre EMA de 12 y 26 períodos. Cuando MACD cruza por encima de la línea Signal (EMA de 9 del MACD) es señal alcista. El AI usa estos cruces para identificar cambios de tendencia.', 'Difference between 12 and 26-period EMAs. When MACD crosses above the Signal line (9-period EMA of MACD) it is bullish. The AI uses these crossovers to identify trend changes.')}
+        </Term>
+        <Term term={s('Bandas de Bollinger', 'Bollinger Bands')}>
+          {s('Media móvil de 20 períodos ± 2 desviaciones estándar. Cuando el precio toca la banda inferior puede estar sobrevendido (compra potencial). Cuando toca la superior, sobrecomprado (venta potencial).', '20-period moving average ± 2 standard deviations. When price touches the lower band it may be oversold (potential buy). When it touches the upper band, overbought (potential sell).')}
+        </Term>
+        <Term term={s('Medias Móviles (SMA/EMA)', 'Moving Averages (SMA/EMA)')}>
+          {s('SMA 20 y 50 períodos para tendencia. EMA 12 y 26 para señales más rápidas. El AI compra cuando el precio está por encima de SMA 20 y SMA 20 > SMA 50 (tendencia alcista confirmada).', 'SMA 20 and 50-period for trend. EMA 12 and 26 for faster signals. The AI buys when price is above SMA 20 and SMA 20 > SMA 50 (confirmed bullish trend).')}
+        </Term>
+      </Section>
+
+      <Section query={query} title={s('AI Mode — Gestión de Riesgo', 'AI Mode — Risk Management')}>
+        <Term term="Stop Loss Automático">
+          {s('El AI establece automáticamente un stop loss para cada posición según la estrategia: 5% (Conservador), 6% (Balanceado), 8% (Agresivo). Si una acción cae por debajo de este nivel, se vende automáticamente para limitar pérdidas.', 'The AI automatically sets a stop loss for each position based on strategy: 5% (Conservative), 6% (Balanced), 8% (Aggressive). If a stock falls below this level, it is automatically sold to limit losses.')}
+        </Term>
+        <Term term="Take Profit Automático">
+          {s('Objetivo de ganancia automático: 10% (Conservador), 12% (Balanceado), 15% (Agresivo). Cuando una posición alcanza este nivel de ganancia, el AI la vende automáticamente para asegurar beneficios.', 'Automatic profit target: 10% (Conservative), 12% (Balanced), 15% (Aggressive). When a position reaches this profit level, the AI automatically sells it to secure gains.')}
+        </Term>
+        <Term term={s('Tamaño de Posición', 'Position Sizing')}>
+          {s('Máximo por acción según estrategia: 15% (Conservador), 20% (Balanceado), 25% (Agresivo) del capital total. Esto evita concentrar demasiado riesgo en una sola acción y mantiene la diversificación.', 'Maximum per stock by strategy: 15% (Conservative), 20% (Balanced), 25% (Aggressive) of total capital. This prevents concentrating too much risk in a single stock and maintains diversification.')}
+        </Term>
+        <Term term={s('Backtesting Automático', 'Automatic Backtesting')}>
+          {s('Antes de cada compra, el AI simula la estrategia sobre 100 períodos históricos. Solo ejecuta la compra si el backtest muestra tasa de éxito > 50% y retorno total positivo. Esto filtra señales de baja calidad.', 'Before each purchase, the AI simulates the strategy over 100 historical periods. It only executes the buy if backtesting shows win rate > 50% and positive total return. This filters out low-quality signals.')}
+        </Term>
+      </Section>
+
+      <Section query={query} title={s('AI Mode — Estadísticas de Rendimiento', 'AI Mode — Performance Statistics')}>
+        <Term term={s('Total Trades', 'Total Trades')}>
+          {s('Número total de operaciones (compras y ventas) ejecutadas por el AI desde que se inició. Incluye tanto trades ganadores como perdedores.', 'Total number of operations (buys and sells) executed by the AI since it started. Includes both winning and losing trades.')}
+        </Term>
+        <Term term={s('Tasa de Éxito (Win Rate)', 'Win Rate')}>
+          {s('Porcentaje de trades que resultaron en ganancia. Se calcula como (Trades Ganadores / Total Trades) × 100. Una tasa > 60% se considera excelente para trading automático.', 'Percentage of trades that resulted in profit. Calculated as (Winning Trades / Total Trades) × 100. A rate > 60% is considered excellent for automated trading.')}
+        </Term>
+        <Term term={s('Trades Ganadores/Perdedores', 'Winning/Losing Trades')}>
+          {s('Conteo de operaciones que cerraron con ganancia vs pérdida. El AI registra cada venta y calcula si el resultado fue positivo o negativo comparado con el precio de compra.', 'Count of operations that closed with profit vs loss. The AI records each sale and calculates whether the result was positive or negative compared to the purchase price.')}
+        </Term>
+        <Term term={s('Retorno Total (%)', 'Total Return (%)')}>
+          {s('Ganancia o pérdida porcentual del capital inicial. Se calcula como ((Valor Actual - Capital Inicial) / Capital Inicial) × 100. Incluye tanto posiciones abiertas como efectivo disponible.', 'Percentage gain or loss on initial capital. Calculated as ((Current Value - Initial Capital) / Initial Capital) × 100. Includes both open positions and available cash.')}
+        </Term>
+      </Section>
+
+      <Section query={query} title={s('AI Mode — APIs en Tiempo Real', 'AI Mode — Real-Time APIs')}>
+        <Term term="Alpha Vantage API">
+          {s('API principal para datos en tiempo real. Límite: 60 llamadas por minuto. Proporciona precios actualizados sin el retraso de 15 minutos de Yahoo Finance. Clave API: 9VCPU2QGDHJ8KFZW (plan gratuito).', 'Primary API for real-time data. Limit: 60 calls per minute. Provides updated prices without Yahoo Finance\'s 15-minute delay. API Key: 9VCPU2QGDHJ8KFZW (free plan).')}
+        </Term>
+        <Term term="Twelve Data API">
+          {s('API secundaria para datos en tiempo real. Límite: 800 llamadas por día. Se usa como respaldo cuando Alpha Vantage alcanza su límite por minuto. Clave API: ed5e6725518743c2bd5f9937c6318d34 (plan gratuito).', 'Secondary API for real-time data. Limit: 800 calls per day. Used as backup when Alpha Vantage reaches its per-minute limit. API Key: ed5e6725518743c2bd5f9937c6318d34 (free plan).')}
+        </Term>
+        <Term term="Yahoo Finance (Fallback)">
+          {s('Fuente de respaldo con datos retrasados 15 minutos pero sin límites de llamadas. El AI usa automáticamente esta fuente cuando las APIs en tiempo real no están disponibles o han alcanzado sus límites.', 'Fallback source with 15-minute delayed data but no call limits. The AI automatically uses this source when real-time APIs are unavailable or have reached their limits.')}
+        </Term>
+        <Term term={s('Switch de API en Ajustes', 'API Switch in Settings')}>
+          {s('Permite elegir entre "APIs en tiempo real (limitadas)" o "Yahoo Finance (ilimitada con delay)". Esta configuración afecta tanto al AI Mode como al resto de la aplicación.', 'Allows choosing between "Real-time APIs (limited)" or "Yahoo Finance (unlimited with delay)". This setting affects both AI Mode and the rest of the application.')}
+        </Term>
+      </Section>
+
       {/* ── PORTAFOLIO ── */}
       <Section query={query} title={s('Portafolio — Gráficas', 'Portfolio — Charts')}>
         <Term term={s('Gráfica del Portafolio', 'Portfolio Chart')}>
@@ -505,7 +586,22 @@ export default function About({ lang = 'es' }) {
             </div>
 
             <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
-              <h2 className="text-blue-400 font-bold text-base mb-3">3. {s('Comunidad', 'Community')}</h2>
+              <h2 className="text-blue-400 font-bold text-base mb-3">3. {s('AI Mode (Trading Automático)', 'AI Mode (Automated Trading)')}</h2>
+              <ol className="text-slate-300 text-sm space-y-2 list-decimal list-inside leading-relaxed">
+                <li>{s('Accede al AI Mode desde la pestaña en la navegación principal. Es un sistema completamente independiente del portafolio manual.', 'Access AI Mode from the tab in the main navigation. It is a completely independent system from the manual portfolio.')}</li>
+                <li>{s('Configura el capital inicial usando los presets rápidos ($5K, $10K, $25K, $50K, $100K, $250K) o ingresa un monto personalizado entre $1,000 y $1,000,000.', 'Configure initial capital using quick presets ($5K, $10K, $25K, $50K, $100K, $250K) or enter a custom amount between $1,000 and $1,000,000.')}</li>
+                <li>{s('Elige la estrategia de trading: Conservador (bajo riesgo, 15% máximo por acción), Balanceado (riesgo medio, 20% máximo), o Agresivo (alto riesgo, 25% máximo).', 'Choose trading strategy: Conservative (low risk, 15% max per stock), Balanced (medium risk, 20% max), or Aggressive (high risk, 25% max).')}</li>
+                <li>{s('Selecciona el tipo de watchlist: "Elegida por Usuario" (personalizable, agrega/quita símbolos manualmente) o "Elegida por AI" (24 acciones optimizadas por capitalización y volatilidad).', 'Select watchlist type: "User Selected" (customizable, add/remove symbols manually) or "AI Selected" (24 stocks optimized by market cap and volatility).')}</li>
+                <li>{s('Activa el Análisis Avanzado para usar indicadores técnicos (RSI, MACD, Bollinger Bands), reconocimiento de patrones y backtesting automático en cada decisión.', 'Enable Advanced Analysis to use technical indicators (RSI, MACD, Bollinger Bands), pattern recognition and automatic backtesting on each decision.')}</li>
+                <li>{s('Presiona "Iniciar AI" para comenzar el trading automático. El AI analizará el mercado cada 2-5 minutos según la estrategia seleccionada.', 'Press "Start AI" to begin automated trading. The AI will analyze the market every 2-5 minutes depending on the selected strategy.')}</li>
+                <li>{s('Monitorea el rendimiento en tiempo real: valor total, ganancia/pérdida, retorno porcentual, y estadísticas de trading (total trades, tasa de éxito).', 'Monitor real-time performance: total value, profit/loss, percentage return, and trading statistics (total trades, win rate).')}</li>
+                <li>{s('Usa "Detener AI" para pausar el trading automático en cualquier momento. Usa "Reset" para reiniciar el portafolio con el capital inicial.', 'Use "Stop AI" to pause automated trading at any time. Use "Reset" to restart the portfolio with initial capital.')}</li>
+                <li>{s('El AI integra datos en tiempo real de Alpha Vantage y Twelve Data cuando están disponibles, con fallback automático a Yahoo Finance.', 'The AI integrates real-time data from Alpha Vantage and Twelve Data when available, with automatic fallback to Yahoo Finance.')}</li>
+              </ol>
+            </div>
+
+            <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
+              <h2 className="text-blue-400 font-bold text-base mb-3">4. {s('Comunidad', 'Community')}</h2>
               <ol className="text-slate-300 text-sm space-y-2 list-decimal list-inside leading-relaxed">
                 <li>{s('Inicia sesión con tu correo electrónico para participar en la comunidad.', 'Sign in with your email to participate in the community.')}</li>
                 <li>{s('En Ajustes configura tu handle (@usuario), nombre, bio y país para que otros traders puedan encontrarte.', 'In Settings configure your handle (@user), name, bio, and country so other traders can find you.')}</li>
@@ -518,11 +614,13 @@ export default function About({ lang = 'es' }) {
             </div>
 
             <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
-              <h2 className="text-blue-400 font-bold text-base mb-3">4. {s('Ajustes', 'Settings')}</h2>
+              <h2 className="text-blue-400 font-bold text-base mb-3">5. {s('Ajustes', 'Settings')}</h2>
               <ol className="text-slate-300 text-sm space-y-2 list-decimal list-inside leading-relaxed">
                 <li>{s('Cambia el idioma entre Español e Inglés.', 'Change the language between Spanish and English.')}</li>
                 <li>{s('Configura las monedas activas para la rotación (USD, MXN, EUR y más de 20 monedas disponibles).', 'Configure active currencies for rotation (USD, MXN, EUR and 20+ available currencies.')}</li>
                 <li>{s('Ajusta la zona horaria para que los datos intradía se muestren en tu hora local.', 'Adjust the time zone so intraday data is shown in your local time.')}</li>
+                <li>{s('Selecciona el tema visual: Azul (predeterminado) o Blanco y Negro para mejor contraste y menos fatiga visual.', 'Select visual theme: Blue (default) or Black and White for better contrast and less eye strain.')}</li>
+                <li>{s('Configura el switch de API: elige entre APIs en tiempo real (Alpha Vantage + Twelve Data, limitadas) o Yahoo Finance (ilimitada con delay de 15 minutos).', 'Configure API switch: choose between real-time APIs (Alpha Vantage + Twelve Data, limited) or Yahoo Finance (unlimited with 15-minute delay).')}</li>
                 <li>{s('Configura tu perfil de comunidad: handle, nombre, bio, avatar y país.', 'Configure your community profile: handle, name, bio, avatar, and country.')}</li>
                 <li>{s('Usa el slider de "Máximo de acciones simultáneas" para elegir cuántas acciones puedes tener seleccionadas a la vez en el Comparador (rango: 4–20).', 'Use the "Maximum simultaneous stocks" slider to choose how many stocks you can have selected at once in the Comparator (range: 4–20).')}</li>
                 <li>{s('En "Escala de tiempo predeterminada" elige el rango de tiempo que se aplica al cargar el Comparador, Indicadores Técnicos, Patrones y Backtesting.', 'In "Default time range" choose the time range applied when loading the Comparator, Technical Indicators, Patterns and Backtesting.')}</li>
@@ -535,7 +633,7 @@ export default function About({ lang = 'es' }) {
             </div>
 
             <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
-              <h2 className="text-blue-400 font-bold text-base mb-3">5. {s('Acciones internacionales y otros instrumentos', 'International stocks and other instruments')}</h2>
+              <h2 className="text-blue-400 font-bold text-base mb-3">6. {s('Acciones internacionales y otros instrumentos', 'International stocks and other instruments')}</h2>
               <div className="text-slate-300 text-sm space-y-2 leading-relaxed">
                 <p>{s('Puedes buscar cualquier instrumento que esté disponible en Yahoo Finance:', 'You can search for any instrument available on Yahoo Finance:')}</p>
                 <ul className="list-disc list-inside space-y-1 ml-2">
@@ -613,11 +711,27 @@ export default function About({ lang = 'es' }) {
                 s('Mensajes no leídos con badge', 'Unread messages with badge'),
                 s('Borrar mensajes propios y ajenos', 'Delete own and others\' messages'),
               ]},
+              { title: s('AI Mode (Trading Automático)', 'AI Mode (Automated Trading)'), items: [
+                s('Trading automático con portafolio independiente del simulador manual', 'Automated trading with portfolio independent from manual simulator'),
+                s('Tres estrategias: Conservador (bajo riesgo), Balanceado (riesgo medio), Agresivo (alto riesgo)', 'Three strategies: Conservative (low risk), Balanced (medium risk), Aggressive (high risk)'),
+                s('Capital inicial configurable: $5,000 - $1,000,000 con presets rápidos', 'Configurable initial capital: $5,000 - $1,000,000 with quick presets'),
+                s('Dos tipos de watchlist: elegida por usuario (personalizable) o elegida por AI (24 acciones optimizadas)', 'Two watchlist types: user-selected (customizable) or AI-selected (24 optimized stocks)'),
+                s('Análisis técnico avanzado: RSI, MACD, Bandas de Bollinger, medias móviles (SMA/EMA)', 'Advanced technical analysis: RSI, MACD, Bollinger Bands, moving averages (SMA/EMA)'),
+                s('Reconocimiento de patrones: momentum alcista/bajista, reversión martillo', 'Pattern recognition: bullish/bearish momentum, hammer reversal'),
+                s('Backtesting automático: cada decisión de compra se valida con backtesting histórico', 'Automatic backtesting: each buy decision is validated with historical backtesting'),
+                s('Gestión de riesgo: stop loss y take profit automáticos según estrategia', 'Risk management: automatic stop loss and take profit based on strategy'),
+                s('Estadísticas de rendimiento: total trades, tasa de éxito, trades ganadores/perdedores', 'Performance statistics: total trades, win rate, winning/losing trades'),
+                s('Integración con APIs en tiempo real: Alpha Vantage (60 calls/min), Twelve Data (800 calls/día)', 'Real-time API integration: Alpha Vantage (60 calls/min), Twelve Data (800 calls/day)'),
+                s('Configuración horizontal: Capital, Watchlist y Análisis Avanzado en layout optimizado', 'Horizontal configuration: Capital, Watchlist and Advanced Analysis in optimized layout'),
+                s('Control total: iniciar/detener AI, reset de portafolio, configuración en tiempo real', 'Full control: start/stop AI, portfolio reset, real-time configuration'),
+              ]},
               { title: s('Ajustes', 'Settings'), items: [
                 s('Idioma: Español, English, Français, Italiano, Deutsch, Português, 中文, Русский, العربية, 日本語, 한국어', 'Language: Spanish, English, French, Italian, German, Portuguese, Chinese, Russian, Arabic, Japanese, Korean'),
                 s('Rotación de monedas: USD, MXN, EUR y más de 20 monedas', 'Currency rotation: USD, MXN, EUR and 20+ currencies'),
                 s('Zona horaria personalizable', 'Customizable time zone'),
                 s('Máximo de acciones simultáneas: slider de 4 a 20 acciones', 'Maximum simultaneous stocks: slider from 4 to 20'),
+                s('Switch de API: elegir entre APIs en tiempo real (limitadas) o Yahoo Finance (ilimitada con delay de 15min)', 'API switch: choose between real-time APIs (limited) or Yahoo Finance (unlimited with 15min delay)'),
+                s('Temas visuales: Azul (predeterminado) y Blanco y Negro para mejor contraste', 'Visual themes: Blue (default) and Black and White for better contrast'),
                 s('Banda de precios animada: activa/desactiva el desplazamiento automático de la banda de precios', 'Animated price ticker: enable/disable automatic scrolling of the price ticker'),
                 s('Banda de precios personalizable: elige entre mostrar las acciones del comparador o agregar símbolos manualmente desde Ajustes', 'Customizable price ticker: choose between showing comparator stocks or adding symbols manually from Settings'),
                 s('Funciones visibles: activa/desactiva datos fundamentales, indicadores técnicos, patrones, backtesting, análisis comparativo, noticias (comparador), posiciones, historial de transacciones, cuentas bancarias, noticias (portafolio), gráfica de valor total', 'Visible features: enable/disable fundamental data, technical indicators, patterns, backtesting, comparative analysis, news (comparator), positions, transaction history, bank accounts, news (portfolio), total value chart'),
